@@ -6,19 +6,25 @@
 
 ## Última atualização
 
-**2026-05-02, sessão 2 (ADR-0001 mergeado)**
+**2026-05-02, sessão 2 (ADR-0001 mergeado + revisão D2 completa)**
 
 ## Onde estamos
 
-Semana 1 de 8-10. Bootstrap formalmente fechado: ADR-0001 documentando
-todas as decisões fundacionais (monorepo, stack canônica, idiomas,
-três regras imutáveis, workflow git, direct-commit allowlist) está
-mergeado em `main`. Estrutura `docs/adr/` existe. Padrão de ADR
-validado em uso real e disponível como referência para futuras decisões
-arquiteturais.
+Semana 1 de 8-10. Bootstrap fechado em ADR-0001. Decisão (a) tomada:
+próxima frente é o MCP server `lgpd-policy-reader` em FastMCP 2.x,
+cobrindo Domínio 2 inteiro (peso 18%). Revisão conceitual completa do
+D2 feita na sessão 2 (5 task statements: tool descriptions, resources
+vs tools, structured errors, .mcp.json, tool_choice + built-in tools);
+quatro ajustes de precisão registrados no learning-log.
 
-Nenhum código de produção escrito ainda. Nenhum teste rodando.
-Nenhum servidor MCP iniciado.
+Sessão 3 entra direto na arquitetura concreta: resources, tools,
+schema da Política, contratos de erro. Sem código ainda — decisão
+arquitetural primeiro, código no Claude Code depois.
+
+Branch protection em main: configurada como ruleset mas em "Evaluate"
+mode (limitação de GitHub Free para repo privado em conta pessoal);
+fica ativa quando migrar para Team. Decisão 5 do ADR-0001 continua
+valendo por convenção.
 
 ## Branch atual
 
@@ -26,37 +32,36 @@ Nenhum servidor MCP iniciado.
 
 ## Próximo passo concreto
 
-**Decidir entre duas frentes para abrir a sessão 3.** Ambas avançam
-o projeto; diferem em domínio da prova exercitado e em densidade
-de conceitos por hora investida.
+**Sessão 3: arquitetura concreta do `lgpd-policy-reader`.** Quatro
+decisões a tomar, na ordem:
 
-- **(a) Primeiro MCP server `lgpd-policy-reader` em FastMCP.** Cobre
-  Domínio 2 inteiro (peso 18%) numa só implementação: tool
-  descriptions diferenciadas (`get_clause` vs
-  `find_related_law_articles` sem overlap), structured error
-  responses (`errorCategory`, `isRetryable`), `tool_choice` forçado,
-  `.mcp.json` project-scope com `${VARS}` expandidos, MCP resources
-  como catálogo navegável da Política. Implementação termina em uma
-  sessão; conecta direto à extensão Claude Code para teste empírico.
-- **(b) Estrutura inicial de `policy/` com schema YAML mínimo.**
-  Cobre mais Domínio 5 (provenance, schema versioning,
-  `policy_schema_version` compatibility). Componente jurídico
-  significativo fora do escopo da prova; mais lento e mais denso
-  conceitualmente.
+1. **Schema mínimo da Política em YAML.** Estrutura de uma cláusula
+   (clause_id, articleSource, requirements, applicabilityScope,
+   exceptions, internalDirectiveLinks). Versão 0.1.0, suficiente
+   para o server consumir.
+2. **Lista exata de resources expostos.** Candidatos:
+   `policy://catalog`, `policy://clauses/{clause_id}`,
+   `policy://schema-version`. Critério: catálogo navegável vai aqui.
+3. **Lista exata de tools expostas.** Candidatos: `get_clause`,
+   `find_related_law_articles`, `check_applicability`,
+   `list_exceptions`. Critério: ação computacional vai aqui.
+   Descrições escritas com cuidado para evitar overlap (D2.1).
+4. **Contratos de erro por tool.** Para cada tool acima: validation
+   error vs business error vs valid empty result. `errorCategory` +
+   `isRetryable` explícitos.
 
-**Recomendação:** (a). Mais conceitos da prova por hora, e o MCP
-server passa a ser ferramenta usável imediatamente para acelerar
-sessões seguintes (consultar Política via extensão Claude Code
-durante design da Política, não depois).
-
-João decide ao abrir a sessão 3.
+Saída da sessão 3: rascunho de spec do servidor em
+`docs/specs/lgpd-policy-reader.md`, levado para o Claude Code na
+sessão 4 para implementação. ADR-0002 registrando as decisões
+arquiteturais nasce ao final da sessão 3, junto com o spec.
 
 ## Pendências não-bloqueantes
 
 - **Captação de orientador na UTFPR** — prazo crítico,
   ~13 dias remanescentes
+- Migração de conta GitHub para Team (ativa branch protection
+  configurada hoje em "Evaluate" mode)
 - `.python-version` na raiz com `3.12.7` (5 minutos)
-- Branch protection em main no GitHub (3 minutos via web)
 - `~/.claude/CLAUDE.md` user-scope com preferências pessoais
 - Considerar enxugamento futuro da seção "Mapeamento aos 5 domínios"
   em `proposta-tcc.md` (redundância com exam guide PDF)
@@ -76,6 +81,9 @@ João decide ao abrir a sessão 3.
 - Conventional Commits
 - Formato de ADR: Nygard expandido para decisões compostas; MADR
   reservado para futuras decisões com trade-off comparativo real
+- Frente de implementação atual: MCP server `lgpd-policy-reader` em
+  FastMCP 2.x (decidido sessão 2 sobre alternativa "policy schema
+  primeiro")
 
 ## Estado da infraestrutura
 
@@ -86,11 +94,15 @@ João decide ao abrir a sessão 3.
   (3.14 desinstalado)
 - gh CLI autenticado como `paivapereira` via OAuth
 - Claude Code CLI 2.1.123 autenticado, extensão VS Code funcional
-- `docs/adr/0001-bootstrap.md` mergeado via PR padrão
+- `docs/adr/0001-bootstrap.md` mergeado via PR padrão (PR #3)
 - ADR-0001 subido ao project knowledge para contexto autoritativo
+- Branch protection ruleset criado em "Evaluate" mode (não enforça
+  até migração para Team)
 - Testes empíricos de adherence ao CLAUDE.md (sessão 1): passaram
-- Padrão `conversation_search` para provenance verification (sessão 2):
-  validado em uso real
+- Padrão `conversation_search` para provenance verification
+  (sessão 2): validado em uso real
+- Revisão Domínio 2 completa (sessão 2): cinco task statements +
+  quatro ajustes de precisão no learning-log
 
 ## Convenção de atualização
 

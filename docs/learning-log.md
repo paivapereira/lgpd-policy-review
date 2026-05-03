@@ -221,3 +221,27 @@ por hora investida. Decisão fica para abertura da sessão 3.
 - `~/.claude/CLAUDE.md` user-scope com preferências cross-projeto
 - Considerar enxugamento futuro da seção "Mapeamento aos 5 domínios"
   da `proposta-tcc.md` para reduzir redundância com o exam guide
+
+### Ajustes pós-revisão D2 (Domínio 2 — Tool Design & MCP Integration)
+
+- **D2.2 — catálogo navegável é resource, não tool.** Política inteira
+  vira resource (`policy://catalog`, URI estável, GET-like, sem args);
+  acesso pontual a cláusula vira tool (`get_clause(id)`) ou resource
+  parametrizado (`policy://clauses/{id}`). Confundir as duas primitivas
+  é o erro mais comum de quem aprendeu MCP só por implementação.
+- **D2.5 — `tool_choice` tem três modos, não dois.** `auto` (modelo
+  decide), `any` (força alguma tool, útil para garantir output
+  estruturado), e `{"type": "tool", "name": "X"}` (força tool
+  específica, útil em primeiro passo de pipeline determinístico).
+- **D2.4 — `.mcp.json` viaja com o repo, mas execução exige opt-in
+  local.** Cada desenvolvedor que clona o repo aprova individualmente
+  a execução do server na primeira vez (proteção contra `command`
+  malicioso). Configuração ≠ execução automática. Distrator clássico
+  da prova: "configurando em `.mcp.json` o server roda automaticamente
+  para todo dev que clona". Falso.
+- **D2.5 — Edit é default, Read+Write é fallback consciente.** Edit é
+  mais seguro porque falha visivelmente em mismatch em vez de produzir
+  arquivo corrompido. Justifica fallback para Read+Write apenas quando
+  (a) match genuinamente ambíguo, ou (b) edição estrutural demais para
+  match cirúrgico. Usar Read+Write "porque é mais simples" é
+  anti-padrão.

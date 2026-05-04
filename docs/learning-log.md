@@ -159,6 +159,14 @@ da stack canônica, três regras imutáveis com racional). Estrutura
   em ADR específico antes de v1.0 ou abertura pública do repo.
 - **ADRs aprovados sobem ao project knowledge.** Curadoria via
   `docs/adr/INDEX.md` quando passar de ~15 ADRs.
+  - **Cláusula POL-000 de definições declarando vocabulário de classes
+  de dados.** Sete classes em v0.1.0. Compartilhada entre
+  `structured_context` e `applicability_scope`. Versionada com o
+  schema da política.
+- **Output do sistema: Report JSON consolidado por execução.**
+  Definido como saída estrutural, não feature acessória. Schema
+  explícito vai no spec. Agregação inter-execução (mapa de dados
+  longitudinal) deferida com condição clara para revisitar.
 
 ### Artefatos criados
 
@@ -325,6 +333,19 @@ por hora investida. Decisão fica para abertura da sessão 3.
   confiabilidade importa mais que flexibilidade do raciocínio, a
   lógica migra do prompt para o código.
 
+  - **D5 — scratchpad files + provenance.** Sistemas multi-step com IA
+  precisam de artefato durável de execução. Output do agente é o
+  arquivo estruturado (Report JSON), não o conteúdo da última
+  mensagem. Carrega versão de schema e política consultadas para
+  reprodutibilidade. Sem isso, achados ficam reféns do contexto
+  efêmero do agente.
+
+- **D4 — structured output via tool_use forçado.** Report JSON sai
+  melhor com tool `emit_report` cujo input schema é o objeto desejado
+  do que com prompt pedindo "responda em JSON". Validação garantida
+  pelo schema; sem isso, validation-retry loop torcendo o JSON sair
+  bem formado.
+
 ### Conceitos fora do escopo da prova
 
 - **Conformidade declarativa vs efetiva como fronteira do sistema.**
@@ -356,6 +377,40 @@ por hora investida. Decisão fica para abertura da sessão 3.
   é `ui://` (SEP-1865, MCP Apps Extension, fora do escopo).
   Adotado `policy://` para o servidor e `doc://internal/` como
   convenção do projeto. Validado via web search durante a sessão.
+
+  ### Refinamentos de design (final da sessão)
+
+- **Política declara classes, não campos; exigências, não técnicas.**
+  PII não é propriedade do campo isolado, é do contexto de tratamento.
+  LGPD evita classificação rígida tipo "campo X é PII"; nossa política
+  segue o mesmo princípio. Vocabulário de classes (sete em v0.1.0) é
+  declarado em cláusula POL-000 de definições e compartilhado entre
+  classificador e cláusulas — sem shared schema, sistema produz
+  outputs sintaticamente válidos mas semanticamente quebrados.
+  Técnicas de anonimização (hash, k-anonymity, etc.) ficam em
+  diretrizes internas linkadas, não na política — política exige
+  resultado, técnica decide como.
+
+- **Sistema produz Report JSON consolidado por execução.**
+  Agregação intra-execução: 14 pontos de tratamento analisados → 1
+  relatório estruturado anexado ao PR. Estrutura: `report_id`,
+  versões de schema e política consultadas (provenance),
+  `scope`, `summary` agregado, `findings` detalhado.
+  Implementação natural via tool_use forçado com schema explícito
+  (D4 — structured output). Relatório como scratchpad durável de
+  execução (D5) — auditável post-hoc, reprodutível, pesquisável.
+
+- **Agregação longitudinal (mapa de dados cross-PR) fica deferida.**
+  Coisa diferente do relatório por execução. Custo alto: storage
+  persistente entre rodadas, reconciliação com mudanças retroativas,
+  versionamento de findings sob políticas distintas, audiência
+  diferente (DPO/auditoria vs dev/revisor). Em escopo de TCC, vira
+  cilada de scope creep. Forma boa de extender no futuro: segundo
+  produto que consome relatórios do primeiro como input batch — não
+  feature adicional do primeiro. Padrão coordinator-subagent em
+  versão batch (D1, ressonância distante). Condição para revisitar:
+  pipeline em produção ≥3 meses + demanda explícita de DPO por
+  inventário cross-PR recorrente.
 
 ### Decisões tomadas
 
@@ -454,3 +509,19 @@ após merge. Sessão 5 começa implementação em FastMCP.
 - `.python-version` na raiz fixando 3.12.7
 - Branch protection em main (depende de migração para Team)
 - `~/.claude/CLAUDE.md` user-scope com preferências cross-projeto
+
+- **(novo) Vocabulário de classes de dados declarado em cláusula
+  POL-000 de definições.** Sete classes em v0.1.0:
+  `dados_de_identificação`, `dados_de_contato`, `dados_de_navegação`,
+  `dados_comportamentais`, `dados_sensíveis`, `dados_de_localização`,
+  `dados_financeiros`. Vocabulário compartilhado entre `data_categories`
+  do `structured_context` e `applicability_scope` das cláusulas. Política
+  declara classes e exigências; técnica de implementação (ex: hash
+  SHA-256) vive em diretrizes internas linkadas via
+  `internal_directive_links`, não na política.
+- **(novo) Output do sistema é Report JSON consolidado por execução.**
+  Estrutura inclui `report_id`, `policy_schema_version`,
+  `policy_version`, `scope` (ex: `pr-127`), `summary` agregado por
+  veredito, `findings` lista detalhada por ponto de tratamento.
+  Agregação intra-execução, não inter-execução. Mapa de dados
+  longitudinal (cross-PR) fica deferido — registrado em ADR-0002.

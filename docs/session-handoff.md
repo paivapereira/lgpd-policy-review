@@ -43,13 +43,20 @@ duplicação):
 
 1. **Redigir `docs/specs/lgpd-policy-reader.md`.** Documento descritivo
    consolidando as quatro decisões: schema YAML v0.1.0 da Política
-   (estrutura completa, exemplo de cláusula ativa e tombstone),
-   resources expostos (`policy://catalog`, `policy://schema-version`)
-   com payload schema, tools expostas (`get_clause`,
-   `find_clauses_by_law_article`, `check_applicability`) com
-   assinatura completa e `structured_context` da terceira tool,
-   matriz de erros por tool com `errorCategory`, `errorCode`,
-   `isRetryable` e distinção empty/indeterminate como não-erros.
+   (estrutura completa, exemplo de cláusula ativa e tombstone, e
+   **cláusula POL-000 de definições declarando o vocabulário de
+   classes de dados** — `dados_de_identificação`, `dados_de_contato`,
+   `dados_de_navegação`, `dados_comportamentais`, `dados_sensíveis`,
+   `dados_de_localização`, `dados_financeiros`); resources expostos
+   (`policy://catalog`, `policy://schema-version`) com payload schema;
+   tools expostas (`get_clause`, `find_clauses_by_law_article`,
+   `check_applicability`) com assinatura completa e
+   `structured_context` da terceira tool; matriz de erros por tool
+   com `errorCategory`, `errorCode`, `isRetryable` e distinção
+   empty/indeterminate como não-erros; e **seção "Output: Report"
+   descrevendo o JSON consolidado por execução** (`report_id`,
+   `policy_schema_version`, `policy_version`, `scope`, `summary`,
+   `findings`) — saída estrutural do sistema, scratchpad versionado.
 
 2. **Redigir `docs/adr/0002-lgpd-policy-reader-architecture.md`** no
    formato Nygard expandido. Quatro sub-decisões alinhadas às

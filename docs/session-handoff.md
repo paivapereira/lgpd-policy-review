@@ -6,25 +6,31 @@
 
 ## Última atualização
 
-**2026-05-02, sessão 2 (ADR-0001 mergeado + revisão D2 completa)**
+**2026-05-04, sessão 3 (arquitetura conceitual do lgpd-policy-reader fechada)**
 
 ## Onde estamos
 
-Semana 1 de 8-10. Bootstrap fechado em ADR-0001. Decisão (a) tomada:
-próxima frente é o MCP server `lgpd-policy-reader` em FastMCP 2.x,
-cobrindo Domínio 2 inteiro (peso 18%). Revisão conceitual completa do
-D2 feita na sessão 2 (5 task statements: tool descriptions, resources
-vs tools, structured errors, .mcp.json, tool_choice + built-in tools);
-quatro ajustes de precisão registrados no learning-log.
+Semana 2 de 8-10. As quatro decisões arquiteturais do MCP server
+`lgpd-policy-reader` foram tomadas: schema YAML v0.1.0 da Política,
+resources expostos, tools expostas, contratos de erro por tool.
+Nenhum código foi escrito — sessão foi inteira de design conceitual,
+com Domínio 2 (peso 18%) coberto em decisão concreta e Domínio 5
+(peso 15%) emergindo forte através de schema versioning, stable
+identifiers, conformidade declarativa vs efetiva e escalation
+patterns. Domínio 1.4 entrou como ponte conceitual (programmatic
+enforcement vs prompt-based guidance) no design do `check_applicability`.
 
-Sessão 3 entra direto na arquitetura concreta: resources, tools,
-schema da Política, contratos de erro. Sem código ainda — decisão
-arquitetural primeiro, código no Claude Code depois.
+A redação dos artefatos (spec + ADR) foi conscientemente adiada para
+a sessão 4. Quatro decisões consecutivas em sequência geram fadiga
+incompatível com a redação cuidadosa que ADR Nygard expandido + spec
+exigem.
 
-Branch protection em main: configurada como ruleset mas em "Evaluate"
-mode (limitação de GitHub Free para repo privado em conta pessoal);
-fica ativa quando migrar para Team. Decisão 5 do ADR-0001 continua
-valendo por convenção.
+Reframe importante registrado nesta sessão: o sistema verifica
+**conformidade declarativa**, não efetiva. Análise estática de PR
+não vê estado runtime nem comportamento upstream — onde a verificação
+exige isso, o sistema retorna `indeterminate` + dimensão a verificar
+manualmente, em vez de fingir certeza. Esse reframe condicionou o
+design da tool `check_applicability` e do output da matriz de erros.
 
 ## Branch atual
 
@@ -32,33 +38,42 @@ valendo por convenção.
 
 ## Próximo passo concreto
 
-**Sessão 3: arquitetura concreta do `lgpd-policy-reader`.** Quatro
-decisões a tomar, na ordem:
+**Sessão 4: redação do spec + ADR-0002.** Em ordem (inverter leva a
+duplicação):
 
-1. **Schema mínimo da Política em YAML.** Estrutura de uma cláusula
-   (clause_id, articleSource, requirements, applicabilityScope,
-   exceptions, internalDirectiveLinks). Versão 0.1.0, suficiente
-   para o server consumir.
-2. **Lista exata de resources expostos.** Candidatos:
-   `policy://catalog`, `policy://clauses/{clause_id}`,
-   `policy://schema-version`. Critério: catálogo navegável vai aqui.
-3. **Lista exata de tools expostas.** Candidatos: `get_clause`,
-   `find_related_law_articles`, `check_applicability`,
-   `list_exceptions`. Critério: ação computacional vai aqui.
-   Descrições escritas com cuidado para evitar overlap (D2.1).
-4. **Contratos de erro por tool.** Para cada tool acima: validation
-   error vs business error vs valid empty result. `errorCategory` +
-   `isRetryable` explícitos.
+1. **Redigir `docs/specs/lgpd-policy-reader.md`.** Documento descritivo
+   consolidando as quatro decisões: schema YAML v0.1.0 da Política
+   (estrutura completa, exemplo de cláusula ativa e tombstone),
+   resources expostos (`policy://catalog`, `policy://schema-version`)
+   com payload schema, tools expostas (`get_clause`,
+   `find_clauses_by_law_article`, `check_applicability`) com
+   assinatura completa e `structured_context` da terceira tool,
+   matriz de erros por tool com `errorCategory`, `errorCode`,
+   `isRetryable` e distinção empty/indeterminate como não-erros.
 
-Saída da sessão 3: rascunho de spec do servidor em
-`docs/specs/lgpd-policy-reader.md`, levado para o Claude Code na
-sessão 4 para implementação. ADR-0002 registrando as decisões
-arquiteturais nasce ao final da sessão 3, junto com o spec.
+2. **Redigir `docs/adr/0002-lgpd-policy-reader-architecture.md`** no
+   formato Nygard expandido. Quatro sub-decisões alinhadas às
+   quatro decisões da sessão 3, cada uma com Decisão + Rationale +
+   Consequência. Seção de **deferimentos** explícita com a lista
+   já acordada (list_exceptions, policy://clauses/{id} browseável,
+   paginação, item legislativo, DSL para requirements, severidade,
+   tags, related_clauses, expansão do structured_context).
+
+3. **PR padrão** (feature branch + PR + squash + delete) para spec
+   e para ADR. ADR sobe ao project knowledge após merge.
+
+Saída esperada da sessão 4: dois PRs mergeados, ADR-0002 no project
+knowledge, repositório pronto para a sessão 5 começar a implementação
+no Claude Code.
+
+Sessão 5: implementação do `lgpd-policy-reader` em FastMCP, já com
+contrato fechado em spec.
 
 ## Pendências não-bloqueantes
 
-- **Captação de orientador na UTFPR** — prazo crítico,
-  ~13 dias remanescentes
+- **Captação de orientador na UTFPR — prazo crítico, ~12 dias
+  remanescentes.** Se até quarta-feira não houver e-mail enviado,
+  vira o item 1 da sessão 4 antes da redação.
 - Migração de conta GitHub para Team (ativa branch protection
   configurada hoje em "Evaluate" mode)
 - `.python-version` na raiz com `3.12.7` (5 minutos)
@@ -82,8 +97,37 @@ arquiteturais nasce ao final da sessão 3, junto com o spec.
 - Formato de ADR: Nygard expandido para decisões compostas; MADR
   reservado para futuras decisões com trade-off comparativo real
 - Frente de implementação atual: MCP server `lgpd-policy-reader` em
-  FastMCP 2.x (decidido sessão 2 sobre alternativa "policy schema
-  primeiro")
+  FastMCP 2.x (decidido sessão 2)
+- **(novo) Schema YAML v0.1.0 da Política**: dois campos de versão
+  (`policy_schema_version` e `policy_version`), `clause_id` opaco
+  com prefixo `POL-`, `article_source` como lista incluindo
+  `paragraph`/`inciso`/`alinea` (inciso como inteiro), sub-ids em
+  requirements e exceptions, ciclo de vida com `status: active|
+  deprecated` + `successors` para tombstone
+- **(novo) Resources expostos**: `policy://catalog` (índice navegável
+  com `successors` para deprecated) e `policy://schema-version` (com
+  `compatible_schema_range` para fail-fast). `policy://clauses/{id}`
+  eliminado por redundância com `get_clause`
+- **(novo) Tools expostas**: `get_clause(clause_id)`,
+  `find_clauses_by_law_article(law, article, paragraph?, inciso?,
+  alinea?)`, `check_applicability(clause_id, structured_context)`
+  com `structured_context` de quatro campos (`operation_type`,
+  `data_categories`, `declared_legal_basis`,
+  `declared_transformations`) e output carregando
+  `verification_scope` + `requires_human_review`. `list_exceptions`
+  e `find_related_law_articles` originais eliminadas
+- **(novo) Contratos de erro**: três categorias
+  (validation/business/system) com `isError` flag, `errorCode`
+  estável em inglês, `message` em português, `isRetryable`
+  explícito, empty result e indeterminate **não** são erros,
+  deprecated tem comportamento distinto em `get_clause` (dado
+  válido) vs `check_applicability` (erro retryable com successors
+  no `details`)
+- **(novo) Escopo do sistema**: análise estática de PR (PR-scoped),
+  não auditoria sistêmica. Sistema verifica conformidade
+  declarativa, não efetiva. Quatro vereditos por ponto de
+  tratamento: `compliant`, `violation_candidate`, `indeterminate`,
+  `not_applicable`
 
 ## Estado da infraestrutura
 
@@ -98,11 +142,6 @@ arquiteturais nasce ao final da sessão 3, junto com o spec.
 - ADR-0001 subido ao project knowledge para contexto autoritativo
 - Branch protection ruleset criado em "Evaluate" mode (não enforça
   até migração para Team)
-- Testes empíricos de adherence ao CLAUDE.md (sessão 1): passaram
-- Padrão `conversation_search` para provenance verification
-  (sessão 2): validado em uso real
-- Revisão Domínio 2 completa (sessão 2): cinco task statements +
-  quatro ajustes de precisão no learning-log
 
 ## Convenção de atualização
 

@@ -245,3 +245,212 @@ por hora investida. Decisão fica para abertura da sessão 3.
   (a) match genuinamente ambíguo, ou (b) edição estrutural demais para
   match cirúrgico. Usar Read+Write "porque é mais simples" é
   anti-padrão.
+
+## Sessão 3 — Arquitetura conceitual do lgpd-policy-reader: quatro decisões
+
+**Data:** 2026-05-04
+
+### Conceitos da prova exercitados
+
+- **D2.1 — tool descriptions sem overlap.** Teste de mesa para descrição
+  saudável: "se eu apagar o nome e ler só a descrição, dá para inferir o
+  nome unicamente?". Aplicado para eliminar `find_related_law_articles`
+  (nome ambíguo, descrição inevitavelmente sobreposta com `get_clause`)
+  e substituir por `find_clauses_by_law_article` (busca reversa
+  estruturada por artigo da lei → cláusulas da política).
+
+- **D2.2 — resource vs tool, critério correto.** O critério é
+  **mecanismo de acesso**, não propriedade do objeto: resource é
+  endereçável por URI estável, idempotente, sem side-effects, acessado
+  por `resources/read`; tool é invocação computacional dentro do
+  agentic loop, com input schema, output schema e `isError`.
+  Caracterizar como "passivo vs ativo" parece descrever o mesmo, mas
+  falha em casos de borda — exatamente onde a tensão `get_clause`
+  vs `policy://clauses/{id}` aparecia. Eliminado o resource
+  parametrizado por redundância com a tool.
+
+- **D2.3 — `isError` flag e três classes que parecem erro.**
+  Validation error (input mal formado, agente reformula),
+  business error (input válido, regra de negócio falhou — pode ser
+  retryable como CLAUSE_DEPRECATED com successors no `details`, ou
+  não-retryable como CLAUSE_NOT_FOUND), e system error (transiente
+  de infraestrutura). Crucialmente: **empty result não é erro**
+  (lista vazia com `isError: false` é informação acionável) e
+  **indeterminate não é erro** (resposta legítima sobre limites do
+  que análise estática consegue concluir).
+
+- **D5 — schema versioning vs content versioning como dois campos.**
+  Schema version é contrato com consumidores e muda raramente
+  (forma dos campos); content version é trilha de auditoria e muda
+  toda vez que cláusula é revista. Misturar leva a "bumpamos schema
+  major porque mudou um texto", envenenando a semântica do
+  versionamento. Decisão: dois campos no header do YAML
+  (`policy_schema_version` e `policy_version`), e
+  `policy://schema-version` resource carrega ambos +
+  `compatible_schema_range` para fail-fast handshake.
+
+- **D5 — stable identifiers e regra unidirecional.** `clause_id`
+  pode ser adicionado, pode virar tombstone quando o referente
+  externo desaparece, mas **não pode ser renomeado** por motivação
+  estética interna. Tombstone preserva a verdade histórica: agente
+  encontrando id antigo num log expõe a divergência (id deprecated,
+  successors, motivo), não reescreve retroativamente a decisão
+  original — fazer reinterpretação automática é revisionismo
+  histórico. Em sistema regulado, isso é problema mais sério do
+  que o erro original.
+
+- **D5 — escalation pattern via indeterminate +
+  requires_human_review.** Quando análise estática não consegue
+  decidir (dependência de estado runtime ou comportamento
+  upstream), tool retorna `verdict: "indeterminate"` com
+  `verification_scope` indicando a dimensão que requer
+  verificação manual. Equivalente, no domínio de code review do
+  projeto, ao handoff estruturado que o exam guide cita para
+  customer service (customer ID + root cause + recommended
+  action). Mesmo padrão: três caminhos, não dois.
+
+- **D5 — error propagation por categoria.** Três categorias com
+  `isRetryable` explícito permitem ao orchestrator decidir caminho
+  diferente por classe: validation → reformule input; business
+  não-retryable → registre veredito e siga; business retryable
+  (deprecated) → substitua argumento; system → backoff/escalação.
+  Sem essa estrutura, agent fica num try/except genérico que perde
+  o sinal.
+
+- **Ponte D1.4 ↔ D2 — programmatic enforcement vs prompt-based
+  guidance.** O design de `check_applicability` com
+  `structured_context` estruturado (não texto livre) é o mesmo
+  padrão do exam guide: `get_customer` antes de `process_refund`,
+  hook PostToolUse normalizando timestamps no server. Sempre que
+  confiabilidade importa mais que flexibilidade do raciocínio, a
+  lógica migra do prompt para o código.
+
+### Conceitos fora do escopo da prova
+
+- **Conformidade declarativa vs efetiva como fronteira do sistema.**
+  Análise estática de PR vê: declaração de base legal, transformações
+  visíveis no código, estrutura de controle. Não vê: consentimento
+  runtime, hash em pipeline upstream, retenção em outro serviço. O
+  sistema entrega o primeiro tipo; o segundo é DPIA / auditoria
+  operacional, escopo diferente. Reframe nominal explícito evita
+  prometer o que não pode entregar.
+
+- **Modelagem de escopo (PR-scoped vs system-wide).** PR-scoped
+  parece menos ambicioso mas é estritamente mais preciso — agente
+  analisa sempre o mesmo tipo de unidade com o mesmo contexto
+  disponível. System-wide auditing exige improvisar análise
+  sistêmica que análise estática não tem como fazer bem; é
+  exponencialmente mais caro e menos confiável.
+
+- **Hierarquia legislativa brasileira para modelagem de
+  `article_source`.** Título → Capítulo → Seção → Artigo →
+  Parágrafo / Inciso → Alínea. Item (subdivisão de alínea) existe
+  em algumas leis tributárias mas não na LGPD; ficou fora de
+  v0.1.0. Inciso modelado como inteiro (semântica), não como
+  numeral romano (renderização) — evita bugs de comparação
+  lexicográfica vs numérica.
+
+- **Convenção de URI scheme em MCP.** Anthropic não publica padrão
+  fechado; convenção é "scheme descritivo do domínio"
+  (`note://`, `config://`, `stock://`, `file://`). Único reservado
+  é `ui://` (SEP-1865, MCP Apps Extension, fora do escopo).
+  Adotado `policy://` para o servidor e `doc://internal/` como
+  convenção do projeto. Validado via web search durante a sessão.
+
+### Decisões tomadas
+
+- **Schema YAML v0.1.0 da Política fechado.** Estrutura completa
+  acordada incluindo dois campos de versão, `clause_id` opaco com
+  prefixo `POL-`, `article_source` como lista hierárquica
+  completa, sub-ids em requirements e exceptions, ciclo de vida
+  com tombstone (`status: deprecated` + `successors` +
+  `effective_until` + `deprecation_reason`).
+
+- **Resources expostos: dois.** `policy://catalog` (índice com
+  `clause_id`, `title`, `status`, `article_sources_summary`,
+  `successors` quando deprecated) e `policy://schema-version`
+  (com `compatible_schema_range`). `policy://clauses/{id}`
+  eliminado por redundância — discussão registrada em ADR-0002
+  para futuro debate caso browseability humana vire requisito.
+
+- **Tools expostas: três.** `get_clause`,
+  `find_clauses_by_law_article` (busca reversa estruturada),
+  `check_applicability` com `structured_context` de quatro
+  campos. `list_exceptions` eliminada (redundante com
+  `get_clause`).
+
+- **Quatro vereditos no output do `check_applicability`.**
+  `compliant`, `violation_candidate`, `indeterminate`,
+  `not_applicable`. Indeterminação carrega `verification_scope`
+  com a dimensão a verificar manualmente.
+
+- **Contratos de erro: três categorias.** Validation, business,
+  system. `errorCode` em inglês (constante estável), `message`
+  em português (humano). `isRetryable` explícito. Empty e
+  indeterminate **não** são erros. Deprecated tem comportamento
+  distinto em `get_clause` (dado válido com tombstone) vs
+  `check_applicability` (erro retryable com successors no
+  `details`).
+
+- **Escopo do sistema: PR-scoped + conformidade declarativa.**
+  Sistema é triagem por ponto de tratamento no diff de PR, não
+  auditoria sistêmica. Honestidade epistêmica explícita sobre
+  o que análise estática consegue concluir.
+
+- **Roadmap fica em seção dedicada do ADR-0002, não em doc
+  separado.** Heurística para revisitar: criar
+  `docs/roadmap.md` consolidado quando deferimentos cruzarem
+  ≥3 ADRs.
+
+### Artefatos criados
+
+Nenhum arquivo de código nem documento committado — sessão
+inteira de design conceitual. Os artefatos derivados (spec
+em `docs/specs/lgpd-policy-reader.md` e ADR-0002) serão
+redigidos na sessão 4. As decisões ficam registradas no
+session-handoff até serem absorvidas pelos artefatos.
+
+### Validações empíricas
+
+- **Validação por perguntas socráticas, rodada 1.** Stable
+  identifiers (mecânica de tombstone) e resource vs tool. Em
+  ambos os casos, a intuição estava no caminho certo mas o
+  vocabulário inicial estava errado: a regra unidirecional
+  ficou implícita, e "passivo vs ativo" descrevia o objeto
+  em vez do mecanismo de acesso. Reframes absorvidos.
+
+- **Validação por perguntas socráticas, rodada 2.** Cenário
+  hipotético de divisão de cláusula (LGPD-7-IX → IX-A + IX-B)
+  com 12 referências externas. Mecânica de tombstone +
+  successors saiu correta. Hesitação no "imagino" do final
+  pegou exatamente o ponto de não-revisionismo histórico —
+  refinamento explícito consolidado.
+
+- **Reframe de escopo emergente da pergunta do usuário.** A
+  dúvida "ele indica quais dados podem ou não ser coletados?"
+  expôs ambiguidade que o sistema fingia ter resolvido.
+  Resposta forçou nominar conformidade declarativa vs
+  efetiva, separar code review de DPIA, e explicitar os
+  quatro vereditos com indeterminate como classe legítima.
+  Reframe condicionou o output do `check_applicability`.
+
+- **Web search por URI scheme MCP confirmou ausência de
+  padrão fechado.** `policy://` adotado por convenção do
+  projeto, MCP-friendly mas não normativo.
+
+### Próximo passo
+
+Sessão 4: redação de `docs/specs/lgpd-policy-reader.md` (primeiro)
+seguida de `docs/adr/0002-lgpd-policy-reader-architecture.md`
+(segundo, formato Nygard expandido com seção de deferimentos
+explícita). Cada um vai por PR padrão. ADR sobe ao project knowledge
+após merge. Sessão 5 começa implementação em FastMCP.
+
+### Pendências (não bloqueantes)
+
+- Captação de orientador na UTFPR (~12 dias remanescentes — se até
+  quarta-feira não houver e-mail enviado, vira item 1 da sessão 4
+  antes da redação)
+- `.python-version` na raiz fixando 3.12.7
+- Branch protection em main (depende de migração para Team)
+- `~/.claude/CLAUDE.md` user-scope com preferências cross-projeto

@@ -32,49 +32,57 @@ exige isso, o sistema retorna `indeterminate` + dimensão a verificar
 manualmente, em vez de fingir certeza. Esse reframe condicionou o
 design da tool `check_applicability` e do output da matriz de erros.
 
+Ao final da sessão, o aluno solicitou esboço de visão sistêmica
+para identificar gaps entre proposta-tcc.md original e decisões da
+sessão #03. Cinco tensões foram nomeadas e fechadas: (1) severidade
+fora do MVP; (2) subagentes redesenhados conforme princípio
+"single responsibility per agent" — cinco subagentes nomeados;
+(3) etapa 0 de triagem de relevância de PR mora como subagente
+Triager, não como hook; (4) classificação pode/consent/anon/
+proibido vive nas cláusulas (não compete com vereditos);
+(5) AEP fora do MVP, recognizers brasileiros mantidos. Posicionamento
+de output: Report informativo (não bloqueia merge) no MVP, com
+bloqueio condicional como evolução pós-validação empírica de FPR.
+A sessão #04 inverte plano original: redige primeiro
+`docs/architecture-overview.md` (visão sistêmica), depois retoma
+spec do `lgpd-policy-reader` + ADR-0002.
+
 ## Branch atual
 
 `main`. Limpa, sincronizada com origin.
 
 ## Próximo passo concreto
 
-**Sessão 4: redação do spec + ADR-0002.** Em ordem (inverter leva a
-duplicação):
+**Sessão 4: redação do `docs/architecture-overview.md`** consolidando
+a visão sistêmica do projeto inteiro com as decisões da sessão #03
+absorvidas. Estrutura sugerida:
 
-1. **Redigir `docs/specs/lgpd-policy-reader.md`.** Documento descritivo
-   consolidando as quatro decisões: schema YAML v0.1.0 da Política
-   (estrutura completa, exemplo de cláusula ativa e tombstone, e
-   **cláusula POL-000 de definições declarando o vocabulário de
-   classes de dados** — `dados_de_identificação`, `dados_de_contato`,
-   `dados_de_navegação`, `dados_comportamentais`, `dados_sensíveis`,
-   `dados_de_localização`, `dados_financeiros`); resources expostos
-   (`policy://catalog`, `policy://schema-version`) com payload schema;
-   tools expostas (`get_clause`, `find_clauses_by_law_article`,
-   `check_applicability`) com assinatura completa e
-   `structured_context` da terceira tool; matriz de erros por tool
-   com `errorCategory`, `errorCode`, `isRetryable` e distinção
-   empty/indeterminate como não-erros; e **seção "Output: Report"
-   descrevendo o JSON consolidado por execução** (`report_id`,
-   `policy_schema_version`, `policy_version`, `scope`, `summary`,
-   `findings`) — saída estrutural do sistema, scratchpad versionado.
+1. **Visão de negócio** — uma frase explicando o que o sistema entrega
+2. **Arquitetura em três camadas** — Política / multi-agente / CI-CD,
+   diagrama mermaid (não ASCII)
+3. **Fluxo de execução** — etapas 0-4, diagrama mermaid de fluxograma
+4. **Componentes mapeados** — Política, MCP servers
+   (`lgpd-policy-reader` e `semgrep-runner`), subagentes (cinco),
+   hooks, recognizers brasileiros, benchmark, integração CI/CD
+5. **Subagentes detalhados** — para cada um: responsabilidade
+   (frase única sem "e"), tools permitidas, output esperado
+6. **Posicionamento operacional** — Report como informativo no MVP,
+   bloqueio condicional como evolução futura
+7. **Fronteiras explícitas** — conformidade declarativa vs efetiva,
+   PR-scoped vs system-wide, MVP vs trabalho futuro
 
-2. **Redigir `docs/adr/0002-lgpd-policy-reader-architecture.md`** no
-   formato Nygard expandido. Quatro sub-decisões alinhadas às
-   quatro decisões da sessão 3, cada uma com Decisão + Rationale +
-   Consequência. Seção de **deferimentos** explícita com a lista
-   já acordada (list_exceptions, policy://clauses/{id} browseável,
-   paginação, item legislativo, DSL para requirements, severidade,
-   tags, related_clauses, expansão do structured_context).
+Saída esperada: PR com `docs/architecture-overview.md` mergeado,
+documento subido ao project knowledge para ficar acessível em todas
+as sessões subsequentes.
 
-3. **PR padrão** (feature branch + PR + squash + delete) para spec
-   e para ADR. ADR sobe ao project knowledge após merge.
+**Sessão 5: redação do spec `docs/specs/lgpd-policy-reader.md` +
+ADR-0002**, agora com a visão sistêmica firmada. Conteúdo já
+acordado na sessão #03 (schema YAML v0.1.0, vocabulário de classes
+em POL-000, resources, tools, contratos de erro, Output Report).
+ADR-0002 com seção de deferimentos.
 
-Saída esperada da sessão 4: dois PRs mergeados, ADR-0002 no project
-knowledge, repositório pronto para a sessão 5 começar a implementação
-no Claude Code.
-
-Sessão 5: implementação do `lgpd-policy-reader` em FastMCP, já com
-contrato fechado em spec.
+**Sessão 6: implementação do `lgpd-policy-reader` em FastMCP**,
+com contrato fechado em spec.
 
 ## Pendências não-bloqueantes
 
@@ -135,6 +143,37 @@ contrato fechado em spec.
   declarativa, não efetiva. Quatro vereditos por ponto de
   tratamento: `compliant`, `violation_candidate`, `indeterminate`,
   `not_applicable`
+  - **(novo) Subagentes do sistema multi-agente: cinco + coordinator.**
+  Coordinator orquestra. Triager (etapa 0, decide proceed/skip),
+  Detector (etapa 1, invoca Semgrep via MCP), Classifier (etapa 2,
+  extrai structured_context por candidato), Matcher (etapa 3,
+  descobre cláusulas e dispara check_applicability), Reporter
+  (etapa 4, agrega vereditos no JSON do Report via tool customizada
+  emit_report). Princípio: single responsibility per agent —
+  responsabilidade nominal sem "e", tools restritas, system prompt
+  focado. Severity-classifier e fix-proposer da proposta original
+  saem do MVP (severidade fora; fix-proposer pode entrar em v2).
+- **(novo) Etapa 0 (triagem de relevância) mora como subagente
+  Triager**, não como hook PreToolUse do Claude Code. Razão:
+  decisão é semi-semântica (paths + keywords + algum julgamento),
+  trabalho de subagente; hook fica reservado para enforcement
+  determinístico genuíno.
+- **(novo) Output do Report no MVP é informativo, não bloqueia
+  merge.** GitHub Action posta findings como inline comments no
+  PR; merge não é travado por `violation_candidate`. Bloqueio
+  condicional fica como evolução pós-validação empírica de FPR
+  do sistema. Decisão pragmática para escopo de TCC com benchmark
+  sintético de ~200 snippets — bloquear merge prematuramente força
+  defesa de FPR em vez de demonstração de valor.
+- **(novo) Classificação pode/consent/anon/proibido vive nas
+  cláusulas da Política, não em campo separado nem em veredito.**
+  Cláusula expressa exigência via `requirements`; veredito do
+  agente reporta resultado de comparar código contra essas
+  exigências. Fonte de verdade é a cláusula; veredito é derivação
+  computada. Princípio anti-duplicação aplicado.
+- **(novo) AEP fora do MVP, evolução pós-prova/pós-TCC.**
+  Recognizers brasileiros (CPF, CNPJ, CNH, NIS/PIS, título de
+  eleitor, CNS-saúde) mantidos como diferencial competitivo do MVP.
 
 ## Estado da infraestrutura
 

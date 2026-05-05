@@ -525,3 +525,93 @@ após merge. Sessão 5 começa implementação em FastMCP.
   veredito, `findings` lista detalhada por ponto de tratamento.
   Agregação intra-execução, não inter-execução. Mapa de dados
   longitudinal (cross-PR) fica deferido — registrado em ADR-0002.
+
+  ### Adendo de fim de sessão — visão sistêmica e tensões resolvidas
+
+Solicitação tardia do aluno por esboço de visão sistêmica revelou
+cinco tensões entre proposta-tcc.md original e decisões da sessão #03.
+Resolvê-las exigiu reabrir conceitualmente partes do desenho de
+subagentes e do output operacional do sistema.
+
+#### Conceitos da prova exercitados (Domínio 1)
+
+- **D1.2 + D1.3 — single responsibility per agent.** Critério prático
+  para decidir granularidade de subagentes: se a responsabilidade não
+  cabe em uma frase sem "e", divide. Tools restritas focam o
+  raciocínio do subagente e reduzem alucinação. Aplicado para quebrar
+  o "claude-analyzer" monolítico da proposta original em três
+  subagentes (Classifier, Matcher) + Reporter, e adicionar Triager
+  para etapa 0. Resultado: cinco subagentes com fronteiras nominais
+  claras, mais alinhado com o coordinator-subagent canônico do que
+  o desenho original.
+
+- **D1.4 — programmatic enforcement vs subagente decisor.** Etapa 0
+  de triagem de relevância poderia ser hook PreToolUse (enforcement
+  determinístico) ou subagente Triager (decisão semi-semântica).
+  Critério aplicado: hook é apropriado para regras puramente
+  sintáticas/determinísticas; quando há julgamento envolvido (paths +
+  keywords + algum raciocínio), trabalho é de subagente. Hook ficou
+  reservado para casos onde compliance não pode ter falha
+  probabilística.
+
+#### Refinamentos de design
+
+- **Classificação pertence à Política, não ao sistema.** Tentativa
+  inicial do aluno de definir vereditos como "pode/consent/anon/
+  proibido" foi reframe corrigido: essas categorias **vivem nas
+  cláusulas via `requirements`**, não em campo independente. Vereditos
+  do agente reportam o resultado de comparar código contra
+  exigências da cláusula. Anti-padrão evitado: duplicação de
+  informação entre fonte de verdade (cláusula) e cache (campo
+  global). Princípio: quando dois lugares parecem ter "a mesma"
+  informação, um é fonte e outro é derivação — declare qual é qual,
+  ou eles divergem em produção.
+
+- **Severidade eliminada do MVP.** Sem critério defensável para
+  CRITICAL/HIGH/MEDIUM/LOW em escopo de TCC com benchmark sintético.
+  Severity-classifier subagente sai. Pode entrar como evolução
+  pós-validação empírica.
+
+- **Output operacional posicionado como informativo.** Report posta
+  como inline comments, não bloqueia merge. Princípio aplicado:
+  sistemas de IA que bloqueiam ações precisam de calibração empírica
+  de FPR, não apenas correção formal. MVP em 8-10 semanas com
+  benchmark de ~200 snippets não tem dados para defender bloqueio.
+  Posicionamento honesto blinda contra crítica de banca e abre
+  caminho para evolução incremental.
+
+- **Fluxo de execução em cinco etapas (0-4).** Triagem → detecção
+  determinística → classificação estruturada → matching contra
+  política → agregação no Report. Cada etapa mapeada para um
+  subagente específico, exceto coordinator que orquestra.
+
+#### Decisões tomadas (adendo)
+
+- Cinco subagentes nomeados: Triager, Detector, Classifier, Matcher,
+  Reporter. Severity-classifier e fix-proposer fora do MVP.
+- Etapa 0 como subagente Triager, não hook PreToolUse.
+- Report informativo no MVP; bloqueio condicional como evolução
+  pós-validação empírica.
+- Classificação pode/consent/anon/proibido vive nas cláusulas
+  (requirements), não em campo separado.
+- AEP fora do MVP; recognizers brasileiros mantidos.
+
+#### Mudança de plano para sessão #04
+
+Plano original era redigir spec do `lgpd-policy-reader` + ADR-0002.
+Reordenado: sessão #04 redige `docs/architecture-overview.md`
+(visão sistêmica do projeto inteiro). Spec + ADR-0002 vão para
+sessão #05. Razão: aluno mostrou estar raciocinando sobre o
+componente `lgpd-policy-reader` em isolamento, e isso explicou tanto
+a confusão sobre `check_applicability` quanto a etapa 0 que apareceu
+tarde. Ancorar visão sistêmica antes de detalhar componentes
+preserva consistência conceitual.
+
+#### Reflexão metodológica
+
+Esse padrão — aluno levanta dúvida tarde na sessão que reabre
+desenho — é sinal de que o ritmo de "decisões concretas em sequência"
+funciona melhor quando intercalado com "checagem de visão sistêmica"
+a cada N decisões. Próximas sessões podem incorporar momento
+explícito de "step back and check the whole picture" antes da
+redação de artefatos longos.

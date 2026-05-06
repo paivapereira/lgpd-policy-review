@@ -615,3 +615,220 @@ funciona melhor quando intercalado com "checagem de visão sistêmica"
 a cada N decisões. Próximas sessões podem incorporar momento
 explícito de "step back and check the whole picture" antes da
 redação de artefatos longos.
+
+---
+
+## 2026-05-05 — sessao-04-architecture-proposta-sync
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1.6 Task Decomposition aplicado em duas dimensões.** Primeiro
+  no design da pipeline do sistema: prompt chaining (pipeline fixa
+  de cinco subagentes em ordem determinística) escolhido sobre
+  decomposição adaptativa porque o problema é cobertura sistemática
+  de pontos de tratamento em diff (revisão multi-aspecto previsível),
+  não investigação aberta. Segundo no design do cronograma do
+  próprio TCC: meio termo entre "spec-tudo-primeiro" (waterfall com
+  nome de SDD) e "um-por-vez-rígido", agrupando specs por categoria
+  coerente (dois MCP servers juntos, cinco subagentes juntos) com
+  ciclo curto specify→implement por categoria. Conceito comum nos
+  dois: granularidade de decomposição é função do problema e do
+  feedback disponível, não da sofisticação aparente.
+
+- **D1.2 + D1.3 Coordinator-subagent + Single Responsibility.** Cinco
+  subagentes nomeados com responsabilidade nominal sem "e", tools
+  restritas, system prompt focado. Materializado em matriz
+  tools × subagentes na seção 5.7 do architecture-overview — coluna
+  em branco do Coordinator (só despacha) e linha em branco de
+  Write/Edit/Bash (sistema é apenas leitor) são deliberadas e
+  protegidas por regra de ADR para qualquer alteração.
+
+- **D1.4 Programmatic Enforcement vs Subagent Decision.** Reaplicado:
+  etapa 0 (triagem de relevância) mora como subagente Triager, não
+  como hook PreToolUse, porque envolve julgamento semi-semântico.
+  Hook fica reservado para enforcement determinístico genuíno (ex:
+  validar formato JSON do Report antes de `emit_report` retornar).
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2.6 Tool Authorization formalizado em matriz.** Matriz 5.7 do
+  architecture-overview é spec de tool authorization que vai virar
+  configuração de AgentDefinition na implementação. Princípio:
+  cada subagente recebe apenas tools relevantes ao papel — `emit_report`
+  exclusiva ao Reporter, `lgpd-policy-reader` exclusivo ao Matcher,
+  `semgrep-runner` exclusivo ao Detector. Restrição materializa
+  invariantes arquiteturais (ex: Detector não pode "espiar" cláusulas
+  para inferir veredito).
+
+- **D2.2 MCP Resources vs Tools.** Política aparece duas vezes no
+  mesmo MCP server: como resource (`policy://catalog` — GET-like,
+  navegável, sem args) e como tool (`get_clause` — parametrizada,
+  ação ativa). Quando ambos cabem, resource é catálogo, tool é
+  acesso pontual.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **D3.1 CLAUDE.md design — heurística "all-session vs on-demand".**
+  Aplicada na decisão de adicionar seção "Working methodology" curta
+  ao CLAUDE.md em vez de detalhar SDD lá. Princípio operacional ("se
+  pediram para implementar, verifique se há spec") é all-session;
+  detalhe de SDD (quatro fases, framework bibliográfico) é on-demand
+  e fica em architecture-overview ou em skill futuro. CLAUDE.md
+  prescreve comportamento; architecture-overview descreve metodologia.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 Provenance + Reliability via fronteiras explícitas.** Seção 7
+  do architecture-overview ("Fronteiras explícitas") declara o que o
+  sistema *não é* e *não pretende provar*. Reliability inclui
+  honestidade sobre limites, não só acurácia dentro deles. Sistema
+  reliable é o que diz `indeterminate` quando indeterminado, não o
+  que chuta `compliant` para parecer útil.
+
+- **D5 Lost-in-the-Middle aplicado inversamente.** Decisão de não
+  postar inline comment para findings `compliant` ou `not_applicable`
+  (seção 6.1 do architecture-overview): se o PR enche de comments
+  confirmando conformidade, o revisor humano para de ler — e o
+  `violation_candidate` real fica perdido no meio. Heurística
+  "informação importante no início e no fim, ruído no meio é
+  descartado" se aplica ao revisor de PR exatamente como ao modelo
+  lendo contexto longo.
+
+- **D5 Scratchpad/Structured Summary entre sessões.** Validação
+  empírica: abertura desta sessão fez "primeira leitura ao abrir
+  nova conversa" do session-handoff conforme convenção do projeto.
+  Padrão recomendado pelo Domínio 5 — começar nova sessão com
+  summary estruturado é mais confiável que tentar `--resume` com
+  tool results stale.
+
+### Decisões tomadas
+
+- **`docs/architecture-overview.md` redigido e mergeado** (PR via
+  fluxo padrão). Estrutura final em sete seções: visão de negócio,
+  três camadas com mermaid, fluxo de execução com mermaid,
+  componentes mapeados, subagentes detalhados (5.1 a 5.6 + matriz
+  5.7), posicionamento operacional, fronteiras explícitas. Glossário
+  de cinco termos (MCP, Política versionada, Subagente, Tools, Hook)
+  e seção "Como ler este documento" antes da seção 1, para servir
+  leitor externo (orientadora).
+
+- **Frase de negócio canônica fixada.** "Sistema de code review
+  automatizado em pull requests que verifica conformidade do
+  tratamento de dados pessoais com uma Política versionada derivada
+  da LGPD." Aparece idêntica no architecture-overview, na
+  proposta-tcc2 e no README — mesmo objeto, mesma descrição, três
+  lugares.
+
+- **Spec-Driven Development adotado como metodologia formal.**
+  Decisão fundamentada em web search confirmando estado da arte
+  pós-cutoff: SDD com Claude Code virou padrão estabelecido em
+  2025-2026 (guia oficial Anthropic, GitHub Spec Kit, frameworks
+  community). Cobre os Domínios 1, 3 e 4 da prova simultaneamente
+  no uso canônico dos primitivos. Argumento dual: alinha-se ao
+  caráter especificativo do problema e mitiga risco de retrabalho
+  por decisão tomada cedo demais. Ressalva específica registrada:
+  como advogado, a tendência do aluno é over-specify; SDD precisa
+  ser servo da clareza, não fim em si.
+
+- **Cinco tensões da sessão #03 absorvidas no architecture-overview**
+  como decisões fechadas: severidade fora do MVP, cinco subagentes
+  single-responsibility, Triager como subagente (não hook),
+  classificação pode/consent/anon/proibido nas cláusulas (não em
+  veredito), AEP fora do MVP. Output como informativo, não bloqueia
+  merge.
+
+- **Cronograma reorganizado por categoria coerente.** Em vez de
+  spec-tudo-primeiro (risco de waterfall) ou um-por-vez-rígido
+  (sem revisão holística), fases de Specify agrupam componentes
+  que se beneficiam de revisão conjunta: semana 1 = specs dos dois
+  MCP servers + ADR-0002; semana 3 = specs dos cinco subagentes;
+  implementação imediatamente após cada bloco de spec.
+
+- **`docs/proposta-tcc2.md` redigido e mergeado** (PR via fluxo
+  padrão). Reescrita do zero a partir do architecture-overview,
+  removendo enquadramento prova-primeiro/TCC-subproduto da
+  proposta-tcc.md original (preservada fora de docs/ como
+  referência interna). Estrutura: tema, contextualização, objetivo
+  geral, seis objetivos específicos, justificativa, arquitetura
+  proposta (com link para architecture-overview), metodologia SDD,
+  escopo e fronteiras, cronograma de seis semanas, resultados
+  esperados, referências preliminares. Modalidade de entrega
+  identificada corretamente como "Relatório Técnico de Ferramenta
+  ou Produto de Software" (modelo institucional UTFPR Câmpus
+  Dois Vizinhos).
+
+- **CLAUDE.md e README sincronizados com arquitetura
+  pós-sessão #04** (PR via fluxo padrão). CLAUDE.md: recognizers
+  brasileiros corrigidos (saiu RG, entraram NIS/PIS, título de
+  eleitor, CNS-saúde); immutable rule 1 reformulada em torno de
+  "no fabricated certainty + quatro vereditos" em vez de
+  "escalation em conflito Lei vs diretriz" (vocabulário antigo
+  pressupunha desenho que não foi adotado); immutable rule 2
+  atualizada para clause_id opaco com prefixo POL- e explicação
+  do papel separado de article_source; immutable rule 3 expandida
+  para explicar dois eixos independentes de versionamento; seção
+  Working methodology nova apontando para docs/specs/ e docs/adr/;
+  status flags atualizados. README: frase de negócio canônica,
+  arquitetura em três camadas explicitada, stack expandida com
+  Semgrep e Inspect AI, link para architecture-overview.
+
+- **E-mail para Profa. Alinne Cristinne Corrêa Souza redigido**
+  (envio agendado para 06/05). Tom direto e curto seguindo o
+  padrão do e-mail de TCC1 do mesmo aluno. Anexos: proposta-tcc2
+  e architecture-overview, ambos exportados em PDF a partir do
+  GitHub.
+
+### Artefatos criados
+
+- `docs/architecture-overview.md` (PR mergeado)
+- `docs/proposta-tcc2.md` (PR mergeado)
+- `CLAUDE.md` reescrita parcial substantiva (PR mergeado)
+- `README.md` reescrita parcial substantiva (PR mergeado)
+- `proposta-tcc.md` original preservada fora de docs/ como
+  referência de estudo (sem versionamento Git)
+
+### Validações empíricas
+
+- **Web search confirmou estado da arte de SDD com Claude Code
+  pós-cutoff de janeiro/2026.** Anthropic publicou guia oficial,
+  GitHub Spec Kit consolidado, ecossistema de plugins community
+  (Pimzino, alexop.dev workflow). Hipótese inicial de "SDD não cai
+  na prova" corrigida: SDD em si não é nomeado como conceito, mas
+  é o uso canônico dos primitivos do Domínio 3 (CLAUDE.md, skills,
+  commands) e do Domínio 1 (Task tool, subagent decomposition).
+
+- **Inversão de planejamento da sessão validada empiricamente.**
+  A sessão #03 fechou quatro decisões em sequência, e o aluno pediu
+  esboço de visão sistêmica ao final, expondo cinco tensões. Adiar
+  redação para sessão dedicada (decisão da sessão #03) provou-se
+  correta: redigir architecture-overview *antes* da spec do
+  lgpd-policy-reader gerou seis seções de detalhamento adicionais
+  (subagentes, posicionamento operacional, fronteiras epistêmicas)
+  que teriam sido pulados num spec de componente isolado.
+
+- **Adendo de revisão pós-redação detectou três bugs no
+  architecture-overview.** Releitura crítica antes do PR identificou:
+  (1) inconsistência factual em 5.7 ("coluna em branco do Coordinator"
+  com ✓ na linha "Despacho de subagentes"); (2) referência ambígua em
+  4.1 ("(sessão 5)" sendo lida como "seção 5 deste documento"); (3)
+  jargão de processo vazando ("sessão #02", "sessão #03" cinco vezes
+  em doc destinado a leitor externo). Os três corrigidos antes do
+  merge.
+
+### Próximo passo
+
+**Sessão 5 (próxima):** redigir specs dos dois MCP servers
+(`lgpd-policy-reader` e `semgrep-runner`) + ADR-0002, conforme
+cronograma da proposta-tcc2 (semana 1, fase Specify). Antes da
+redação técnica, dois itens institucionais: enviar e-mail para
+Profa. Alinne (agendado), e abrir PR enxuto se houver ajustes
+finais necessários após primeiro contato com a orientadora.
+
+### Pendências (não bloqueantes)
+
+- Captação de orientadora (e-mail agendado para 06/05; mensagem
+  WhatsApp como follow-up curto)
+- Migração GitHub para Team (ativa branch protection)
+- `~/.claude/CLAUDE.md` user-scope com preferências cross-projeto

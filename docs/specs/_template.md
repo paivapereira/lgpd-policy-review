@@ -94,6 +94,8 @@ O schema canônico é especificado em <`caminho/para/SCHEMA.md`>. A versão exig
 
 <Forma do objeto retornado quando `isError: true`. Quatro campos canônicos: `errorCode` (constante em inglês), `message` (humana em idioma do projeto), `isRetryable`, `details` (estruturado por `errorCode`). Justificativa curta da separação errorCode/message.>
 
+<Placement no `CallToolResult` MCP: declarar que o objeto canônico de erro mora em `structuredContent` (canal nativo para JSON estruturado), e que `content[0]` carrega um `TextContent` cuja chave `text` reproduz `message` em prosa humana (fallback de retrocompatibilidade e legibilidade em logs). O único campo de erro nativo do MCP é o booleano `isError` — o contrato dos quatro campos é convenção do projeto sobreposta ao protocolo, materializando classes de erro e decisão de retry programaticamente. Mesma convenção vale para retornos de sucesso com payload estruturado: `structuredContent` carrega o objeto de veredito, `content[0].text` reproduz a prosa humana correspondente.>
+
 ### 5.2 Classes de erro
 
 <Três classes: validation, business, system. Definição operacional de cada uma e regra de `isRetryable` por classe. Classes específicas do componente, se houver, declaradas com referência cruzada.>

@@ -77,7 +77,7 @@ This project follows Spec-Driven Development. Implementation work proceeds again
 - **Repository age:** early development — architecture and conceptual design closed; implementation not yet started.
 - **Tests:** none yet — `pytest` has nothing to run.
 - **CI:** not configured yet.
-- **MCP servers:** designed (`lgpd-policy-reader`, `semgrep-runner`), not implemented.
+- **MCP servers:** designed (`policy-reader`, `semgrep-runner`), not implemented.
 - **Subagents:** designed (Triager, Detector, Classifier, Matcher, Reporter, plus coordinator), not implemented.
 - **Policy:** schema v0.1.0 conceptually closed (sessão #03), spec to be written; no clauses authored yet.
 

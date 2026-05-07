@@ -832,3 +832,157 @@ finais necessários após primeiro contato com a orientadora.
   WhatsApp como follow-up curto)
 - Migração GitHub para Team (ativa branch protection)
 - `~/.claude/CLAUDE.md` user-scope com preferências cross-projeto
+---
+
+## 2026-05-06 — sessão #05 — specs §1-§8 do policy-reader e _template emergente
+
+### Conceitos da prova exercitados
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2.1 Resource vs Tool — heurística operacional.** Heurística A: muta estado → tool. Heurística B: leitura por chave estável → resource. Heurística C: leitura por filtro complexo → tool. Caso `find_clauses_by_law_article` validou que mesmo com chave estruturada, ausência de identidade canônica + necessidade de validação rica + erro estruturado puxam a decisão para tool. Princípio extraído: "tem chave estável" é primeira aproximação; quando colide com input validation ou erro estruturado, tool ganha.
+
+- **D2.2 Tool descriptions como prompt engineering.** Cinco elementos canônicos exercitados na redação de `get_clause`, `find_clauses_by_law_article`, `check_applicability`: verbo de ação no início, diferenciação explícita de tools similares (Use this when... Do not use this when... — for that, use `<other>`), formato e estrutura do output, condições de erro relevantes, side effects. Convenção fixada para o projeto: descriptions em inglês (modelo processa com mais densidade).
+
+- **D2.3 isError flag e três classes de erro.** Validation (sintaticamente válido, semanticamente inválido, sempre não-retryable), business (regra de domínio rejeita, retryable conforme caso, com `details` rico carregando recovery), system (transiente, quase sempre retryable). Empty result não é erro. Indeterminate não é erro. Deprecated tem comportamento dual (sucesso em `get_clause`, erro retryable em `check_applicability`).
+
+- **D2.4 inputSchema com especificação progressiva e vocabulário fechado.** `find_clauses_by_law_article` com required (`lei`, `artigo`) + opcional (`paragrafo`, `inciso`, `alinea`) modela busca hierárquica por prefixo de especificação. Vocabulário fechado violado = validation error com `accepted_values` em `details`; dado aberto sem correspondência = empty result.
+
+- **D2.5 MCP resources reduzem exploratory tool calls.** `policy://catalog` como discovery sem invocação — agente lista resources, vê o índice, decide próxima ação sem chamar tool. `policy://schema-version` como handshake fail-fast antes de qualquer tool.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5.1 Provenance/citations em vereditos.** `check_applicability` carrega `policy_schema_version` e `policy_version` em retornos de sucesso; `get_clause` e `find_clauses_by_law_article` não precisam (retrieval). Provenance é assimétrica entre retrieval e veredito.
+
+- **D5.2 Escalation pattern com handoff estruturado.** Veredito `indeterminate` materializa o padrão do exam guide (customer ID + root cause + recommended action) via `verification_scope` com `dimension`, `prescribed_treatment`, `verification_target`. Sem handoff estruturado, "indeterminate" é honestidade vazia. Distinção crítica: `not_applicable` ≠ `indeterminate` (saber a resposta vs. não conseguir decidir).
+
+- **D5.3 Stable identifiers + presentation layer separation.** Inciso modelado como inteiro (estrutura), renderização para numeral romano (apresentação). Mesmo princípio que rege `clause_id` opaco vs. `title` humano-legível: estrutura é para máquina, renderização é função de saída.
+
+- **D5.4 Error propagation por categoria.** Três classes (validation/business/system) com `isRetryable` explícito permitem ao orchestrator rotear: validation → reformule input; business retryable → ajuste argumento; business não-retryable → registre veredito e siga; system → backoff.
+
+- **D5.5 Internal consistency check em documentos longos.** Revisão sistemática §1-§8 detectou três contradições silenciosas (mecanismo de reload §3.1 vs §6.5; `POLICY_LOAD_FAILURE` na tabela vs. carga só no startup; `evidence` ambíguo entre input e output). Princípio meta: toda spec passa por revisão de coerência interna antes de implementação.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **D3.1 CLAUDE.md vs .claude/skills/ vs .claude/rules/.** Heurística canônica: sempre útil → CLAUDE.md (curto); útil só em fração de sessões → skill com `context: fork` e `allowed-tools`; útil só ao tocar certos paths → rules com `paths` em frontmatter. Aplicação: `_template.md` vai como skill `spec-author` (on-demand para autoria), não como CLAUDE.md (poluiria sessões de coding/refactoring/debugging).
+
+- **D3.2 Project conventions encapsuladas em workflow.** Combinação de três primitivos do D3 — arquivo canônico (`docs/specs/_template.md`) + skill (`.claude/skills/spec-author/SKILL.md`) + referência via CLAUDE.md (uma linha apontando) — virou padrão de spec-authoring do projeto. Decisão de implementação ainda pendente para final da semana 2.
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1.1 Subagent tool restriction.** Matriz §5.7 do architecture-overview confirma: Matcher é único subagente com `policy-reader` no inventário. Restrição materializada via configuração de `mcp_servers` no AgentDefinition, não confiada à boa-fé do modelo. Casa com "preventing cross-specialization misuse" do exam guide.
+
+- **D1.2 Tool descriptions inferem encadeamento.** Matcher não tem orquestração rígida — lê descriptions, vê que `find_clauses_by_law_article` produz `clause_id`, vê que `check_applicability` consome, encadeia. Tool descriptions bem desenhadas tornam sequência inferível pelo modelo sem regras explícitas.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4.1 Few-shot examples como anchors de comportamento.** Exemplos da seção "Exemplos" de cada tool servem como few-shot que vai literalmente para o prompt do Matcher: caso normal, variante de estado relevante (deprecated, indeterminate), erro modal. Não exaustivo — ilustrativo.
+
+- **D4.2 Structured output via tool_use forçado.** `check_applicability` retorna veredito com schema explícito por variante (compliant, violation_candidate, indeterminate, not_applicable cada um com sua estrutura). Validação garantida pelo schema, sem validation-retry loop torcendo JSON sair bem formado.
+
+### Conceitos fora do escopo da prova
+
+- **SDD recursivo.** SDD bem feito tem estrutura recursiva: você especifica componentes seguindo princípios que foram especificados pelo próprio exercício de especificar. Princípios em formação durante redação, validados em segunda aplicação, consolidados em documento canônico apenas após validação. Loop de descobrimento → uso → consolidação.
+
+- **Componente agnóstico ao conteúdo.** Renomeação de `lgpd-policy-reader` para `policy-reader` separou função (componente) de conteúdo (Política). Componente conhece schema; não conhece LGPD. Tese acadêmica fica defensável: arquitetura de policy-as-code para regimes de proteção de dados, com LGPD como caso real validado.
+
+- **Schema-as-contract vs implementation-as-server.** Schema do artefato é contrato cruzado entre curador (jurídico) e implementação (server); separar contratos permite que mudar implementação não force revisar contrato. `policy/SCHEMA.md` é contrato; `docs/specs/policy-reader.md` é spec do server que serve o contrato.
+
+- **Frame frontal em documentos lidos por LLM.** Início da spec (~150 palavras) molda como o resto é interpretado. Lost-in-the-middle empobrece o miolo. Critérios de aceitação no fim balanceiam o frame inicial.
+
+- **Não-objetivos como proteção contra scope creep.** Função real de §7 não é "lista do que falta", é "decisão do que o componente decidiu não ser". Diferente de incompletude — é design.
+
+- **Fronteira epistêmica vs não-objetivo.** Não-objetivo é decisão (poderia ser feito, decidiu-se não). Fronteira epistêmica é limite fundamental da abordagem (análise estática nunca consegue avaliar conformidade efetiva, não importa quanto trabalho).
+
+### Decisões tomadas
+
+- **Renomeação `lgpd-policy-reader` → `policy-reader`.** Componente agnóstico ao conteúdo. Cleanup de propagação para `architecture-overview.md`, `learning-log.md`, `session-handoff.md`, `proposta-tcc2.md`, `CLAUDE.md`, `README.md` agendado para sessão #06 via PR enxuto.
+
+- **`docs/specs/policy-reader.md` v0.1.0 redigido e mergeado.** Oito seções fechadas — identidade e propósito, contrato com o artefato servido, resources expostos (2), tools expostas (3), contrato de erro, provenance e versionamento, não-objetivos e fronteiras, critérios de aceitação. PR via fluxo padrão.
+
+- **`docs/specs/_template.md` v0.1.0 redigido e mergeado.** Esqueleto canônico derivado de `policy-reader.md`. Marcado como "em formação até validação na redação do `semgrep-runner.md`". Estrutura de oito seções estabilizada.
+
+- **`policy/SCHEMA.md` stub criado.** Cinco linhas, status "em redação na semana 2", lista do que vai cobrir, link para `policy-reader.md`. Pasta `policy/` criada no repositório.
+
+- **Escopo restrito da Política do MVP.** v0.1.0 cobre apenas duas dimensões avaliáveis por análise estática: `consent_required` e `anonymization_required`. Outras dimensões da LGPD (transfer restrictions, retention, direitos do titular, dados de menores, tratamento compartilhado) ficam fora do MVP. Registrado em `policy-reader.md` §7.2 nesta sessão; sync para `architecture-overview.md` e `proposta-tcc2.md` no PR de cleanup da sessão #06; trilha de auditoria em ADR-0002 (semana 1, sessão #08).
+
+- **Resolução de P1 — estrutura de `verification_scope`.** Vereditos `indeterminate` carregam `dimension` (vocabulário fechado: upstream_state, runtime_behavior, external_system, human_review), `prescribed_treatment` (vocabulário fechado em SCHEMA.md, MVP cobre consent_required e anonymization_required), `policy_clause_ref` (clause_id), `verification_target` (texto livre em português gerado pelo componente).
+
+- **Resolução de P2 — `declared_treatment` opcional rejeitado.** `inputSchema` não reserva slot para anotações declarativas futuras. Adicionar campo opcional comunica capacidade ao agente mesmo quando ignorado tecnicamente. Quando feature de anotações declarativas (deferimento ADR-0002) for implementada, será bump minor com semântica clara.
+
+- **Resolução de P3 — ambiguidade em `find_clauses_by_law_article`.** Especificação progressiva via campos opcionais hierárquicos. Match por prefix sobre `article_source`. Lista vazia é resultado válido (não erro) quando especificação não corresponde a nenhuma cláusula operativa.
+
+- **Resolução de P4 — `article_sources_summary`.** Forma exata empurrada para `policy/SCHEMA.md` da semana 2. Decisão entre lista de strings renderizadas vs. lista de objetos estruturados fica para o redator do schema. Estrutura interna canônica de `article_source` confirmada como objetos com inteiros (não numerais romanos).
+
+- **Vocabulário de `lei` no MVP via header da Política.** Campo `accepted_law_identifiers` no header do arquivo YAML declara vocabulário aceito; componente valida em runtime. Coerente com tese de componente agnóstico ao conteúdo.
+
+- **`clause_id` formato `POL-NNN`** (três dígitos zero-padded, regex `^POL-\d{3}$`). Decisão fechada na spec; herdada por `policy/SCHEMA.md`.
+
+- **`evidence` e `verification_target` gerados pelo componente.** Mecanismo de geração (template, geração por modelo, híbrido) é decisão de implementação livre — Princípio 17 (spec descreve o quê, não como).
+
+- **`POLICY_LOAD_FAILURE` removido da tabela de erros.** Política carregada apenas no startup (decisão §6.5); falha de I/O em runtime não ocorre. Tabela §5.4 fica internamente coerente.
+
+- **Princípio do review pass spec ↔ architecture-overview.** §8.<final> de toda spec executa varredura no architecture-overview procurando decisões obsoletas ou contradições. Loop bidirecional, não duplicação.
+
+### Artefatos criados
+
+- `docs/specs/policy-reader.md` (v0.1.0, oito seções, mergeado)
+- `docs/specs/_template.md` (v0.1.0, esqueleto canônico, mergeado)
+- `policy/SCHEMA.md` (stub, mergeado)
+- **26 princípios de spec-authoring em formação** (consolidação canônica em `docs/spec-authoring-principles.md` agendada para sessão pós-#07, após validação na redação do `semgrep-runner.md`):
+
+  1. **Frame frontal** — início da spec (~150 palavras) molda como o resto é interpretado.
+  2. **Função em uma sentença** — componente que não cabe em uma sentença ainda não está conhecido.
+  3. **Schema fora, comportamento dentro** — componente referencia o schema do artefato servido, nunca duplica.
+  4. **Resource é estado servido, não comportamento** — §3 limita-se a estrutura, semântica de leitura, casos de erro.
+  5. **Sem erro de domínio é caso comum** — resources frequentemente só têm erros de protocolo; explicitar a ausência serve ao agente.
+  6. **Tool description em inglês, sem markdown** — modelo processa inglês com mais densidade.
+  7. **Validação sintática na descrição, executável no código** — spec carrega regras legíveis; código carrega validações.
+  8. **Output com variantes em-bloco** — variantes condicionais documentadas com comentário inline na estrutura.
+  9. **Exemplos cobrem estados, não inputs** — caso normal, variante de estado relevante, erro modal — não exaustivo.
+  10. **Empty result é declaração explícita** — sem isso, agente trata vazio como falha de busca.
+  11. **Especificação progressiva via campos opcionais** — para chaves hierárquicas, required nos níveis altos + optional nos baixos.
+  12. **Vocabulário fechado vs dado aberto** — vocabulário fechado violado é validation error; dado aberto sem correspondência é empty result.
+  13. **Output com variantes semânticas, não estruturais** — cada veredito/estado merece estrutura própria.
+  14. **Campos opcionais sinalizam ausência semântica** — ausência é informação relevante, não campo esquecido.
+  15. **Vocabulário fechado de evidência > texto livre** — para campos roteáveis, enum; texto livre só onde especificidade requer prosa.
+  16. **Encadeamento de tools anunciado na descrição** — tools que se beneficiam de uso encadeado declaram na descrição.
+  17. **Spec descreve o quê, não como** — mecanismo interno é decisão de implementação; spec descreve interface.
+  18. **Tabela por tool e tabela consolidada são audiências diferentes** — §4.<n> serve ao implementador; §5.4 serve ao orchestrator.
+  19. **`details` estruturado por `errorCode` é parte do contrato** — sem forma garantida, retryable colapsa em não-retryable.
+  20. **"Casos que parecem erro mas não são" exige sub-seção** — força articulação de fronteiras epistêmicas.
+  21. **Provenance é assimétrica entre retrieval e veredito** — leituras não precisam carregar versão; vereditos precisam.
+  22. **Imutabilidade durante sessão é decisão MVP** — hot reload é trade-off, não requisito.
+  23. **Não-objetivo é proteção, não documentação de incompletude** — "X é fora do escopo porque Y" ≠ "X ainda não foi feito".
+  24. **Fronteira epistêmica ≠ não-objetivo** — não-objetivo é decisão; fronteira epistêmica é limite fundamental.
+  25. **Critério é condição observável, não atividade** — "Tool retorna X em Y" é critério; "tool implementada" não é.
+  26. **Review pass do architecture-overview é universal** — última sub-seção de toda spec; loop bidirecional.
+
+### Validações empíricas
+
+- **Pareamento template ↔ spec funcionou.** Estratégia de redigir versão concreta + versão genérica em paralelo permitiu extrair padrões cedo, e o template estabilizou junto com a spec sem precisar de sessão dedicada para refatorar. Comparação com hipótese alternativa (redigir spec inteira primeiro, extrair template depois): pareamento foi superior porque evidenciou inconsistências de princípio durante redação, não em revisão.
+
+- **Revisão sistemática §1-§8 detectou três contradições silenciosas.** Mecanismo de reload entre §3.1 e §6.5; `POLICY_LOAD_FAILURE` na tabela vs. carga só no startup; ambiguidade de `evidence` (input ou output). Sem revisão deliberada, todas viraram bugs em implementação. Princípio meta para o projeto: toda spec passa por revisão de coerência interna antes de implementação.
+
+- **Empurrar decisões para SCHEMA.md preservou agnosticismo do componente.** Vocabulário POL-000, enum de `operation`, vocabulário de `prescribed_treatment`, forma de `article_sources_summary`, regra unidirecional de `clause_id`, hierarquia de `article_source` — tudo migrado para SCHEMA.md mantém spec do `policy-reader` focada em comportamento contratual.
+
+- **Reframe da preocupação substantiva sobre `indeterminate` modal.** Aluno levantou preocupação de que `indeterminate` seria caso modal e que isso quebraria a utilidade do veredito. Reframe registrado: arquitetura de quatro vereditos preservada; `verification_scope` rico transforma `indeterminate` em prescrição prática (escalation pattern com handoff estruturado). Não é falha do design; é honestidade epistêmica do sistema.
+
+### Próximo passo
+
+Sessão #06: PR enxuto de cleanup (renomeação `lgpd-policy-reader` → `policy-reader` em seis arquivos + sync de escopo restrito da Política em `architecture-overview.md` e `proposta-tcc2.md`). Após cleanup, abertura de §1 do `docs/specs/semgrep-runner.md`.
+
+Sessão #07: redação completa de `docs/specs/semgrep-runner.md` (design real — sem decisões prévias). Aplicação dos 26 princípios; ajustes ao `_template.md` quando emergirem.
+
+Sessão #08: ADR-0002 com seção de deferimentos explícita (browseability humana de cláusulas, hot reload, schemas alternativos, anotações declarativas, escopo ampliado da Política, mapa cross-PR longitudinal).
+
+Sessão pós-#07 (datada conforme andamento): consolidação dos princípios em `docs/spec-authoring-principles.md` canônico, com nome + regra + racional + exemplo por princípio. Citável pelo relatório de TCC2 como contribuição metodológica.
+
+### Pendências (não bloqueantes)
+
+- PR de cleanup da sessão #06 (renomeação + sync de escopo restrito da Política)
+- `policy/SCHEMA.md` redação completa em paralelo à implementação (semana 2)
+- ADR-0002 (sessão #08)
+- Consolidação de `docs/spec-authoring-principles.md` (pós-#07)
+- Migração de conta GitHub para Team (ativa branch protection)
+- `~/.claude/CLAUDE.md` user-scope com preferências cross-projeto

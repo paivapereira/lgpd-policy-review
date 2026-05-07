@@ -267,7 +267,7 @@ Auditoria sistêmica de codebase é problema diferente: outras ferramentas, outr
 
 ### 7.3 MVP versus trabalho futuro
 
-Cinco evoluções estão fora do MVP. Para quatro delas, o design não fecha portas — a evolução exige apenas decisão própria em ADR quando o gatilho de reabertura disparar. A quinta — AEP — fica fora do roadmap deste trabalho, sem reabertura prevista neste ciclo.
+Seis evoluções estão fora do MVP. Para cinco delas, o design não fecha portas — a evolução exige apenas decisão própria em ADR quando o gatilho de reabertura disparar. A sexta — AEP — fica fora do roadmap deste trabalho, sem reabertura prevista neste ciclo.
 
 | Evolução                                  | Fora do MVP por que                                                                                                                        | Reabertura quando                                                            |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
@@ -276,6 +276,7 @@ Cinco evoluções estão fora do MVP. Para quatro delas, o design não fecha por
 | Bloqueio condicional de merge             | Decisão pragmática de demonstrar valor antes de assumir gatekeeping (seção 6.3)                                                            | Sob critério de FPR validada e calibração por veredito (ADR específica)      |
 | Mapa de dados longitudinal (cross-PR)     | Escopo PR-scoped do MVP; cada execução produz Report independente, sem memória entre execuções                                             | Após decisão arquitetural sobre persistência de Reports e modelo de consulta |
 | AEP (Algoritmo de Equivalência de PII)    | Reconhecimento semântico de PII excede recognizers sintáticos do MVP; recognizers brasileiros sintáticos cobrem o escopo deste trabalho    | Pós-TCC; fora do roadmap deste trabalho                                      |
+| Dimensões adicionais da LGPD na Política | v0.1.0 da Política cobre apenas `consent_required` e `anonymization_required` (avaliáveis por análise estática); transferência internacional, retenção, direitos do titular, dados de menores e tratamento compartilhado ficam fora | Validação empírica do MVP completa + demanda concreta documentada |
 
 ### 7.4 O que esta arquitetura não pretende provar
 

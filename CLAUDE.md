@@ -26,6 +26,7 @@ The repository is in early development. Most directories described in the long-t
 - **Evaluation framework:** Inspect AI (for benchmark validation).
 - **CI/CD:** GitHub Actions.
 - **Operating environment:** Windows 11 corporate (PowerShell 5.1, no admin, no WSL). Commands and paths must be Windows-native compatible.
+- **Claude Code CLI version:** v2.1.123 or higher (validated locally; older versions not verified).
 
 When suggesting libraries, prefer the canonical stack above. Do not introduce alternatives (FastAPI, Flask, black, poetry, uv) without an explicit user request and a written ADR.
 

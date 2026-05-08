@@ -84,6 +84,14 @@ A ordem dos itens segue ordem natural do `clause_id` (POL-001, POL-002, ...). N�
 
 O componente expõe três tools. Descrições em inglês conforme convenção do projeto registrada em ADR-0001 (modelo processa inglês com mais densidade).
 
+**Naming convention.** As três tools deste server aparecem para o agente (Claude Code ou Agent SDK) com os handles:
+
+- `mcp__policy-reader__get_clause`
+- `mcp__policy-reader__find_clauses_by_law_article`
+- `mcp__policy-reader__check_applicability`
+
+O namespace `mcp__<server>__<tool>` é gerado pelo runtime ao expor tools de um MCP server configurado em `.mcp.json`. O nome simples (e.g., `get_clause`) é a forma usada nas subseções a seguir; a forma prefixada é a forma usada em `allowed-tools` de skill frontmatter, em `mcp_servers`/`allowed-tools` do AgentDefinition do Matcher, e em matchers de hooks `PreToolUse`/`PostToolUse` que filtram tools deste server.
+
 ### 4.1 `get_clause`
 
 **Descrição (tool description).**

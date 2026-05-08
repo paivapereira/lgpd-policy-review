@@ -56,6 +56,8 @@ O schema canônico é especificado em <`caminho/para/SCHEMA.md`>. A versão exig
 
 <Frase introdutória curta: número de tools expostas, princípio de nomeação, qualquer convenção transversal (ex: idioma da descrição, formato de identificador).>
 
+**Naming convention.** Tools deste server aparecem para o agente (Claude Code ou Agent SDK) com o handle `mcp__<server-name>__<tool-name>` — namespace gerado pelo runtime ao expor tools de um MCP server configurado em `.mcp.json`. O nome simples (`<tool-name>`) é a forma usada nas subseções a seguir; a forma prefixada é a forma usada em `allowed-tools` de skill frontmatter, em `mcp_servers`/`allowed-tools` do AgentDefinition consumidor, e em matchers de hooks `PreToolUse`/`PostToolUse` que filtram tools deste server.
+
 ### 4.<n> `<tool_name>`
 
 **Descrição (tool description).**

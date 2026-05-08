@@ -32,7 +32,7 @@ Projetar e implementar um sistema de code review automatizado que, integrado a p
 
 a) Especificar e implementar um esquema YAML versionado para a Política, com mecanismo de tombstone para evolução das cláusulas ao longo do tempo, mantendo rastreabilidade legal entre cláusula e artigo da Lei.
 
-b) Implementar dois servidores MCP — `lgpd-policy-reader` para acesso estruturado à Política e `semgrep-runner` para detecção sintática — desacoplando o conhecimento jurídico da capacidade de detecção.
+b) Implementar dois servidores MCP — `policy-reader` para acesso estruturado à Política e `semgrep-runner` para detecção sintática — desacoplando o conhecimento jurídico da capacidade de detecção.
 
 c) Projetar e implementar um sistema multi-agente com cinco subagentes especializados (Triager, Detector, Classifier, Matcher, Reporter), aplicando o princípio de single responsibility por agente, com tools restritas por função.
 
@@ -56,7 +56,7 @@ O sistema é estruturado em três camadas:
 
 **Camada 1 — Política versionada.** Artefato declarativo em YAML sob `policy/`, versionada em dois eixos independentes (`policy_schema_version` para o esquema do arquivo, `policy_version` para o conteúdo das cláusulas).
 
-**Camada 2 — Sistema multi-agente.** Um agente coordenador orquestra cinco subagentes especializados — Triager (decide se um pull request é relevante para análise), Detector (identifica pontos de tratamento candidatos via Semgrep), Classifier (extrai contexto estruturado por candidato), Matcher (avalia conformidade contra cláusulas da Política), Reporter (agrega vereditos em relatório JSON consolidado). Dois servidores MCP suportam a camada: `lgpd-policy-reader` (acesso à Política) e `semgrep-runner` (detecção sintática).
+**Camada 2 — Sistema multi-agente.** Um agente coordenador orquestra cinco subagentes especializados — Triager (decide se um pull request é relevante para análise), Detector (identifica pontos de tratamento candidatos via Semgrep), Classifier (extrai contexto estruturado por candidato), Matcher (avalia conformidade contra cláusulas da Política), Reporter (agrega vereditos em relatório JSON consolidado). Dois servidores MCP suportam a camada: `policy-reader` (acesso à Política) e `semgrep-runner` (detecção sintática).
 
 **Camada 3 — Integração CI/CD.** GitHub Action que dispara o sistema em pull requests, recebe o relatório JSON e posta *findings* como inline comments. Informativa no MVP — não bloqueia merge.
 
@@ -76,9 +76,9 @@ A pilha tecnológica adotada é Python 3.12 como linguagem principal, FastMCP 2.
 
 ## 8. Escopo e fronteiras
 
-**Dentro do escopo do MVP:** Política versionada com esquema 0.1.0; servidores MCP `lgpd-policy-reader` e `semgrep-runner`; cinco subagentes operacionais; *recognizers* para os seis identificadores brasileiros listados; GitHub Action funcional; benchmark sintético de validação; relatório técnico de TCC2.
+**Dentro do escopo do MVP:** Política versionada com esquema 0.1.0; servidores MCP `policy-reader` e `semgrep-runner`; cinco subagentes operacionais; *recognizers* para os seis identificadores brasileiros listados; GitHub Action funcional; benchmark sintético de validação; relatório técnico de TCC2.
 
-**Fora do escopo do MVP, mantidos como roadmap pós-trabalho:** classificação de severidade dos *findings*, subagente *fix-proposer* para sugestão automática de correção, bloqueio condicional de *merge* sob critério de taxa de falso-positivo validada em base real, mapa de dados longitudinal cruzando informações entre múltiplos pull requests.
+**Fora do escopo do MVP, mantidos como roadmap pós-trabalho:** classificação de severidade dos *findings*, subagente *fix-proposer* para sugestão automática de correção, bloqueio condicional de *merge* sob critério de taxa de falso-positivo validada em base real, mapa de dados longitudinal cruzando informações entre múltiplos pull requests, dimensões da LGPD além de consentimento (`consent_required`) e anonimização (`anonymization_required`) — transferência internacional, retenção, direitos do titular, dados de menores e tratamento compartilhado — não cobertas pela Política v0.1.0.
 
 **Fronteira epistêmica explícita:** o sistema verifica conformidade *declarativa*, não *efetiva*. Análise estática de pull request examina o que o código declara fazer com dados pessoais, não o comportamento de tempo de execução em produção. Quando a verificação exige observação que análise estática não consegue realizar, o sistema retorna o veredito `indeterminate` indicando a dimensão a ser verificada manualmente, em vez de fingir certeza não justificada.
 
@@ -88,7 +88,7 @@ O cronograma cobre as seis semanas entre o início efetivo da execução e a ent
 
 | Semana | Período | Entregáveis principais | Fase SDD |
 | :----: | :------ | :--------------------- | :------- |
-| 1 | 05/05 – 11/05 | Especificações dos dois servidores MCP (`lgpd-policy-reader` e `semgrep-runner`); ADR-0002 | Specify |
+| 1 | 05/05 – 11/05 | Especificações dos dois servidores MCP (`policy-reader` e `semgrep-runner`); ADR-0002 | Specify |
 | 2 | 12/05 – 18/05 | Implementação dos dois servidores MCP; conjunto de *recognizers* brasileiros (CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde) | Implement |
 | 3 | 19/05 – 25/05 | Especificações dos cinco subagentes e do coordenador | Specify |
 | 4 | 26/05 – 01/06 | Implementação dos subagentes, coordenador e tool customizada `emit_report` | Implement |

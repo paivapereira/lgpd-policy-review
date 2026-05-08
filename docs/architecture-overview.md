@@ -8,7 +8,7 @@ O glossário a seguir define os termos centrais que aparecem ao longo do documen
 
 ## Glossário
 
-**MCP (Model Context Protocol).** Protocolo aberto que define como agentes de IA consomem dados estruturados (chamados *resources*) e invocam operações externas (chamadas *tools*). Um *MCP server* é um processo independente que expõe esses dois tipos de capacidade; um agente atua como cliente MCP. Neste sistema, dois MCP servers são implementados: `lgpd-policy-reader` e `semgrep-runner`.
+**MCP (Model Context Protocol).** Protocolo aberto que define como agentes de IA consomem dados estruturados (chamados *resources*) e invocam operações externas (chamadas *tools*). Um *MCP server* é um processo independente que expõe esses dois tipos de capacidade; um agente atua como cliente MCP. Neste sistema, dois MCP servers são implementados: `policy-reader` e `semgrep-runner`.
 
 **Política versionada.** Termo técnico deste trabalho. Refere-se ao artefato declarativo em YAML sob `policy/` que codifica obrigações da LGPD em cláusulas verificáveis, com versionamento explícito tanto do schema quanto do conteúdo. Não confundir com "política de privacidade" no sentido jurídico-empresarial usual — aqui, *Política* (com inicial maiúscula) é sempre esse arquivo estruturado.
 
@@ -45,7 +45,7 @@ flowchart TB
 
 **Camada 1 — Política versionada.** Artefato declarativo em YAML sob `policy/`. Fonte de verdade do que constitui conformidade. Versionada em dois eixos: `policy_schema_version` para o esquema do arquivo e `policy_version` para o conteúdo das cláusulas. Independente da máquina que a consome — pode ser revisada por humanos, validada em CI, ou consumida por qualquer agente que implemente o protocolo MCP.
 
-**Camada 2 — Sistema multi-agente.** Um coordinator orquestra cinco subagentes especializados (Triager, Detector, Classifier, Matcher, Reporter) e dois MCP servers (`lgpd-policy-reader` para acesso à Política, `semgrep-runner` para detecção sintática). Recognizers brasileiros — CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde — compõem o módulo de detecção. A camada inteira é detalhada na seção 5.
+**Camada 2 — Sistema multi-agente.** Um coordinator orquestra cinco subagentes especializados (Triager, Detector, Classifier, Matcher, Reporter) e dois MCP servers (`policy-reader` para acesso à Política, `semgrep-runner` para detecção sintática). Recognizers brasileiros — CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde — compõem o módulo de detecção. A camada inteira é detalhada na seção 5.
 
 **Camada 3 — Integração CI/CD.** GitHub Action que dispara o sistema multi-agente em pull requests, recebe o Report JSON e posta findings como inline comments no PR. Informativa no MVP — não bloqueia merge. Bloqueio condicional fica como evolução pós-validação empírica de taxa de falso-positivo.
 
@@ -79,7 +79,7 @@ O fluxo é orquestrado por um coordinator que invoca cada subagente em sequênci
 
 **Etapa 2 — Classifier.** Para cada candidato, extrai `structured_context` com quatro campos: `operation_type` (coleta, uso, transferência, etc.), `data_categories` (CPF, e-mail, dado sensível, etc.), `declared_legal_basis` (consentimento, execução de contrato, etc., quando declarada), `declared_transformations` (anonimização, hash, criptografia, quando declaradas). Output: candidato enriquecido com contexto estruturado.
 
-**Etapa 3 — Matcher.** Para cada candidato classificado, consulta o MCP server `lgpd-policy-reader` via `find_clauses_by_law_article` para descobrir cláusulas aplicáveis, depois invoca `check_applicability` por cláusula. Cada invocação retorna um dos quatro vereditos: `compliant`, `violation_candidate`, `indeterminate` (com `verification_scope` indicando a dimensão a verificar manualmente), `not_applicable`. Output: lista de findings por candidato.
+**Etapa 3 — Matcher.** Para cada candidato classificado, consulta o MCP server `policy-reader` via `find_clauses_by_law_article` para descobrir cláusulas aplicáveis, depois invoca `check_applicability` por cláusula. Cada invocação retorna um dos quatro vereditos: `compliant`, `violation_candidate`, `indeterminate` (com `verification_scope` indicando a dimensão a verificar manualmente), `not_applicable`. Output: lista de findings por candidato.
 
 **Etapa 4 — Reporter.** Agrega os findings em um Report JSON consolidado por execução, com `report_id`, `policy_schema_version`, `policy_version`, `scope`, `summary` por veredito, e `findings` detalhados. Emite via tool customizada `emit_report`. Output: Report JSON entregue ao GitHub Action, que o transforma em inline comments.
 
@@ -91,13 +91,13 @@ Esta seção enumera os componentes do sistema. Detalhamento de cada um vive em 
 
 ### 4.1 Artefato declarativo
 
-**Política versionada.** Arquivo (ou conjunto de arquivos) YAML sob `policy/`. Estrutura definida pelo schema `policy_schema_version: 0.1.0`. Versionada em dois eixos independentes: `policy_schema_version` para o esquema do arquivo e `policy_version` para o conteúdo das cláusulas. Cada cláusula tem `clause_id` opaco com prefixo `POL-`, `article_source` como lista hierárquica (lei, artigo, parágrafo, inciso, alínea), `requirements`, `exceptions`, e ciclo de vida com `status: active|deprecated` mais `successors` para tombstone. Detalhes completos no spec do `lgpd-policy-reader` (a ser redigido) e ADR-0002 (em redação).
+**Política versionada.** Arquivo (ou conjunto de arquivos) YAML sob `policy/`. Estrutura definida pelo schema `policy_schema_version: 0.1.0`. Versionada em dois eixos independentes: `policy_schema_version` para o esquema do arquivo e `policy_version` para o conteúdo das cláusulas. Cada cláusula tem `clause_id` opaco com prefixo `POL-`, `article_source` como lista hierárquica (lei, artigo, parágrafo, inciso, alínea), `requirements`, `exceptions`, e ciclo de vida com `status: active|deprecated` mais `successors` para tombstone. Detalhes completos no spec do `policy-reader` (a ser redigido) e ADR-0002 (em redação).
 
 ### 4.2 MCP servers
 
-**`lgpd-policy-reader`.** Servidor MCP que expõe a Política como recurso consultável por agentes. Implementação em FastMCP 2.x (decidido em ADR-0001). Expõe dois resources (`policy://catalog`, `policy://schema-version`) e três tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`). Contratos de erro em três categorias (validation/business/system) com `isError` flag, `errorCode` estável em inglês e `message` em português.
+**`policy-reader`.** Servidor MCP que expõe a Política como recurso consultável por agentes. Implementação em FastMCP 2.x (decidido em ADR-0001). Expõe dois resources (`policy://catalog`, `policy://schema-version`) e três tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`). Contratos de erro em três categorias (validation/business/system) com `isError` flag, `errorCode` estável em inglês e `message` em português.
 
-**`semgrep-runner`.** Servidor MCP que expõe execução de Semgrep como tool para o subagente Detector. Recebe o diff do PR e a lista de regras a aplicar, retorna matches estruturados (arquivo, linha, regra, snippet). Spec ainda não redigida — fica para sessão posterior, depois do `lgpd-policy-reader` estar implementado.
+**`semgrep-runner`.** Servidor MCP que expõe execução de Semgrep como tool para o subagente Detector. Recebe o diff do PR e a lista de regras a aplicar, retorna matches estruturados (arquivo, linha, regra, snippet). Spec ainda não redigida — fica para sessão posterior, depois do `policy-reader` estar implementado.
 
 ### 4.3 Sistema multi-agente
 
@@ -129,7 +129,7 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 
 **Responsabilidade.** Orquestra a sequência de subagentes conforme o fluxo da seção 3.
 
-**Tools permitidas.** Despacho de subagentes (mecanismo de orquestração do runtime), gestão de state entre etapas. Sem acesso direto a Read/Write/Edit/Bash/Grep/Glob no filesystem do PR. Sem acesso direto aos MCP servers `lgpd-policy-reader` e `semgrep-runner`.
+**Tools permitidas.** Despacho de subagentes (mecanismo de orquestração do runtime), gestão de state entre etapas. Sem acesso direto a Read/Write/Edit/Bash/Grep/Glob no filesystem do PR. Sem acesso direto aos MCP servers `policy-reader` e `semgrep-runner`.
 
 **Input.** Diff do PR, metadados (número do PR, branch, autor), referência da Política a usar (`policy_version`).
 
@@ -153,13 +153,13 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 
 **Responsabilidade.** Identifica pontos de tratamento candidatos em um diff.
 
-**Tools permitidas.** MCP server `semgrep-runner` (tools de execução de regras Semgrep e listagem de regras disponíveis), Read (sobre arquivos do diff para inspeção complementar). Sem `lgpd-policy-reader`, sem Write/Edit/Bash.
+**Tools permitidas.** MCP server `semgrep-runner` (tools de execução de regras Semgrep e listagem de regras disponíveis), Read (sobre arquivos do diff para inspeção complementar). Sem `policy-reader`, sem Write/Edit/Bash.
 
 **Input.** Diff do PR, lista de regras Semgrep a aplicar (incluindo recognizers brasileiros).
 
 **Output.** Lista de candidatos: `[{file, line, rule_id, snippet, surrounding_context}]`.
 
-**Justificativa do escopo.** Detector não decide se há violação — só localiza onde há possibilidade. A fronteira "detecta possibilidade vs avalia conformidade" é o que separa Detector de Matcher. Sem acesso ao `lgpd-policy-reader`, o Detector é fisicamente impedido de "adivinhar" cláusulas aplicáveis e contaminar o output com pré-julgamento.
+**Justificativa do escopo.** Detector não decide se há violação — só localiza onde há possibilidade. A fronteira "detecta possibilidade vs avalia conformidade" é o que separa Detector de Matcher. Sem acesso ao `policy-reader`, o Detector é fisicamente impedido de "adivinhar" cláusulas aplicáveis e contaminar o output com pré-julgamento.
 
 ### 5.4 Classifier
 
@@ -177,7 +177,7 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 
 **Responsabilidade.** Avalia conformidade de cada candidato contra cláusulas aplicáveis da Política.
 
-**Tools permitidas.** MCP server `lgpd-policy-reader` (`find_clauses_by_law_article`, `get_clause`, `check_applicability`). Sem `semgrep-runner`, sem Read/Write/Edit/Bash/Grep/Glob no filesystem.
+**Tools permitidas.** MCP server `policy-reader` (`find_clauses_by_law_article`, `get_clause`, `check_applicability`). Sem `semgrep-runner`, sem Read/Write/Edit/Bash/Grep/Glob no filesystem.
 
 **Input.** Lista de candidatos classificados (com `structured_context` completo).
 
@@ -193,7 +193,7 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 
 **Input.** Lista completa de findings do Matcher, mais metadados de execução (versão da Política consultada, escopo, identificadores do PR).
 
-**Output.** Report JSON final entregue via `emit_report`, com a estrutura definida no spec do `lgpd-policy-reader`: `{report_id, policy_schema_version, policy_version, scope, summary, findings}`.
+**Output.** Report JSON final entregue via `emit_report`, com a estrutura definida no spec do `policy-reader`: `{report_id, policy_schema_version, policy_version, scope, summary, findings}`.
 
 **Justificativa do escopo.** Reporter não detecta, não classifica, não julga — só formata. Dar a ele acesso a qualquer outra tool seria convidar refazimento de trabalho upstream. A exclusividade de `emit_report` (Reporter é o único subagente autorizado a invocá-la) garante que o output do sistema tem origem rastreável: se algo emitiu um Report, foi o Reporter; se o Report está malformado, há um único subagente para auditar.
 
@@ -206,7 +206,7 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 | Grep                        |       |         |          |     ✓      |         |          |
 | Write / Edit / Bash         |       |         |          |            |         |          |
 | `semgrep-runner` MCP        |       |         |    ✓     |            |         |          |
-| `lgpd-policy-reader` MCP    |       |         |          |            |    ✓    |          |
+| `policy-reader` MCP    |       |         |          |            |    ✓    |          |
 | `emit_report` (custom)      |       |         |          |            |         |    ✓     |
 | Despacho de subagentes      |   ✓   |         |          |            |         |          |
 
@@ -267,7 +267,7 @@ Auditoria sistêmica de codebase é problema diferente: outras ferramentas, outr
 
 ### 7.3 MVP versus trabalho futuro
 
-Cinco evoluções estão fora do MVP. Para quatro delas, o design não fecha portas — a evolução exige apenas decisão própria em ADR quando o gatilho de reabertura disparar. A quinta — AEP — fica fora do roadmap deste trabalho, sem reabertura prevista neste ciclo.
+Seis evoluções estão fora do MVP. Para cinco delas, o design não fecha portas — a evolução exige apenas decisão própria em ADR quando o gatilho de reabertura disparar. A sexta — AEP — fica fora do roadmap deste trabalho, sem reabertura prevista neste ciclo.
 
 | Evolução                                  | Fora do MVP por que                                                                                                                        | Reabertura quando                                                            |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
@@ -276,6 +276,7 @@ Cinco evoluções estão fora do MVP. Para quatro delas, o design não fecha por
 | Bloqueio condicional de merge             | Decisão pragmática de demonstrar valor antes de assumir gatekeeping (seção 6.3)                                                            | Sob critério de FPR validada e calibração por veredito (ADR específica)      |
 | Mapa de dados longitudinal (cross-PR)     | Escopo PR-scoped do MVP; cada execução produz Report independente, sem memória entre execuções                                             | Após decisão arquitetural sobre persistência de Reports e modelo de consulta |
 | AEP (Algoritmo de Equivalência de PII)    | Reconhecimento semântico de PII excede recognizers sintáticos do MVP; recognizers brasileiros sintáticos cobrem o escopo deste trabalho    | Pós-TCC; fora do roadmap deste trabalho                                      |
+| Dimensões adicionais da LGPD na Política | v0.1.0 da Política cobre apenas `consent_required` e `anonymization_required` (avaliáveis por análise estática); transferência internacional, retenção, direitos do titular, dados de menores e tratamento compartilhado ficam fora | Validação empírica do MVP completa + demanda concreta documentada |
 
 ### 7.4 O que esta arquitetura não pretende provar
 

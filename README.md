@@ -19,7 +19,7 @@ O sistema trata a Política como artefato de primeira classe — arquivo declara
 A arquitetura está organizada em três camadas:
 
 - **Política versionada** — artefato declarativo em YAML sob `policy/`, fonte de verdade de conformidade.
-- **Sistema multi-agente** — coordenador orquestrando cinco subagentes especializados (Triager, Detector, Classifier, Matcher, Reporter), com dois servidores MCP de suporte (`lgpd-policy-reader` e `semgrep-runner`) e recognizers para identificadores brasileiros.
+- **Sistema multi-agente** — coordenador orquestrando cinco subagentes especializados (Triager, Detector, Classifier, Matcher, Reporter), com dois servidores MCP de suporte (`policy-reader` e `semgrep-runner`) e recognizers para identificadores brasileiros.
 - **Integração CI/CD** — GitHub Action que dispara o sistema em pull requests e posta findings como inline comments (informativo no MVP, sem bloquear merge).
 
 A visão sistêmica completa, com fluxo de execução, contratos de subagente e fronteiras epistêmicas, está documentada em [`docs/architecture-overview.md`](docs/architecture-overview.md).

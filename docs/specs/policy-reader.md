@@ -84,6 +84,14 @@ A ordem dos itens segue ordem natural do `clause_id` (POL-001, POL-002, ...). N�
 
 O componente expõe três tools. Descrições em inglês conforme convenção do projeto registrada em ADR-0001 (modelo processa inglês com mais densidade).
 
+**Naming convention.** As três tools deste server aparecem para o agente (Claude Code ou Agent SDK) com os handles:
+
+- `mcp__policy-reader__get_clause`
+- `mcp__policy-reader__find_clauses_by_law_article`
+- `mcp__policy-reader__check_applicability`
+
+O namespace `mcp__<server>__<tool>` é gerado pelo runtime ao expor tools de um MCP server configurado em `.mcp.json`. O nome simples (e.g., `get_clause`) é a forma usada nas subseções a seguir; a forma prefixada é a forma usada em `allowed-tools` de skill frontmatter, em `mcp_servers`/`allowed-tools` do AgentDefinition do Matcher, e em matchers de hooks `PreToolUse`/`PostToolUse` que filtram tools deste server.
+
 ### 4.1 `get_clause`
 
 **Descrição (tool description).**
@@ -354,11 +362,20 @@ Input: {
     "legal_basis": "consentimento explícito"
   }
 }
-Output: { "isError": false, "content": [{
-  "verdict": "compliant",
-  "policy_clause_ref": "POL-027",
-  "evidence": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento; código declara base 'consentimento explícito'."
-}]}
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "verdict": "compliant",
+    "policy_clause_ref": "POL-027",
+    "evidence": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento; código declara base 'consentimento explícito'."
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento; código declara base 'consentimento explícito'."
+    }
+  ]
+}
 ```
 
 *Caso violation_candidate — código viola requirement direto.*
@@ -372,12 +389,21 @@ Input: {
     "legal_basis": "interesse legítimo"
   }
 }
-Output: { "isError": false, "content": [{
-  "verdict": "violation_candidate",
-  "policy_clause_ref": "POL-031",
-  "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11.",
-  "contradicted_requirement": "R1"
-}]}
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "verdict": "violation_candidate",
+    "policy_clause_ref": "POL-031",
+    "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11.",
+    "contradicted_requirement": "R1"
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11."
+    }
+  ]
+}
 ```
 
 *Caso indeterminate — depende de upstream.*
@@ -391,38 +417,56 @@ Input: {
     "destination": "external_service"
   }
 }
-Output: { "isError": false, "content": [{
-  "verdict": "indeterminate",
-  "policy_clause_ref": "POL-027",
-  "verification_scope": {
-    "dimension": "upstream_state",
-    "prescribed_treatment": "consent_required",
-    "verification_target": "Confirmar se consentimento do titular foi obtido antes desta transmissão. Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento explícito para coleta e transmissão de dados de identificação."
-  }
-}]}
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "verdict": "indeterminate",
+    "policy_clause_ref": "POL-027",
+    "verification_scope": {
+      "dimension": "upstream_state",
+      "prescribed_treatment": "consent_required",
+      "verification_target": "Confirmar se consentimento do titular foi obtido antes desta transmissão. Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento explícito para coleta e transmissão de dados de identificação."
+    }
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "Confirmar se consentimento do titular foi obtido antes desta transmissão. Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento explícito para coleta e transmissão de dados de identificação."
+    }
+  ]
+}
 ```
 
 *Caso de erro — cláusula deprecated.*
 
 ```
 Input: { "clause_id": "POL-014", "structured_context": {...} }
-Output: { "isError": true, "content": [{
-  "errorCode": "CLAUSE_DEPRECATED",
-  "message": "Cláusula POL-014 está deprecated. Sucessores: POL-031, POL-032.",
-  "isRetryable": true,
-  "details": {
-    "clause_id": "POL-014",
-    "successors": ["POL-031", "POL-032"],
-    "deprecation_reason": "Cláusula original dividida após reforma legislativa."
-  }
-}]}
+Output: {
+  "isError": true,
+  "structuredContent": {
+    "errorCode": "CLAUSE_DEPRECATED",
+    "message": "Cláusula POL-014 está deprecated. Sucessores: POL-031, POL-032.",
+    "isRetryable": true,
+    "details": {
+      "clause_id": "POL-014",
+      "successors": ["POL-031", "POL-032"],
+      "deprecation_reason": "Cláusula original dividida após reforma legislativa."
+    }
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "Cláusula POL-014 está deprecated. Sucessores: POL-031, POL-032."
+    }
+  ]
+}
 ```
 
 ## 5. Contrato de erro
 
 ### 5.1 Estrutura canônica do payload de erro
 
-Quando uma tool retorna falha, o resultado tem `isError: true` e o `content` carrega um objeto com a estrutura abaixo:
+Quando uma tool retorna falha, o resultado MCP tem `isError: true`. O objeto canônico de erro é serializado em `structuredContent` (canal nativo MCP para JSON estruturado), com a estrutura abaixo:
 
 ```yaml
 {
@@ -433,9 +477,13 @@ Quando uma tool retorna falha, o resultado tem `isError: true` e o `content` car
 }
 ```
 
+O campo `content` do `CallToolResult` carrega um único bloco `TextContent` cuja chave `text` reproduz `message` em prosa humana. Esta duplicação é deliberada: `structuredContent` é o canal lido prioritariamente por clientes Claude Code modernos (e exigido por SDKs com `outputSchema` declarado), enquanto `content` mantém retrocompatibilidade e legibilidade em logs.
+
 A separação inglês/português é deliberada. `errorCode` é constante de máquina — orchestrator faz comparação programática (`if errorCode == "CLAUSE_DEPRECATED"`), idioma estável evita bugs por capitalização ou tradução. `message` é destinada a humanos: logs do sistema, mensagens posteriores ao dev no PR review, depuração. Mistura inversa quebra ambos os usos.
 
 `details` é estruturado por `errorCode` (cada código tem sua forma) e carrega informação que o caller precisa para a próxima ação. Sem `details` rico, erro retryable vira erro não-retryable na prática (caller não tem como ajustar a chamada).
+
+O contrato dos quatro campos é convenção deste projeto sobreposta ao protocolo MCP — o único campo de erro nativo do `CallToolResult` é o booleano `isError`, que sinaliza falha mas não distingue classes (validation/business/system, ver §5.2) nem decisão de retry. A convenção materializa essas distinções programaticamente.
 
 ### 5.2 Classes de erro
 

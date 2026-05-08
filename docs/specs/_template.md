@@ -4,6 +4,8 @@
 
 > Esqueleto canônico para specs de componentes do projeto, derivado da redação de `policy-reader.md` na sessão #05. Princípios de redação destilados durante o exercício estão documentados em formato compacto no `learning-log.md` e serão consolidados em `docs/spec-authoring-principles.md` após validação na redação do `semgrep-runner.md`.
 
+> Este template assume componente que expõe contrato MCP (resources e/ou tools). Para componentes do tipo subagente — Triager, Detector, Classifier, Matcher, Reporter, coordinator — derivar `_template-subagent.md` na primeira spec de subagente da semana 3 (mesmo método de destilação aplicado a este template).
+
 ## 1. Identidade e propósito
 
 **Nome canônico.** `<component-name>`
@@ -54,6 +56,8 @@ O schema canônico é especificado em <`caminho/para/SCHEMA.md`>. A versão exig
 
 <Frase introdutória curta: número de tools expostas, princípio de nomeação, qualquer convenção transversal (ex: idioma da descrição, formato de identificador).>
 
+**Naming convention.** Tools deste server aparecem para o agente (Claude Code ou Agent SDK) com o handle `mcp__<server-name>__<tool-name>` — namespace gerado pelo runtime ao expor tools de um MCP server configurado em `.mcp.json`. O nome simples (`<tool-name>`) é a forma usada nas subseções a seguir; a forma prefixada é a forma usada em `allowed-tools` de skill frontmatter, em `mcp_servers`/`allowed-tools` do AgentDefinition consumidor, e em matchers de hooks `PreToolUse`/`PostToolUse` que filtram tools deste server.
+
 ### 4.<n> `<tool_name>`
 
 **Descrição (tool description).**
@@ -93,6 +97,8 @@ O schema canônico é especificado em <`caminho/para/SCHEMA.md`>. A versão exig
 ### 5.1 Estrutura canônica do payload de erro
 
 <Forma do objeto retornado quando `isError: true`. Quatro campos canônicos: `errorCode` (constante em inglês), `message` (humana em idioma do projeto), `isRetryable`, `details` (estruturado por `errorCode`). Justificativa curta da separação errorCode/message.>
+
+<Placement no `CallToolResult` MCP: declarar que o objeto canônico de erro mora em `structuredContent` (canal nativo para JSON estruturado), e que `content[0]` carrega um `TextContent` cuja chave `text` reproduz `message` em prosa humana (fallback de retrocompatibilidade e legibilidade em logs). O único campo de erro nativo do MCP é o booleano `isError` — o contrato dos quatro campos é convenção do projeto sobreposta ao protocolo, materializando classes de erro e decisão de retry programaticamente. Mesma convenção vale para retornos de sucesso com payload estruturado: `structuredContent` carrega o objeto de veredito, `content[0].text` reproduz a prosa humana correspondente.>
 
 ### 5.2 Classes de erro
 

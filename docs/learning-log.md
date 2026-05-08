@@ -986,3 +986,71 @@ Sessão pós-#07 (datada conforme andamento): consolidação dos princípios em 
 - Consolidação de `docs/spec-authoring-principles.md` (pós-#07)
 - Migração de conta GitHub para Team (ativa branch protection)
 - `~/.claude/CLAUDE.md` user-scope com preferências cross-projeto
+
+## 2026-05-07 — sessão #06 — cleanup pós-renomeação + placement híbrido MCP
+
+### Conceitos da prova exercitados
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2.3 `isError` flag e canais de output do `CallToolResult`.** Spec MCP atual (2025-11-25, confirmado via web search) define três campos relevantes para o caller: `content` (array de ContentBlock, obrigatório), `isError` (booleano opcional), `structuredContent` (objeto JSON opcional, mais recente na linha do tempo do spec). Erros de execução de tool reportam-se via `isError: true` no result, NÃO como erro de protocolo JSON-RPC — caso contrário o LLM não consegue ver o erro para autocorrigir. Erros de protocolo (tool name desconhecido, falha de schema validation no JSON-RPC) usam o canal `error.code` numérico.
+
+- **D2.4 Placement híbrido `structuredContent` + `content`.** Decidido como convenção do projeto após web search confirmar que Claude Code 2.0.22+ prioriza `structuredContent` quando ambos os canais estão presentes (Issue #9962 do repo `anthropics/claude-code`). Convenção: payload estruturado (errorCode/message/isRetryable/details em erro; verdict/policy_clause_ref/evidence em sucesso) mora em `structuredContent`; `content[0]` carrega `TextContent` cuja chave `text` reproduz a `message` ou `evidence` em prosa humana — fallback de retrocompatibilidade e legibilidade em logs.
+
+- **D2.5 Três classes de erro como materialização de "transient vs business vs permission".** Validation (sempre `isRetryable: false`) + business (decidido caso a caso) + system (quase sempre `isRetryable: true`) mapeia para o vocabulário do exam guide. Sem `isRetryable` explícito e `details` estruturado, erro retryable vira não-retryable na prática (caller não tem como ajustar a chamada).
+
+- **D2.6 Naming convention `mcp__<server>__<tool>`.** Handle gerado pelo runtime quando expõe tools de um MCP server configurado em `.mcp.json`. Distingue tools MCP de built-in (Read/Write/Edit/Bash/Grep/Glob têm nome simples; tools MCP têm prefixo). Forma usada em três lugares: `allowed-tools` em frontmatter de skill, `mcp_servers`/`allowed-tools` no AgentDefinition do consumidor, e `matcher` de hooks PreToolUse/PostToolUse.
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1.1 (re-aplicação) Subagent tool restriction granular vs all-or-nothing.** Restrição via `mcp_servers` no AgentDefinition é all-or-nothing por server inteiro; restrição via `allowed-tools` é granular por tool individual. A versão granular EXIGE o naming `mcp__<server>__<tool>` — sem ele, não há como referenciar uma tool específica de um server. Implicação para o policy-reader: Matcher pode receber só `mcp__policy-reader__check_applicability` se um dia decidirmos que `find_clauses_by_law_article` não deve ser invocável por ele.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **D3.3 Hook matchers consomem o namespace MCP.** PostToolUse/PreToolUse com matcher tipo `^mcp__policy-reader__` filtra hooks para qualquer tool de um server específico. Sem documentar o naming na spec, autor de hook fica caçando a forma em outra fonte.
+
+- **D3.4 Versão de tooling como floor empírico, não pin nem floor genérico.** CLAUDE.md declara "Claude Code CLI v2.1.123 or higher (validated locally; older versions not verified)". Pin exato força revisão a cada update sem ganho real; floor genérico ("≥ 2.0") afirma compatibilidade não testada; floor empírico declara o que sabe que funciona e expõe o limite.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5.6 Error propagation por categoria viabiliza local recovery.** Casa com "local recovery before escalation" do exam guide. Matcher recebendo `CLAUSE_DEPRECATED` (business retryable) com `successors` em `details` faz retry com sucessor antes de escalar; recebendo `CLAUSE_NOT_FOUND` (business não-retryable) registra e segue; recebendo erro `system` faz backoff. Sem metadado estruturado, todas essas situações colapsam em "deu erro, escala".
+
+- **D5.7 Fronteira epistêmica via escopo restrito da Política.** Decisão de cobrir só `consent_required` e `anonymization_required` na v0.1.0 da Política, com outras dimensões (transferência internacional, retenção, direitos do titular, dados de menores, tratamento compartilhado) explicitamente fora do MVP, é fronteira epistêmica declarativa. Protege a defesa do TCC contra "mas e retenção?" e protege evolução pós-MVP de virar refém de promessas que o MVP não fez.
+
+### Decisões tomadas
+
+- **Renomeação `lgpd-policy-reader` → `policy-reader` propagada em 4 arquivos vivos** (CLAUDE.md, README.md, architecture-overview.md, proposta-tcc2.md), 18 substituições via `sed`. Logs históricos (`learning-log.md`, `session-handoff.md`) **preservados intactos** por princípio: log é registro fiel da evolução do pensamento, não documento sob refatoração. Apagar o nome antigo nas entries pré-#05 falsificaria a história e destruiria o contraste que justifica a entry da renomeação na #05.
+
+- **Sync da decisão de escopo restrito da Política propagado em 2 documentos.** Architecture-overview §7.3 ganhou nova linha na tabela "MVP versus trabalho futuro" + atualização do parágrafo introdutório de "Cinco evoluções" para "Seis" e "quatro/quinta" para "cinco/sexta" para manter contagem coerente. Proposta-tcc2 §8 ganhou item adicional em "Fora do escopo do MVP" nominando as dimensões da LGPD não cobertas. Frase canônica replicada literalmente do "Critério de revisita" da §7.2 da spec do policy-reader — coerência verbal cruzada, não só semântica.
+
+- **Placement híbrido `structuredContent` + `content` adotado para CallToolResult em sucesso e erro.** Aplicado a §5.1 (texto canônico do payload de erro) e aos quatro exemplos da §4 (compliant, violation_candidate, indeterminate, CLAUSE_DEPRECATED). Wire format antigo (objeto JSON naked dentro de `content[]` sem discriminator `type`) era não-conformante ao spec MCP; novo formato usa `structuredContent` para o objeto e `content[0]` como TextContent fiel ao texto humano-legível.
+
+- **Frase de convenção de erro consolidada em §5.1 do _template.md (placeholder) e do policy-reader.md (concreta).** Declara que o contrato `errorCode`/`message`/`isRetryable`/`details` é convenção do projeto sobreposta ao protocolo MCP — único campo de erro nativo do CallToolResult é o booleano `isError`.
+
+- **Nota de escopo no topo do _template.md.** Template atual cobre apenas componentes que expõem contrato MCP (resources e/ou tools). Para subagentes (Triager, Detector, Classifier, Matcher, Reporter, coordinator), `_template-subagent.md` será derivado na primeira spec de subagente da semana 3, mesmo método de destilação.
+
+- **Versão alvo do Claude Code declarada em CLAUDE.md "Stack (canonical)".** Linha "Claude Code CLI version: v2.1.123 or higher (validated locally; older versions not verified)". Inserida em Stack, não em Status flags — versão de tooling externo é tipologia ambiental, status flags são sobre estado de artefatos do repo (tests, CI, MCP servers).
+
+- **Naming convention `mcp__<server>__<tool>` documentada na §4 do _template.md (genérica) e do policy-reader.md (concreta com os três handles listados nominalmente).** Local da declaração casa com onde o leitor está pensando "como referencio essas tools de fora".
+
+### Artefatos criados
+
+- PR `docs/session-06-cleanup` mergeado em `main` via squash (commit `6945840`)
+- 6 arquivos modificados, 107 inserções, 51 deleções
+- 5 logical units commitados separadamente no branch antes do squash (renomeação; sync de escopo; placement híbrido em specs+exemplos; nota de escopo do template; versão Claude Code; naming MCP)
+
+### Validações empíricas
+
+- **Web search confirmou spec MCP atual.** modelcontextprotocol.io/specification/2025-11-25 confirma três campos em CallToolResult; Issue #9962 do `anthropics/claude-code` documenta priorização de structuredContent sobre content em Claude Code 2.0.22+. Hipótese inicial implícita no handoff ("serializar dentro de content") corrigida para placement híbrido com base em evidência empírica do comportamento do client.
+
+- **Bug de wire format detectado durante redação do item 3, não durante implementação.** Os quatro exemplos da §4 do policy-reader (objeto JSON naked dentro de `content[]`) não eram conformantes ao spec MCP. Detecção aconteceu enquanto redigíamos a frase de convenção de §5.1 — perceber que a frase nova ia contradizer os exemplos existentes forçou a identificação. Princípio meta: redigir frase canônica primeiro, depois conferir consistência com exemplos, é boa heurística de revisão.
+
+- **Discrepância no handoff identificada e corrigida.** Handoff dizia "architecture-overview §6 ou §8" para o sync de escopo restrito; documento tem 7 seções e o local correto é §7.3 (tabela "MVP versus trabalho futuro"). Lição: handoff é instrumento de continuidade, mas precisa ser tratado como hipótese a verificar contra o estado atual do documento, não como verdade canônica.
+
+- **Granularidade de commits durante o branch preservada apesar do squash final.** Cinco commits separados no branch (um por logical unit), squash único no merge. Granularidade fina viabilizou revisão por unidade durante a sessão; squash mantém log de main legível. Padrão de Conventional Commits funciona naturalmente com este fluxo.
+
+- **MODO PROFESSOR aplicado conscientemente em dois pontos da sessão.** Antes do item 3 (placement em CallToolResult), conceito do Domínio 2 explicado com três opções de placement antes da escolha. Antes do item 6 (naming convention), conexão tripla com D1/D2/D3 explicada antes da redação. Validação curta após cada explicação ("está claro?") preveniu prosseguir sobre dúvida latente.
+
+### Próximo passo
+
+Sessão #07: redação completa de `docs/specs/semgrep-runner.md`. Diferente do `policy-reader`, este componente não tem decisões prévias acumuladas das sessões #03-#05 — é design real durante a redação. Pontos a decidir: unidade de invocação (arquivo, diff, projeto inteiro), regras como argumento ou pré-instaladas, streaming de findings ou retorno em bloco, representação de localização (file+line+col, range, snippet), tratamento de timeouts longos, contrato de erro específico do runner. Segunda aplicação dos 26 princípios destilados na #05 — template `_template.md` permanece "em formação" até esta validação; ajustes ao template esperados quando emergirem assimetrias entre os dois servers.

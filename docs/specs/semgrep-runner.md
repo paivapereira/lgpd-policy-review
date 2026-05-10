@@ -410,11 +410,39 @@ observável, verificável por teste automatizado ou inspeção direta.
 
 ### 8.<final> Review pass do architecture-overview
 
-<!-- princípio 26: última sub-seção de toda spec. Antes de mergear, varrer
-     architecture-overview.md procurando decisões obsoletas ou contradições
-     com esta spec. Pontos a verificar:
-     - §4.2 (descrição do semgrep-runner) ainda condizente?
-     - §5.2 (Detector como consumidor) menciona scan_diff corretamente?
-     - §7.3 (MVP versus trabalho futuro) precisa absorver "findings
-       interfile" e "subset configurável" como deferimentos?
--->
+Review pass executado durante a redação desta spec. Quatro afirmações em
+`architecture-overview.md` ficaram inconsistentes com decisões fechadas
+neste documento; sync via commit dedicado nesta branch a seguir.
+
+**§4.2 — input da tool.** Texto atual: "Recebe o diff do PR e a lista de
+regras a aplicar". Esta spec §4.2 declara que `scan_diff` aceita apenas
+`base_ref` e `head_ref`; o rule set é server-side e curado pelo projeto
+(§7 desta spec rejeita explicitamente `rule_set` como parâmetro). Patch
+proposto: substituir "lista de regras a aplicar" por menção aos refs.
+
+**§4.2 — status da spec.** Texto atual: "Spec ainda não redigida — fica
+para sessão posterior, depois do `policy-reader` estar implementado."
+Obsoleto após esta spec. Patch proposto: substituir por referência a
+`docs/specs/semgrep-runner.md`.
+
+**§5.2 (Detector → Tools permitidas) — número e nome de tools.** Texto
+atual: "MCP server `semgrep-runner` (tools de execução de regras Semgrep
+e listagem de regras disponíveis)". Esta spec §3 declara que o componente
+não expõe resources, e §4 expõe uma única tool (`scan_diff`) — sem tool
+de listagem. Patch proposto: substituir por menção exclusiva a `scan_diff`.
+
+**§5.2 (Detector → Input) — argumento "lista de regras".** Texto atual:
+"Diff do PR, lista de regras Semgrep a aplicar (incluindo recognizers
+brasileiros)". Inconsistente com a decisão de rule set server-side. Patch
+proposto: substituir por refs do PR (`base_ref`, `head_ref`).
+
+**§7.3 — sem patch necessário.** A tabela "MVP versus trabalho futuro"
+cataloga evoluções produto-nível (severidade, fix-proposer, bloqueio de
+merge, mapa cross-PR, AEP, dimensões adicionais da Política). Os
+deferimentos internos deste componente listados em §7 desta spec (findings
+interfile, subset configurável, integração AppSec Platform, cancelamento
+gracioso) são escopo de ADR-0002, não evoluções produto-nível. Sem
+contradição com §7.3.
+
+Sync dos quatro patches em `architecture-overview.md` §4.2 e §5.2 é o
+próximo commit nesta branch.

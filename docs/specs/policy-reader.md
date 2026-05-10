@@ -517,7 +517,7 @@ Três condições produzem retorno bem-sucedido (`isError: false`) mesmo que "in
 | `INVALID_OPERATION` | validation | false | `check_applicability` | `operation` fora do enum declarado em `policy/SCHEMA.md`. | `{provided, accepted_values}` |
 | `EMPTY_DATA_CATEGORIES` | validation | false | `check_applicability` | `data_categories` é lista vazia. | `{}` |
 
-A tabela acima é exaustiva para a v0.1.0 da spec. Como a Política é carregada apenas no startup do server (§6.5), falhas de I/O sobre o arquivo da Política durante runtime não ocorrem — corrupção ou indisponibilidade durante carregamento inicial aborta o startup do server, fora do contrato de erro de tools.
+A tabela acima é exaustiva para a v0.1.0 da spec. **A classe system é vazia neste componente — ausência de system errors é declaração positiva, não omissão.** A Política é carregada apenas no startup do server (§6.5), de modo que falhas de I/O sobre o arquivo da Política durante runtime não ocorrem; corrupção ou indisponibilidade durante carregamento inicial aborta o startup do server, fora do contrato de erro de tools.
 
 Erros de protocolo MCP (Nível 1 — schema do `inputSchema` violado, tool inexistente, conexão) não aparecem nesta tabela. Eles são tratados pelo protocolo, não pelo componente.
 

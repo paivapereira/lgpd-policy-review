@@ -92,6 +92,10 @@ do código do server, o nome local da tool é `scan_diff`.
 > classification. Operation is synchronous and may take seconds to minutes
 > depending on diff size.
 
+Tempo máximo de execução configurável via variável de ambiente
+`SEMGREP_RUNNER_TIMEOUT_SECONDS`; default 300s. Excedido o limite,
+retorna `SCAN_TIMEOUT` (ver §5).
+
 **Input.**
 
 | Campo | Tipo | Obrigatório | Descrição |
@@ -144,11 +148,110 @@ placement híbrido conforme convenção do projeto fechada na #06.
 
 ### 4.3 Exemplos
 
-<!-- redigir três exemplos seguindo princípio 9 (cobrir estados, não inputs):
-     1. Caso normal — scan que retorna 2-3 findings em arquivos diferentes
-     2. Empty result — scan que retorna findings vazio (estado normal, não erro)
-     3. Erro modal — SCAN_TIMEOUT com isError: true e payload categorizado
--->
+*Caso normal — scan retorna candidatos em dois arquivos diferentes.*
+
+```
+Input: { "base_ref": "main", "head_ref": "feat/onboarding-cpf" }
+
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "scan_metadata": {
+      "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+      "semgrep_version": "1.92.0",
+      "base_ref": "a3f5b1c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2",
+      "head_ref": "9d8e7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d",
+      "elapsed_seconds": 47.3
+    },
+    "findings": [
+      {
+        "rule_id": "br-cpf-leak",
+        "rule_severity": "warning",
+        "rule_message": "Possível tratamento de CPF sem anonimização declarada",
+        "location": {
+          "path": "src/checkout/forms.py",
+          "start_line": 42,
+          "start_col": 9,
+          "end_line": 42,
+          "end_col": 38
+        },
+        "snippet": "user.cpf = request.form['cpf']"
+      },
+      {
+        "rule_id": "br-cnpj-in-log",
+        "rule_severity": "error",
+        "rule_message": "CNPJ sendo escrito em log estruturado",
+        "location": {
+          "path": "src/billing/audit.py",
+          "start_line": 87,
+          "start_col": 5,
+          "end_line": 87,
+          "end_col": 56
+        },
+        "snippet": "logger.info('Empresa cadastrada', cnpj=company.cnpj)"
+      }
+    ]
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "Scan concluído em 47.3s. Encontrados 2 candidatos: src/checkout/forms.py:42 (br-cpf-leak), src/billing/audit.py:87 (br-cnpj-in-log)."
+    }
+  ]
+}
+```
+
+*Empty result — diff não introduziu candidatos detectáveis. `isError: false`, `scan_metadata` presente, `findings: []` (estado normal, não falha).*
+
+```
+Input: { "base_ref": "main", "head_ref": "docs/update-readme" }
+
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "scan_metadata": {
+      "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+      "semgrep_version": "1.92.0",
+      "base_ref": "a3f5b1c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2",
+      "head_ref": "1c2b3a4f5e6d7c8b9a0f1e2d3c4b5a6f7e8d9c0b",
+      "elapsed_seconds": 12.1
+    },
+    "findings": []
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "Scan concluído em 12.1s. Nenhum candidato detectado no diff."
+    }
+  ]
+}
+```
+
+*Erro modal — scan excedeu `SEMGREP_RUNNER_TIMEOUT_SECONDS` (default 300s). `isError: true` no nível protocolar; payload categorizado em `structuredContent`; prosa em `content[0].text`.*
+
+```
+Input: { "base_ref": "main", "head_ref": "feat/large-refactor" }
+
+Output: {
+  "isError": true,
+  "structuredContent": {
+    "errorCode": "SCAN_TIMEOUT",
+    "message": "Scan excedeu o limite de 300 segundos. Subprocess Semgrep terminado após grace period.",
+    "isRetryable": true,
+    "details": {
+      "timeout_seconds": 300,
+      "elapsed_seconds": 312.4,
+      "partial_findings_discarded": true
+    }
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "Scan excedeu o limite de 300 segundos. Subprocess Semgrep terminado após grace period."
+    }
+  ]
+}
+```
 
 ## 5. Contrato de erro
 

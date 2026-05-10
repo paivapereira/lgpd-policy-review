@@ -75,7 +75,7 @@ for actions" — pela negativa).
 
 ### 4.1 Naming convention
 
-Tool exposta por este server segue convenção `mcp__semgrep_runner__<tool>`
+Tool exposta por este server segue convenção `mcp__semgrep-runner__<tool>`
 gerada pelo runtime MCP. O handle completo é o usado em `allowed-tools` no
 frontmatter do AgentDefinition do Detector e em matchers de hooks. Dentro
 do código do server, o nome local da tool é `scan_diff`.

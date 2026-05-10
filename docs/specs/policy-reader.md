@@ -46,7 +46,7 @@ O schema da Política define o estado de cada cláusula via campo `status`. As o
 
 ## 3. Resources expostos
 
-O componente expõe dois resources, ambos sob o scheme `policy://`. A escolha do scheme é registrada em ADR-0002.
+O componente expõe dois resources, ambos sob o scheme `policy://`. O scheme custom para artefato de domínio é convenção do projeto governada pela ADR-0002, Decisão 7.
 
 ### 3.1 `policy://catalog`
 
@@ -517,13 +517,13 @@ Três condições produzem retorno bem-sucedido (`isError: false`) mesmo que "in
 | `INVALID_OPERATION` | validation | false | `check_applicability` | `operation` fora do enum declarado em `policy/SCHEMA.md`. | `{provided, accepted_values}` |
 | `EMPTY_DATA_CATEGORIES` | validation | false | `check_applicability` | `data_categories` é lista vazia. | `{}` |
 
-A tabela acima é exaustiva para a v0.1.0 da spec. Como a Política é carregada apenas no startup do server (§6.5), falhas de I/O sobre o arquivo da Política durante runtime não ocorrem — corrupção ou indisponibilidade durante carregamento inicial aborta o startup do server, fora do contrato de erro de tools.
+A tabela acima é exaustiva para a v0.1.0 da spec. **A classe system é vazia neste componente — ausência de system errors é declaração positiva, não omissão.** A Política é carregada apenas no startup do server (§6.5), de modo que falhas de I/O sobre o arquivo da Política durante runtime não ocorrem; corrupção ou indisponibilidade durante carregamento inicial aborta o startup do server, fora do contrato de erro de tools.
 
 Erros de protocolo MCP (Nível 1 — schema do `inputSchema` violado, tool inexistente, conexão) não aparecem nesta tabela. Eles são tratados pelo protocolo, não pelo componente.
 
 ### 5.5 Princípio de evolução do contrato
 
-Adicionar `errorCode` ao contrato é mudança **minor** da spec (`spec_version` 0.1.0 → 0.2.0). Remover ou mudar semântica de `errorCode` existente é mudança **major** (incompatível com callers existentes). Isto casa com o princípio: ADR explícito antes de qualquer mudança major. Cláusula sobre versionamento desta spec será formalizada em ADR-0002.
+Adicionar `errorCode` ao contrato é mudança **minor** da spec (`spec_version` 0.1.0 → 0.2.0). Remover ou mudar semântica de `errorCode` existente é mudança **major** (incompatível com callers existentes). Isto casa com o princípio: ADR explícito antes de qualquer mudança major. Versionamento da spec é governado pela ADR-0002, Decisão 6 (semver com `0.x` até a primeira implementação end-to-end passar §8 de aceitação; promoção a `1.0` exige ADR dedicado).
 
 ## 6. Provenance e versionamento
 

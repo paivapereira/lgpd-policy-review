@@ -359,17 +359,54 @@ fundamental da abordagem, não decisão deferida.
 
 ## 8. Critérios de aceitação
 
-<!-- redigir critérios como condições observáveis (princípio 25), não
-     atividades. Cada critério precisa ser verificável por teste ou
-     inspeção. Cobrir:
-     - tool retorna findings com schema correto em caso normal
-     - tool retorna empty findings em diff sem matches
-     - tool retorna SCAN_TIMEOUT em scan que excede limite
-     - tool retorna GIT_REF_NOT_FOUND para ref inexistente
-     - tool retorna INSUFFICIENT_GIT_HISTORY em shallow clone
-     - rules_version reportado em todo finding
-     - paths em findings são relativos ao repo root
--->
+A implementação do `semgrep-runner` está completa quando todos os critérios
+abaixo forem demonstravelmente verdadeiros. Cada critério é condição
+observável, verificável por teste automatizado ou inspeção direta.
+
+### 8.1 Tool `scan_diff` — caso normal
+
+- [ ] Tool retorna `{scan_metadata, findings}` com `isError: false` quando o diff entre `base_ref` e `head_ref` casa pelo menos uma regra do rule set curado.
+- [ ] Cada item de `findings` carrega `rule_id`, `rule_severity` (∈ {`info`, `warning`, `error`}), `rule_message`, `location` (com `path`, `start_line`, `start_col`, `end_line`, `end_col`) e `snippet`.
+- [ ] `location.path` é relativo ao repo root, não absoluto.
+- [ ] `start_line`, `start_col`, `end_line`, `end_col` em `location` são inteiros 1-indexed.
+- [ ] `scan_metadata.elapsed_seconds` reporta tempo de execução em segundos como número não-negativo.
+
+### 8.2 Tool `scan_diff` — empty result
+
+- [ ] Diff que não casa nenhuma regra retorna `{scan_metadata: {...}, findings: []}` com `isError: false`.
+- [ ] `scan_metadata` continua presente quando `findings` é vazio (provenance preservada mesmo sem candidatos).
+- [ ] `base_ref == head_ref` (diff vazio) retorna `findings: []` com `isError: false`, sem erro.
+
+### 8.3 Contrato de erro
+
+- [ ] Cada um dos seis `errorCode` da tabela §5 (`GIT_REF_NOT_FOUND`, `INSUFFICIENT_GIT_HISTORY`, `SCAN_TIMEOUT`, `SEMGREP_BINARY_UNAVAILABLE`, `SEMGREP_EXECUTION_FAILED`, `INVALID_RULE_SET`) é observável a partir do cenário descrito na coluna "Quando ocorre".
+- [ ] Todo retorno de erro carrega `errorCode`, `message`, `isRetryable`, `details` em `structuredContent`.
+- [ ] `errorCode` em MAIÚSCULAS_SNAKE em inglês; `message` em português humano-legível.
+- [ ] `isRetryable` casa exatamente com a coluna correspondente da tabela §5 para cada `errorCode`.
+- [ ] `details` segue a forma documentada na coluna `details` da tabela §5 para cada `errorCode`.
+- [ ] Validation errors de domínio NÃO são emitidos pelo componente — input sintaticamente inválido é rejeitado pelo runtime FastMCP antes do código do componente.
+
+### 8.4 Provenance
+
+- [ ] Todo retorno de sucesso (incluindo empty result) carrega em `scan_metadata`: `rules_version`, `semgrep_version`, `base_ref`, `head_ref`, `elapsed_seconds`.
+- [ ] `base_ref` e `head_ref` em `scan_metadata` são commit hashes resolvidos (40 chars hex), não branch names ou tags.
+- [ ] `rules_version` é estável entre execuções consecutivas quando o rule set não foi alterado — duas chamadas seguidas sem mudança em `mcp_servers/semgrep_runner/rules/` retornam o mesmo valor.
+- [ ] `rules_version` muda quando o conteúdo de `mcp_servers/semgrep_runner/rules/` é alterado (regra adicionada, removida ou modificada).
+
+### 8.5 Wire format (placement híbrido)
+
+- [ ] Em sucesso: `structuredContent` carrega `{scan_metadata, findings}`; `content[0]` é um `TextContent` cuja chave `text` é prosa em português resumindo o resultado.
+- [ ] Em erro: `structuredContent` carrega `{errorCode, message, isRetryable, details}`; `content[0].text` reproduz `message`.
+- [ ] `isError` no nível protocolar do `CallToolResult` é `true` em erros, `false` em sucessos (incluindo empty result).
+- [ ] Sucesso nunca carrega `errorCode`; erro nunca carrega `findings` ou `scan_metadata`.
+
+### 8.6 Implementação
+
+- [ ] Stack conforme ADR-0001 (FastMCP 2.x, Python 3.12.7).
+- [ ] Tool retorna `SEMGREP_BINARY_UNAVAILABLE` quando o binário `semgrep` não está localizável no PATH no momento da invocação. Verificação ocorre por chamada; ausência não aborta o processo.
+- [ ] `SCAN_TIMEOUT` é emitido após 300s quando `SEMGREP_RUNNER_TIMEOUT_SECONDS` está ausente do environment; após o valor configurado quando presente.
+- [ ] Findings em arquivos não modificados pelo diff entre `base_ref` e `head_ref` não aparecem em `findings`, mesmo quando regras matcheariam neles ao escanear o repo inteiro.
+- [ ] Quando `SCAN_TIMEOUT` é emitido, o subprocess Semgrep está garantidamente terminado — invocações subsequentes não competem com processos zumbis pelo binário.
 
 ### 8.<final> Review pass do architecture-overview
 

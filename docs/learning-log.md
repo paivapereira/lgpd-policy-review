@@ -1054,3 +1054,45 @@ Sessão pós-#07 (datada conforme andamento): consolidação dos princípios em 
 ### Próximo passo
 
 Sessão #07: redação completa de `docs/specs/semgrep-runner.md`. Diferente do `policy-reader`, este componente não tem decisões prévias acumuladas das sessões #03-#05 — é design real durante a redação. Pontos a decidir: unidade de invocação (arquivo, diff, projeto inteiro), regras como argumento ou pré-instaladas, streaming de findings ou retorno em bloco, representação de localização (file+line+col, range, snippet), tratamento de timeouts longos, contrato de erro específico do runner. Segunda aplicação dos 26 princípios destilados na #05 — template `_template.md` permanece "em formação" até esta validação; ajustes ao template esperados quando emergirem assimetrias entre os dois servers.
+
+## 2026-05-09 — sessão #07 — redação da spec semgrep-runner
+
+**Entrega.** `docs/specs/semgrep-runner.md` v0.1.0; sync de
+`docs/architecture-overview.md` §4.2 e §5.2; PR #8 mergeado.
+
+**Decisões fechadas (Bloco A → C → B → D).**
+- Tool única `scan_diff(base_ref, head_ref)`. Split prematuro evitado: um caller, uma operação canônica.
+- Rule set server-side curado, não argumento. Detector não escolhe regras; simetria com tratamento da Política no `policy-reader`.
+- Retorno em bloco, sem streaming. Justificativa: agentic loop consome `CallToolResult` atômico.
+- Timeout via env `SEMGREP_RUNNER_TIMEOUT_SECONDS` default 300s. `SCAN_TIMEOUT` modal sem findings parciais.
+- Output com range completo + snippet + rule provenance, path relativo ao repo root, sem context lines artificiais.
+- Seis errorCodes (2 business, 4 system). Validation vazio com declaração positiva.
+
+**Princípios dos 26 que ganharam peso real.** #4, #5, #6, #7, #9, #10, #13, #17, #19, #20, #21, #23, #24, #25, #26. Pegada nova: #5 e #7 emergiram juntos sustentando "validation vazio é declaração, não omissão".
+
+**Conceitos da prova exercitados.**
+- D2 — `isError` (sinal protocolar nativo do MCP) vs `errorCode` (categoria de domínio dentro do payload). Distinção forçada à tona por pergunta no chat; virou parágrafo de abertura da §5.
+- D2.1 — split prematuro como anti-pattern. Critério canônico: autonomia das descriptions, não similaridade de input/output.
+- D2.2 — leitura do Semgrep MCP oficial como design reference. Decisão consciente de não consumir (caso de uso é IDE-oriented, não CI-oriented; pedagogia da prova exige build-your-own).
+- D5.4 — structured error response habilita escalation algorítmica em vez de heurística. `errorCode` + `isRetryable` + `details` estruturado é o que torna a decisão local-vs-escalation decidível pelo coordinator.
+
+**Meta-lições operacionais.**
+- Revisão por padrão > revisão por anedota. Quando emerge regra implícita ("§8 é observação, não mecanismo"), varrer a seção inteira procurando outros itens que violam — não só corrigir os apontados. Captura do Claude Code no §8.6.3 sustentou.
+- Hash de commit em corpo de outro commit é frágil — squash invalida. Referência semântica (`§8.<final> review pass`) sobrevive.
+- Forma "três beats" do review pass (texto atual / por que inconsistente / patch proposto) emergiu no §8.<final>; replicável em futuras specs.
+
+**Notas de calibração (fora do PR).**
+- Assimetria §6 ("três eixos de versão") vs `scan_metadata` (cinco campos): `elapsed_seconds` é métrica de execução, não provenance. Mantido.
+- `rule_severity: info` não exercitado em exemplos. Princípio #9 (estados, não enums). Mantido.
+- Forward-references a ADR-0002 e `spec-authoring-principles.md`: débito implícito, risco de orfandade se #08-#09 não materializarem.
+
+**Meta — primeira sessão com Claude Code.**
+- Plan mode via `claude --permission-mode plan` no startup eliminou ambiguidade do keybinding Shift+Tab no Windows.
+- Modelo "diff completo antes de Edit" foi mais valioso que "conteúdo redigido isolado" — capturou erros de coerência interna que apresentação isolada esconderia. Default para próximas sessões.
+- Atos com consequência de versionamento (commit, push, PR) decididos explicitamente na #07. Para sessões de implementação iterativa (semana 4-5+), revisitar — provavelmente diluir tutela.
+- Convenção do repo: omitir trailer `Co-Authored-By` em mensagens de commit. Memória gravada pelo Claude Code via feedback durante a sessão.
+- Calibração da divisão Chat-vs-Code funcionou: Chat para planejar/decidir/revisar, Code para materializar. Manter.
+
+**Artefatos.** PR #8; commits b144de4..910c9ed; branch `docs/specs-semgrep-runner` mergeada e excluída do remote (squash).
+
+**Próximo passo.** Sessão #08 — ADR-0002 expandido. Ver session-handoff para detalhes.

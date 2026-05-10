@@ -1096,3 +1096,106 @@ Sessão #07: redação completa de `docs/specs/semgrep-runner.md`. Diferente do 
 **Artefatos.** PR #8; commits b144de4..910c9ed; branch `docs/specs-semgrep-runner` mergeada e excluída do remote (squash).
 
 **Próximo passo.** Sessão #08 — ADR-0002 expandido. Ver session-handoff para detalhes.
+
+## 2026-05-10 — sessão #09 — redação da ADR-0002
+
+**Entrega.** `docs/adr/0002-mcp-conventions-and-deferments.md` v1.0;
+PR #9 mergeado. Forward-references conceituais para ADR-0002 nas
+specs do `policy-reader` e `semgrep-runner` resolvidas — texto das
+specs ainda carrega ponteiros desatualizados, patch mecânico
+agendado para #10.
+
+**Decisões fechadas (sete convenções).**
+- D1: Placement híbrido `structuredContent` + `content[0].text` em
+  todo `CallToolResult`. Materializado em ambas as specs.
+- D2: Server names com hyphen (`policy-reader`, `semgrep-runner`);
+  tool names em lowercase snake_case; handle canônico
+  `mcp__<server>__<tool>`. Inconsistência atual em
+  `semgrep-runner.md` (underscore) vira follow-up patch.
+- D3: Contrato de erro de três classes (validation / business /
+  system) com `errorCode` + `message` + `isRetryable` + `details`.
+  Empty result e `indeterminate` verdict explicitamente NÃO são
+  erros.
+- D4: Declaração positiva quando uma classe de erro está vazia
+  (princípios #5 + #7 dos 26).
+- D5: Forma "três beats" do review pass em §8.<final> (texto
+  atual / por que inconsistente / patch proposto) como materialização
+  operacional do princípio #26.
+- D6: Versionamento de spec em semver, `0.x` até primeira
+  implementação end-to-end passar §8 de aceitação, promoção a `1.0`
+  exige ADR dedicado. Fecha forward-reference de `policy-reader.md`
+  §5.5.
+- D7: Schemes custom por artefato de domínio (`policy://` para o
+  `policy-reader`). Fecha forward-reference de `policy-reader.md`
+  §3.
+
+**Decisões fechadas (nove deferimentos com critério de revisita).**
+Cinco do `policy-reader` (A–E: browseability humana, hot reload,
+schemas alternativos, anotações declarativas, escopo ampliado da
+Política). Quatro do `semgrep-runner` (F–I: cross-file findings,
+rule subset configurável, integração AppSec Platform, cancelamento
+gracioso). Cada um com condição de revisita machine-checkable, não
+prazo arbitrário.
+
+**Princípios dos 26 que ganharam peso real.** #5 e #7 (empty
+validation como declaração positiva, agora promovido a convenção
+formal D4); #26 (review pass §8.<final> promovido a convenção
+formal D5 com forma "três beats" prescrita).
+
+**Conceitos da prova exercitados.**
+- **Domínio 2 — Tool Design & MCP Integration (18%) — saturado.**
+  D1 (placement híbrido) + D2 (naming convention) + D3 (três
+  classes de erro + `isRetryable` + `details`) + D4 (declaração
+  positiva) cobrem juntos a parte estrutural inteira do Domínio 2.
+  Distinção `isError` protocolar vs `errorCode` de domínio
+  reafirmada e formalizada. Material direto para questão de
+  prova sobre desenho de contrato MCP.
+- **Domínio 5 — Context Management & Reliability (15%) —
+  escalation patterns institucionalizados.** Os nove deferimentos
+  A–I com critério de revisita explícito são escalation patterns
+  materializados como governança: cada deferimento declara a
+  dimensão fora da capacidade atual e a condição que justificaria
+  revisita. Honestidade epistêmica não como atitude, como
+  artefato auditável.
+
+**Meta-lições operacionais.**
+- ADR enxuto funciona quando não há trade-off comparativo real.
+  ADR-0001 precisou de essay-por-decisão porque cada decisão tinha
+  alternativa séria (MIT vs Apache, squash vs merge, PR vs direct).
+  ADR-0002 é consolidação de convenções já materializadas — formato
+  curto (parágrafo de rationale + parágrafo de consequences) cabe.
+  Heurística para futuros ADRs: peso do formato segue peso da
+  deliberação original.
+- Fluxo de deliberação por lista numerada (sete pontos do Chat
+  prompt) → resposta abreviada (1.a, 2.a, 3.a...) → consolidação
+  final em um único draft foi eficiente. Custo: zero ambiguidade
+  na transição entre Chat (deliberar) e Code (executar).
+- Convenção de naming de arquivos em `docs/adr/` digna de uma linha
+  em CLAUDE.md ou skill. Erro mecânico de hoje (arquivo nomeado
+  `adr-0002-...md` em vez de `0002-...md` causou pathspec mismatch,
+  commit vazio, branch sem commits, `gh pr create` quebrado) é
+  exatamente o tipo de coisa que regra escrita evita. Pendência
+  para próxima janela de cleanup.
+
+**Notas de calibração.**
+- Mapa cross-PR longitudinal mantido fora do ADR-0002. Fronteira
+  ADR (decisões de design de componente) vs roadmap consolidado
+  (evoluções produto-nível) preservada. Heurística do learning-log
+  da #03 (consolidar roadmap quando deferimentos cruzarem ≥3 ADRs)
+  segue válida.
+- Itens do feedback de review crítico da #05 (scratchpad pattern
+  #13, justificativa FastMCP 2.x vs 3.x, nominação preliminar de
+  hooks) NÃO entraram em ADR-0002. Justificativa: são decisões
+  arquiteturais cross-component (não específicas de `policy-reader`
+  ou `semgrep-runner`) e cabem mais naturalmente em ADR de
+  arquitetura na semana 3 (specs de subagentes e coordinator).
+
+**Artefatos.** PR #9; commits da branch
+`docs/adr-0002-mcp-conventions-and-deferments` (squash em main).
+`docs/adr/0002-mcp-conventions-and-deferments.md` publicado.
+
+**Próximo passo.** Sessão #10 — PR de follow-up patches da ADR-0002
+(três patches mecânicos em `policy-reader.md` e `semgrep-runner.md`,
+mais verificação de declaração positiva de classes vazias), seguido
+de redação completa de `policy/SCHEMA.md` v0.1.0. Ver
+session-handoff para detalhes.

@@ -46,7 +46,7 @@ O schema da Política define o estado de cada cláusula via campo `status`. As o
 
 ## 3. Resources expostos
 
-O componente expõe dois resources, ambos sob o scheme `policy://`. A escolha do scheme é registrada em ADR-0002.
+O componente expõe dois resources, ambos sob o scheme `policy://`. O scheme custom para artefato de domínio é convenção do projeto governada pela ADR-0002, Decisão 7.
 
 ### 3.1 `policy://catalog`
 

@@ -523,7 +523,7 @@ Erros de protocolo MCP (Nível 1 — schema do `inputSchema` violado, tool inexi
 
 ### 5.5 Princípio de evolução do contrato
 
-Adicionar `errorCode` ao contrato é mudança **minor** da spec (`spec_version` 0.1.0 → 0.2.0). Remover ou mudar semântica de `errorCode` existente é mudança **major** (incompatível com callers existentes). Isto casa com o princípio: ADR explícito antes de qualquer mudança major. Cláusula sobre versionamento desta spec será formalizada em ADR-0002.
+Adicionar `errorCode` ao contrato é mudança **minor** da spec (`spec_version` 0.1.0 → 0.2.0). Remover ou mudar semântica de `errorCode` existente é mudança **major** (incompatível com callers existentes). Isto casa com o princípio: ADR explícito antes de qualquer mudança major. Versionamento da spec é governado pela ADR-0002, Decisão 6 (semver com `0.x` até a primeira implementação end-to-end passar §8 de aceitação; promoção a `1.0` exige ADR dedicado).
 
 ## 6. Provenance e versionamento
 

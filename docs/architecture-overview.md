@@ -97,7 +97,7 @@ Esta seção enumera os componentes do sistema. Detalhamento de cada um vive em 
 
 **`policy-reader`.** Servidor MCP que expõe a Política como recurso consultável por agentes. Implementação em FastMCP 2.x (decidido em ADR-0001). Expõe dois resources (`policy://catalog`, `policy://schema-version`) e três tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`). Contratos de erro em três categorias (validation/business/system) com `isError` flag, `errorCode` estável em inglês e `message` em português.
 
-**`semgrep-runner`.** Servidor MCP que expõe execução de Semgrep como tool para o subagente Detector. Recebe o diff do PR e a lista de regras a aplicar, retorna matches estruturados (arquivo, linha, regra, snippet). Spec ainda não redigida — fica para sessão posterior, depois do `policy-reader` estar implementado.
+**`semgrep-runner`.** Servidor MCP que expõe execução de Semgrep diff-aware como tool para o subagente Detector. Recebe os refs `base_ref` e `head_ref` do PR e aplica server-side o conjunto curado de regras de detecção, retornando matches estruturados (arquivo, linha, regra, snippet). Spec em `docs/specs/semgrep-runner.md`.
 
 ### 4.3 Sistema multi-agente
 
@@ -153,9 +153,9 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 
 **Responsabilidade.** Identifica pontos de tratamento candidatos em um diff.
 
-**Tools permitidas.** MCP server `semgrep-runner` (tools de execução de regras Semgrep e listagem de regras disponíveis), Read (sobre arquivos do diff para inspeção complementar). Sem `policy-reader`, sem Write/Edit/Bash.
+**Tools permitidas.** MCP server `semgrep-runner` (tool `scan_diff` de scan diff-aware), Read (sobre arquivos do diff para inspeção complementar). Sem `policy-reader`, sem Write/Edit/Bash.
 
-**Input.** Diff do PR, lista de regras Semgrep a aplicar (incluindo recognizers brasileiros).
+**Input.** Refs `base_ref` e `head_ref` do PR.
 
 **Output.** Lista de candidatos: `[{file, line, rule_id, snippet, surrounding_context}]`.
 

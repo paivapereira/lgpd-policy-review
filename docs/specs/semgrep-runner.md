@@ -314,9 +314,9 @@ gerado pela regra X (parte do rule set Y) executada por Semgrep Z sobre o
 diff entre commits A e B.
 
 Mecanismo de geração de `rules_version` é decisão de implementação. Hash
-do diretório `rules/` (determinístico, automático) e semver explícito em
-metadata (legível, manual) são duas alternativas viáveis; decisão fechada
-durante implementação na semana 4-5.
+do diretório `rules/` (determinístico, automático), semver explícito em
+metadata (legível, manual), ou combinação dos dois são alternativas
+viáveis; decisão fechada durante implementação na semana 4-5.
 
 ## 7. Não-objetivos e fronteiras
 

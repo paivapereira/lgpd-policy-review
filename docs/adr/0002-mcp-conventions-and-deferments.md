@@ -7,7 +7,7 @@ Accepted — 2026-05-10, session #09.
 ## Context
 
 Two MCP server specs reached v0.1.0 during sessions #05 and #07:
-`docs/specs/policy-reader.md` and `docs/specs/semgrep-runner.md`. Both
+`docs/specs/policy-reader/canonical.md` and `docs/specs/semgrep-runner/canonical.md`. Both
 were written before this ADR existed, and both reference ADR-0002 as
 the governing record for two distinct kinds of decision:
 

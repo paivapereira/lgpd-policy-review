@@ -424,7 +424,7 @@ proposto: substituir "lista de regras a aplicar" por menção aos refs.
 **§4.2 — status da spec.** Texto atual: "Spec ainda não redigida — fica
 para sessão posterior, depois do `policy-reader` estar implementado."
 Obsoleto após esta spec. Patch proposto: substituir por referência a
-`docs/specs/semgrep-runner.md`.
+`docs/specs/semgrep-runner/canonical.md`.
 
 **§5.2 (Detector → Tools permitidas) — número e nome de tools.** Texto
 atual: "MCP server `semgrep-runner` (tools de execução de regras Semgrep

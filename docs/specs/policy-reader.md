@@ -125,7 +125,7 @@ article_source:           # estrutura hierárquica — ver SCHEMA.md
     artigo: 7
     inciso: 1
 applicability_scope:      # vocabulário canônico — ver SCHEMA.md (POL-000)
-  - dados_de_identificação
+  - dados_de_identificacao
   - dados_de_contato
 requirements:
   - id: R1
@@ -357,7 +357,7 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
 Input: {
   "clause_id": "POL-027",
   "structured_context": {
-    "data_categories": ["dados_de_identificação"],
+    "data_categories": ["dados_de_identificacao"],
     "operation": "collect",
     "legal_basis": "consentimento explícito"
   }
@@ -412,7 +412,7 @@ Output: {
 Input: {
   "clause_id": "POL-027",
   "structured_context": {
-    "data_categories": ["dados_de_identificação"],
+    "data_categories": ["dados_de_identificacao"],
     "operation": "transmit",
     "destination": "external_service"
   }

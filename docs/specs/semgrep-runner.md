@@ -67,9 +67,10 @@ insumo interno do server, não como conteúdo navegável pelo caller. O
 Detector consome findings produzidos pela tool em §4; não enumera, lê, ou
 raciocina sobre o conteúdo das regras antes de invocar o scan. Resource
 catalogável só existe quando há leitura cognitiva do conteúdo pelo agente
-consumidor (ver `docs/spec-authoring-principles.md` quando consolidado;
-princípio aplicado: TS 2.2 do exam guide — "resources for catalogs, tools
-for actions" — pela negativa).
+consumidor — princípio MCP "resources for catalogs, tools for actions"
+(TS 2.2 do exam guide), aplicado aqui pela negativa: `semgrep-runner`
+expõe apenas a ação de scan, então a assimetria em relação a
+`policy-reader` (que expõe ambos) é deliberada.
 
 ## 4. Tools expostas
 

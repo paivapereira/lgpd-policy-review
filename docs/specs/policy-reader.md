@@ -384,7 +384,7 @@ Output: {
 Input: {
   "clause_id": "POL-031",
   "structured_context": {
-    "data_categories": ["dados_sensíveis"],
+    "data_categories": ["dados_de_saude"],
     "operation": "store",
     "legal_basis": "interesse legítimo"
   }

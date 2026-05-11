@@ -216,3 +216,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Claude Code local-only config
+#   .claude/ stores Claude Code project config. Files matching *.local.*
+#   are per-machine overrides (tool authorizations, paths, local state)
+#   and must not be versioned. Project-wide config under .claude/ that is
+#   meant to be shared across the team (e.g. commands, skills, rules) IS
+#   versioned — only the *.local.* layer is ignored.
+.claude/settings.local.json
+.claude/*.local.*

@@ -1199,3 +1199,40 @@ formal D5 com forma "três beats" prescrita).
 mais verificação de declaração positiva de classes vazias), seguido
 de redação completa de `policy/SCHEMA.md` v0.1.0. Ver
 session-handoff para detalhes.
+
+---
+
+## 2026-05-10 — sessão #10 — POL-000 + SCHEMA.md + policy.yaml
+
+**Entregas.** PRs #12 (POL-000 v0.1.0), #13 (SCHEMA.md + policy.yaml v0.1.0), #14 (cleanup snake_case da spec do policy-reader) mergeados em `main`.
+
+**Decisões fechadas.**
+- Inversão policy-first: schema destilado de POL-000 (primeira instância), não inventado a priori.
+- Modelo B (taxonomia funcional flat) — nove classes reconhecíveis por padrão técnico em código brasileiro; critério de entrada: três exemplos canônicos plausíveis por classe.
+- Tratamento α-2 dos sensíveis difusos do Art. 5º II: não modelar como classes; delegar a `unmodeled_special_category_fallback`. Dado genético absorvido em `dados_de_saude`.
+- Formato dual canônico: Markdown jurídico (`policy/rationale/`) + YAML operacional (`policy/clauses/`). Markdown prevalece em drift; paridade verificada por teste automatizado na semana 5.
+- Header global em `policy/policy.yaml` separado. `policy_schema_version` redundante em cada cláusula para fail-fast.
+- Dois eixos semver independentes: `policy_schema_version` (schema) e `policy_version` (conteúdo). Regras de bump em SCHEMA §3.2.
+- `clause_type: definitional | substantive` como discriminador. POL-000 é única definitional do MVP.
+- Renomeações terminológicas (alinhamento GDPR/ICO/ISO): `legal_basis` → `lawful_basis`; `data_categories` → `personal_data_categories`; `dados_sensiveis_art5_ii` → `special_category` booleano; `prescribed_treatment` → `control` (ISO/IEC 27701, decisão do João pela extensibilidade); `article_source` → `statutory_reference`; `sensitive_diffuse_fallback` → `unmodeled_special_category_fallback`; `dimension` → `verification_aspect`. Enum `operation` normalizado (21 valores + `other`).
+- Caminho evolutivo de `control` aberto: MVP enum simples; evolução para objeto `{type, value}` quando cláusulas precisarem prescrever mais que lawful basis. Additive, não quebra callers.
+- Inciso modelado como inteiro no YAML, renderização para romano em apresentação humana (decisão da #05 materializada).
+
+**Princípios articulados que ganharam peso real.**
+- Markdown canônico jurídico, YAML destilação operacional — uma fonte canônica e seu derivado, não duas representações independentes.
+- Schema destilado de instâncias — SCHEMA.md §6 marcada provisória até POL-001 existir.
+- Aderência a terminologia oficial do domínio (auditor jurídico) sobre cunhagem própria reduz fricção de validação.
+- Presentation layer separation (D5): estrutura é para máquina, renderização é função de saída.
+- Declaração positiva de escopo: `out_of_scope` em POL-000 e marca "provisório" em SCHEMA §6 materializam o princípio.
+
+**Conceitos da prova exercitados.**
+- **Domínio 2 — Tool Design & MCP Integration (18%).** Vocabulary design com terminologia oficial GDPR/ICO/ISO; `other`+detail pattern para vocabulários exemplificativos (operation, com obrigatoriedade de `operation_description`); declaração positiva de escopo.
+- **Domínio 3 — Claude Code Configuration & Workflows (20%).** Convenção de commits sem trailer Co-Authored-By gravada na memória do Code; analogia entre `clause_id` opaco unidirecional e learning-log append-only.
+- **Domínio 4 — Prompt Engineering & Structured Output (20%).** Schema destilado de instâncias (Pydantic/JSON Schema design); vocabulários fechados (enum `lawful_basis`, `operation`, `control`); validation-retry implícito pelo formato dual (drift detectado → Markdown prevalece, YAML é corrigido).
+- **Domínio 5 — Context Management & Reliability (15%).** Provenance temporal (dois eixos de versão identificam estado); stable identifiers (`clause_id` opaco, regra unidirecional); presentation layer separation; **error propagation through aparente safe transformation** — caso da linha 384 do cleanup PR #14, onde substituição mecânica de acento em identificador semanticamente inválido (`dados_sensiveis` — não é classe em POL-000) preservaria o erro sob aparência canônica. Lição: critério de transformação automatizada precisa verificar premissas, ou diff visual precisa preceder o commit, não suceder.
+
+**Nota meta — evolução do desenho das classes.** Sessão #03 registrou "sete classes em v0.1.0". A redação efetiva de POL-000 fechou em nove (acréscimo de `dados_de_documentos_oficiais` como classe separada de identificação, e `dados_de_perfil_comportamental` cobrindo Art. 12 §2º LGPD). O registro da #03 fica intacto — princípio análogo ao da regra unidirecional de `clause_id`.
+
+**Nota meta — calibração tardia do SCHEMA.md.** Primeiro rascunho saiu prolixo (~500 linhas) por interpretação inadequada do consumidor — tratado como "documento que cobre tudo exaustivamente" quando o consumidor real é humano de referência. Após pergunta do João sobre quem consome, comprimiu para ~258 linhas mantendo Apêndices densos. Lição: validar consumidor antes de redigir documento, não depois.
+
+**Próximo passo.** Ver `docs/session-handoff.md`.

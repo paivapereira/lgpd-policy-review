@@ -1,0 +1,15 @@
+# policy/policy.yaml
+# Header global da Política de Proteção de Dados versionada.
+# Schema: 0.1.0 (ver policy/SCHEMA.md)
+# Última revisão: 2026-05-10 (sessão #10)
+
+policy_schema_version: "0.1.0"
+policy_version: "0.1.0"
+
+accepted_law_identifiers:
+  - LGPD
+
+policy_owner: "TCC de João Pereira — UTFPR, Câmpus Dois Vizinhos"
+
+effective_date: 2026-05-10
+last_revision: 2026-05-10

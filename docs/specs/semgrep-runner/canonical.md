@@ -21,7 +21,7 @@ servidor em seu inventário de tools.
 
 **Stack e governança.** Implementação em FastMCP 2.x conforme ADR-0001.
 Invocação do binário Semgrep via subprocess. Decisões de design deste
-componente são governadas pelo ADR-0002 (em redação na sessão #08).
+componente são governadas pelo ADR-0002.
 
 ## 2. Contrato com o artefato servido
 
@@ -35,9 +35,7 @@ deste componente — adicionar uma regra de detecção de novo identificador
 brasileiro não exige mudança no código do server.
 
 O conjunto de regras carrega versão própria reportada via `rules_version` em
-todo finding emitido. Mecanismo de geração da versão (hash do conteúdo do
-diretório, semver explícito declarado em metadata, ou híbrido) é decisão de
-implementação livre — ver §6.
+todo finding emitido. Mecanismo de geração — ver §6.
 
 **MVP — escopo de regras.** O MVP cobre regras Semgrep single-file: cada
 regra matcha em uma única região contígua de um único arquivo. Suporte a
@@ -65,12 +63,10 @@ Este componente **não expõe resources MCP**.
 A decisão é deliberada e simétrica ao tratamento de regras Semgrep como
 insumo interno do server, não como conteúdo navegável pelo caller. O
 Detector consome findings produzidos pela tool em §4; não enumera, lê, ou
-raciocina sobre o conteúdo das regras antes de invocar o scan. Resource
-catalogável só existe quando há leitura cognitiva do conteúdo pelo agente
-consumidor — princípio MCP "resources for catalogs, tools for actions"
-(TS 2.2 do exam guide), aplicado aqui pela negativa: `semgrep-runner`
-expõe apenas a ação de scan, então a assimetria em relação a
-`policy-reader` (que expõe ambos) é deliberada.
+raciocina sobre o conteúdo das regras antes de invocar o scan. Princípio
+aplicado: `_drafts/spec-authoring-principles.md` § Resource vs Tool —
+discriminação pela leitura cognitiva. A assimetria em relação a
+`policy-reader` (que expõe ambos) é deliberada e caso-teste do princípio.
 
 ## 4. Tools expostas
 
@@ -139,9 +135,8 @@ indica falha de scan. `scan_metadata` está sempre presente, mesmo quando
 `findings` é vazio, para manter provenance auditável.
 
 **Convenção de wire format.** Sucesso retorna `isError: false` no
-`CallToolResult` protocolar. O payload acima vive em `structuredContent`;
-prosa humana resumindo o resultado vive em `content[0].text` em português —
-placement híbrido conforme convenção do projeto fechada na #06.
+`CallToolResult` protocolar. Placement híbrido `structuredContent` +
+`content[0].text` conforme ADR-0002 §1.
 
 **Condições de erro específicas.** Ver §5.
 
@@ -256,16 +251,12 @@ Output: {
 
 ## 5. Contrato de erro
 
-`isError` é o sinal protocolar do MCP — boolean nativo do `CallToolResult`,
-lido pelo runtime do client (Claude Code, Agent SDK) para classificar o
-resultado da tool call. Cada `errorCode` listado abaixo materializa um
-cenário de falha de domínio do `semgrep-runner` e vive **dentro** do
-payload do `CallToolResult`, não no nível protocolar. Em erros, `isError:
-true` no nível protocolar; payload categorizado (`errorCode`, `message`,
-`isRetryable`, `details`) em `structuredContent`; prosa equivalente em
-português em `content[0].text` — placement híbrido conforme convenção do
-projeto. `isError: false` nunca carrega `errorCode`; sucesso retorna o
-payload definido em §4.
+`isError` é o sinal protocolar do MCP — boolean nativo do `CallToolResult`.
+Cada `errorCode` listado abaixo materializa cenário de falha de domínio do
+`semgrep-runner` e vive dentro do payload, não no nível protocolar.
+Estrutura do payload de erro segue ADR-0002 §1 (placement híbrido) e §3
+(três classes). `isError: false` nunca carrega `errorCode`; sucesso retorna
+o payload definido em §4.
 
 Validation errors de domínio são **vazios** neste componente. Os dois
 inputs (`base_ref`, `head_ref`) são strings não-vazias declaradas em
@@ -338,9 +329,9 @@ single-file. Suporte a regras com `taint-mode` e traces cross-file é
 deferimento registrado em ADR-0002.
 
 **Subset configurável de regras por chamada.** Tool não aceita `rule_set`
-como parâmetro. Set fixo curado pelo projeto. Caso emerja necessidade de
-modos distintos de scan (ex: fast vs full), resposta canônica é split de
-tool com descriptions autônomas, não parametrização.
+como parâmetro. Set fixo curado pelo projeto. Para modos distintos de scan
+(ex: fast vs full), princípio aplicado: `_drafts/spec-authoring-principles.md`
+§ Split de tool, não parametrização condicional.
 
 **Integração com Semgrep AppSec Platform.** Componente opera com Semgrep
 open-source sem login. `SEMGREP_APP_TOKEN` não é lido. Findings não são

@@ -41,4 +41,14 @@ A assimetria entre os dois servers é caso-teste do princípio.
 - `policy-reader.check_applicability` retorna veredito estruturado; como o componente decide o veredito (regra determinística sobre `structured_context`, LLM-call interno, híbrido) é decisão de implementação livre.
 - Campos de prosa em retornos (`evidence`, `verification_target`) são gerados pelo componente — mecanismo (template, LLM, híbrido) também é livre.
 
+### Split de tool, não parametrização condicional
+
+**Origem:** `docs/specs/semgrep-runner/canonical.md` §7 (estado pré-Commit 5).
+
+**Princípio.** Quando uma tool poderia receber um parâmetro discriminante para alternar entre comportamentos qualitativamente distintos (ex: modo fast vs full, schema A vs schema B, retorno X vs retorno Y), a resposta canônica é dividir em tools separadas com descriptions autônomas — não parametrizar uma só. Tools são unidades de seleção do agente; agente seleciona melhor entre tools nomeadas com propósitos distintos que entre parâmetros de uma tool genérica. Parametrização condicional tende a degradar precisão de tool_choice e a turvar o contrato observável.
+
+**Aplicação no projeto.**
+
+- `semgrep-runner.scan_diff` não aceita `rule_set` como parâmetro mesmo havendo cenários futuros plausíveis (fast vs full scan). Solução canônica quando o cenário emergir: split em duas tools, cada uma com description, contrato e exemplos próprios.
+
 <!-- Próximos princípios extraídos das specs vêm aqui durante a migração (commits 4 e 5) -->

@@ -12,7 +12,7 @@
 
 **Consumidores autorizados.** Subagente Matcher, exclusivamente. Restrição materializada via configuração de `mcp_servers` no AgentDefinition do Matcher (`architecture-overview.md` §5.7). Outros subagentes não têm este servidor em seu inventário de tools.
 
-**Stack e governança.** Implementação em FastMCP 2.x conforme ADR-0001. Decisões de design deste componente são governadas pelo ADR-0002 (em redação na sessão #08), incluindo deferimentos registrados explicitamente.
+**Stack e governança.** Implementação em FastMCP 2.x conforme ADR-0001. Decisões de design deste componente são governadas pelo ADR-0002, incluindo deferimentos registrados explicitamente.
 
 ## 2. Contrato com o artefato servido
 
@@ -140,7 +140,7 @@ tombstone:
   deprecation_reason: <texto curto>
 ```
 
-A estrutura interna de cada campo (notadamente `article_source` e o vocabulário aceito em `applicability_scope`) é governada pelo schema canônico em `policy/SCHEMA.md`. Esta spec referencia a forma; não a duplica.
+Estrutura interna dos campos governada por `policy/SCHEMA.md` (princípio aplicado: `_drafts/spec-authoring-principles.md` § Schema fora, comportamento dentro).
 
 **Condições de erro específicas.**
 
@@ -238,8 +238,6 @@ Output: { "isError": false, "content": [
   { "clause_id": "POL-029", "article_source": [{lei: "LGPD", artigo: 7, inciso: 5}], ... }
 ]}
 ```
-
-Cada item da lista carrega a estrutura completa de cláusula conforme §4.1 em sucesso (sem o bloco `tombstone`, já que cláusulas deprecated são excluídas).
 
 *Caso de busca estreita.*
 
@@ -477,7 +475,7 @@ Quando uma tool retorna falha, o resultado MCP tem `isError: true`. O objeto can
 }
 ```
 
-O campo `content` do `CallToolResult` carrega um único bloco `TextContent` cuja chave `text` reproduz `message` em prosa humana. Esta duplicação é deliberada: `structuredContent` é o canal lido prioritariamente por clientes Claude Code modernos (e exigido por SDKs com `outputSchema` declarado), enquanto `content` mantém retrocompatibilidade e legibilidade em logs.
+O campo `content` do `CallToolResult` carrega um único bloco `TextContent` cuja chave `text` reproduz `message`. Placement híbrido `structuredContent` + `content` é convenção do projeto registrada em ADR-0002 §1.
 
 A separação inglês/português é deliberada. `errorCode` é constante de máquina — orchestrator faz comparação programática (`if errorCode == "CLAUSE_DEPRECATED"`), idioma estável evita bugs por capitalização ou tradução. `message` é destinada a humanos: logs do sistema, mensagens posteriores ao dev no PR review, depuração. Mistura inversa quebra ambos os usos.
 
@@ -523,19 +521,13 @@ Erros de protocolo MCP (Nível 1 — schema do `inputSchema` violado, tool inexi
 
 ### 5.5 Princípio de evolução do contrato
 
-Adicionar `errorCode` ao contrato é mudança **minor** da spec (`spec_version` 0.1.0 → 0.2.0). Remover ou mudar semântica de `errorCode` existente é mudança **major** (incompatível com callers existentes). Isto casa com o princípio: ADR explícito antes de qualquer mudança major. Versionamento da spec é governado pela ADR-0002, Decisão 6 (semver com `0.x` até a primeira implementação end-to-end passar §8 de aceitação; promoção a `1.0` exige ADR dedicado).
+Adicionar `errorCode` ao contrato é mudança **minor** da spec (`spec_version` 0.1.0 → 0.2.0). Remover ou mudar semântica de `errorCode` existente é mudança **major** (incompatível com callers existentes). Versionamento da spec governado por ADR-0002 §6.
 
 ## 6. Provenance e versionamento
 
 ### 6.1 Versão da spec
 
-Versão atual: `spec_version: 0.1.0`. Convenção de evolução:
-
-- **major** quando contrato muda de forma incompatível: assinatura de tool, estrutura de retorno em sucesso, semântica de `errorCode` existente, vocabulário canônico fechado.
-- **minor** quando adiciona campo opcional, novo `errorCode`, novo exemplo na descrição.
-- **patch** quando corrige typo, melhora prosa, reorganiza sem mudar contrato.
-
-Em fase de redação ativa (até primeira implementação rodar end-to-end), a spec permanece em `0.1.x`. Estabilização para `1.0.0` requer ADR.
+Versão atual: `spec_version: 0.1.0`. Convenção semver governada por ADR-0002 §6. Em fase de redação ativa (até primeira implementação rodar end-to-end), a spec permanece em `0.1.x`; estabilização para `1.0.0` requer ADR dedicado.
 
 ### 6.2 Versão do componente
 
@@ -543,17 +535,7 @@ Implementação do `policy-reader` é versionada independentemente da spec. Comp
 
 ### 6.3 Versão da Política — handshake
 
-O resource `policy://schema-version` é o ponto de handshake do consumidor com o componente. Estrutura retornada (já descrita em §3.2):
-
-```yaml
-{
-  policy_schema_version: 0.1.0,        # versão do schema instanciado
-  policy_version: <versão atual>,      # versão do conteúdo
-  compatible_schema_range: 0.1.x       # versões que esta implementação serve
-}
-```
-
-Consumidor lê este resource antes de qualquer tool. Se `policy_schema_version` não casa com `compatible_schema_range` da implementação, consumidor aborta com falha estrutural — fail-fast.
+O resource `policy://schema-version` (estrutura e semântica em §3.2) é o ponto de handshake versional do consumidor com o componente. Sua função no contrato de provenance é registrar contra qual versão de schema o consumidor opera, permitindo fail-fast quando incompatível.
 
 ### 6.4 Versão da Política em retornos de `check_applicability`
 
@@ -588,7 +570,7 @@ Os comportamentos abaixo estão fora do escopo desta spec. Implementação do co
 
 - **Anotações declarativas de tratamento no código** (sugestão de reconhecimento de comentários ou decoradores indicando consentimento obtido, anonymização aplicada, etc.). Deferimento explícito como evolução pós-MVP. Registrado em ADR-0002.
 
-- **Mecanismo interno de avaliação do `check_applicability`**. Spec descreve **o que** a tool retorna; **como** o componente decide o veredito (regra determinística, LLM interno ao server, híbrido) é decisão de implementação livre para evoluir sem mudar o contrato.
+- **Mecanismo interno de avaliação do `check_applicability`**. Spec define contrato; mecanismo é decisão de implementação livre (princípio aplicado: `_drafts/spec-authoring-principles.md` § Spec descreve o quê, não como).
 
 ### 7.2 Não-objetivos do escopo da Política do MVP
 
@@ -681,7 +663,7 @@ A implementação do `policy-reader` está completa quando todos os critérios a
 
 - [ ] Stack conforme ADR-0001 (FastMCP 2.x, Python 3.12.7).
 - [ ] Política carregada no startup; restart necessário para reload.
-- [ ] Vocabulário POL-000 e enum de `operation` lidos de `policy/SCHEMA.md`. Redação do `policy/SCHEMA.md` ocorre em paralelo à implementação durante a semana 2; ajustes recíprocos esperados durante o ciclo SDD.
+- [ ] Vocabulário POL-000 e enum de `operation` lidos de `policy/SCHEMA.md`.
 
 ### 8.8 Review pass do `architecture-overview`
 

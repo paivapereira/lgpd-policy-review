@@ -1,0 +1,8 @@
+# Line endings — repo declares the contract, machine does not decide.
+# All text files stored as LF in the repo AND in the working copy,
+# regardless of OS or local Git config. Prevents phantom diffs in
+# cross-platform/cross-tooling workflows (Write tool writes LF;
+# Git for Windows default core.autocrlf=true converts LF→CRLF on
+# checkout, which would diverge from the Write tool's output and
+# generate spurious diffs on subsequent edits).
+* text=auto eol=lf

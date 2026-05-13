@@ -1300,3 +1300,39 @@ session-handoff para detalhes.
 - ADR-0003 retrospectivo (sessão #13 ou posterior): reframe consumed/reference + §8.\<final\> lifecycle. Dois conteúdos.
 - Implementação semana 4-5: skeleton + lógica das duas MCP servers, agora ancorados nos compacts cristalizados.
 - Sweep dívida `_drafts/` agendado para promoção do draft (data indefinida — disparado quando algumas cláusulas substantivas exercitarem o SCHEMA e os princípios estabilizarem).
+
+## 2026-05-13 — sessão #13 — ADR-0003 dual-spec architecture
+
+**Foco.** Fechamento do ciclo de meta-decisões de spec design. ADR único cobrindo dois conteúdos acumulados da sessão #12: reframe consumed/reference da arquitetura de docs, e ciclo de vida formal de §8.<final> pós-aplicação dos patches. Companion patches retrofitam policy-reader §8.8 (backfill retrospectivo) e atualizam semgrep-runner §8.<final> (resolution line).
+
+### Conceitos da prova exercitados
+
+- **D5 — Escalation patterns.** Decisão 1 do ADR formaliza compact (always-loaded) + canonical (on-demand) como instância do pattern small-always-loaded + large-on-demand. Same pattern de `/compact` do Claude Code e scratchpad files em multi-agent systems. Vocabulário "consumed/reference" mantido como nome local; "always-loaded/on-demand" intercalado entre parênteses no primeiro uso para amarrar ao vocabulário canônico da prova.
+- **D5 — Provenance/audit trail.** Decisão 2 do ADR materializa a tese de que documentação de drift detectado-e-resolvido tem valor de auditoria mesmo após resolução. Três beats não colapsam em hash pointer; resolution line preserva o commit ref como fechamento, não como substituto.
+- **D5 — Position-aware input ordering aplicado ao próprio ADR.** Context curto no início, Decisões no meio (zona U-shape mitigada por headers `### N`), Aggregated consequences e Companion patches no fim. Auditor lê do começo e do fim; o meio é detalhe técnico.
+- **D2 — Tool design lateralmente.** Companion patches do policy-reader resgatam dois beats que registram drift entre spec e overview na convenção de naming de MCP servers (`policy-reader` vs `lgpd-policy-reader`) — convenção que ADR-0002 D2 formalizou posteriormente.
+
+### Decisões substantivas
+
+- **ADR único cobrindo ambos os conteúdos.** Não dois ADRs separados. Justificativa: ambas as decisões compartilham consumidor (Code + humano) e subject (estrutura e auditoria de spec); fragmentar prejudicaria a leitura do meta-layer.
+- **Proxy test mencionado em passing, não promovido a Decisão 3.** Método é técnica operacional, não decisão arquitetural; ossificá-lo em ADR engessaria iteração futura. Fica no learning-log #12 e migra para `_drafts/spec-authoring-principles.md` quando o draft promover.
+- **Companion patches dentro do mesmo PR do ADR.** Não follow-up patches separados. Materializar a Decisão 2 no mesmo commit em que ela é prescrita é teste de coerência operacional.
+- **Backfill retrospectivo do policy-reader §8.8.** A spec ficou para trás da formalização do pattern "três beats" — authored em #05-#06, antes da forma cristalizar no semgrep-runner em #07 e ser formalizada em ADR-0002 D5 em #09. Reconstrução fiel a partir do diff de `git show 6945840`. Honestidade epistêmica preservada pela declaração explícita de retrospectividade no parágrafo de abertura da seção.
+- **ADR-0002 Decisão 5 não amendada in-place.** Lifecycle vive em ADR-0003; leitor da Decisão 5 chega lá pelo "Related" header do ADR-0003. Justificativa: ADRs registram decisão original imutável; refinamento posterior abre ADR novo que cita.
+
+### Calibrações empíricas
+
+- **Verificação do handoff revelou drift de numeração entre Chat e learning-log.** Sessão aberta como "#11" pelo aluno; handoff em project knowledge registrava #12 fechada e #13 como próxima. Causa: chat numbering vs work-session numbering divergiram durante #11-#12 (extenso, parcialmente parallelizado). Lição: ao abrir nova sessão de Chat, primeira ação é confirmar o número contra o handoff, não contra a memória.
+- **Resolution line exige investigação de git log; não dá para inferir de hash recente.** Tentativa inicial do aluno foi reutilizar `687a9f7` (Commit 8 da sessão #12, PR template) como ref para ambas resolution lines — hash que estava à mão na tela. Mas o ref correto é o commit do squash-merge que aplicou os patches na overview (`6945840` para policy-reader, `f7ec4b1` para semgrep-runner), descoberto via `git log --no-pager --oneline --follow docs/architecture-overview.md`. Lição operacional: resolution line não é "última coisa que aconteceu"; é "commit que materializou o patch específico". Confunde-las quebra a cadeia de auditoria.
+- **Descoberta tardia de anomalia no policy-reader §8.8.** Boilerplate de template em vez de três beats. Detectada apenas após confirmação dos refs de companion patches, ao tentar formular o str_replace exato — não no levantamento inicial. Lição: levantamento de pendência por handoff + learning-log é necessário mas não suficiente; estado real dos arquivos precisa ser inspecionado antes de fechar pacote do Code. Procedimento operacional para ADRs retrospectivos: view de cada arquivo afetado antes de redigir o str_replace, não só leitura do project knowledge.
+
+### Artefatos produzidos
+
+- `docs/adr/0003-dual-spec-architecture.md` (56 linhas, novo).
+- `docs/specs/policy-reader/canonical.md` §8.8 backfilled (boilerplate removido, três parágrafos retrospectivos + resolution line `6945840` adicionados).
+- `docs/specs/semgrep-runner/canonical.md` §8.<final> resolution line atualizada (frase "próximo commit nesta branch" substituída por ref `f7ec4b1`).
+- PR #17 mergeado em main via squash. Branch `docs/adr-0003-dual-spec-architecture` deletada.
+
+### Próximo passo
+
+Implementação semana 4-5 do cronograma TCC: skeleton + lógica das duas MCP servers, ancorados nos compacts cristalizados na sessão #11. Branch nova a partir de main; provavelmente componente por componente (policy-reader primeiro, semgrep-runner em seguida) ou em paralelo se houver fôlego.

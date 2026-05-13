@@ -667,7 +667,10 @@ A implementação do `policy-reader` está completa quando todos os critérios a
 
 ### 8.8 Review pass do `architecture-overview`
 
-Ao finalizar a redação desta spec, executar review pass no `architecture-overview.md` procurando:
+Review pass reconstruído retrospectivamente nos termos do ADR-0003 Decisão 2. A spec foi authored nas sessões #05-#06, antes da forma "três beats" cristalizar em §8.<final> do `semgrep-runner` (sessão #07) e ser formalizada em ADR-0002 Decisão 5. Duas classes de inconsistência foram detectadas entre esta spec e `architecture-overview.md` durante o cleanup da sessão #06; ambas foram sincronizadas no mesmo commit.
 
-- Decisões da spec que tornam afirmação do `architecture-overview` obsoleta (sync via PR enxuto).
-- Afirmações do `architecture-overview` que esta spec contradisse (resolver via ADR ou ajuste).
+**Múltiplas seções — nome canônico do servidor MCP.** Texto pré-patch: ocorrências de `lgpd-policy-reader` em onze pontos do documento — glossário de MCP, §2 (Camada 2), §3 (Etapa 3), §4.1, §4.2 (cabeçalho do bloco e linha do `semgrep-runner`), §5.1 (Coordinator Tools permitidas), §5.3 (Detector Tools permitidas e Justificativa do escopo), §5.5 (Matcher Tools permitidas), §5.6 (Reporter Output) e §5.7 (matriz tools × subagentes). Esta spec §1 adota `policy-reader` como nome canônico; o prefixo `lgpd-` é redundância com o escopo do artefato servido (a Política sob `policy/` já é derivada da LGPD) e diverge da convenção dos reference servers da Anthropic. Patch aplicado: substituição mecânica de todas as ocorrências por `policy-reader`.
+
+**§7.3 — tabela "MVP versus trabalho futuro".** Texto pré-patch: enumeração de cinco evoluções fora do MVP ("Cinco evoluções estão fora do MVP. Para quatro delas, o design não fecha portas... A quinta — AEP — fica fora do roadmap deste trabalho"), sem entrada para o escopo dimensional da Política. Esta spec §7 restringe a cobertura MVP a `consent_required` e `anonymization_required` (as duas dimensões avaliáveis por análise estática); transferência internacional, retenção, direitos do titular, dados de menores e tratamento compartilhado ficam fora. Patch aplicado: acréscimo de linha "Dimensões adicionais da LGPD na Política" à tabela, com critério de reabertura "Validação empírica do MVP completa + demanda concreta documentada"; ajuste das contagens de "Cinco/quatro/quinta" para "Seis/cinco/sexta".
+
+Patches sincronizados em `architecture-overview.md` no commit `6945840` (PR #7, cleanup da sessão #06).

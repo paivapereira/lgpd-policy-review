@@ -436,5 +436,4 @@ interfile, subset configurável, integração AppSec Platform, cancelamento
 gracioso) são escopo de ADR-0002, não evoluções produto-nível. Sem
 contradição com §7.3.
 
-Sync dos quatro patches em `architecture-overview.md` §4.2 e §5.2 é o
-próximo commit nesta branch.
+Patches sincronizados em `architecture-overview.md` no commit `f7ec4b1` (PR #8).

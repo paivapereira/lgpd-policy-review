@@ -1,0 +1,13 @@
+﻿{
+  "mcpServers": {
+    "policy-reader": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "mcp_servers.policy_reader.server"
+      ]
+    }
+  }
+}

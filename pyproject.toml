@@ -1,0 +1,22 @@
+[project]
+name = "mcp-servers"
+version = "0.1.0"
+description = "MCP servers for the LGPD Data Protection Policy code review system"
+authors = [
+    { name = "João Guilherme de Mello Paiva Pereira", email = "106413206+paivapereira@users.noreply.github.com" }
+]
+requires-python = ">=3.12.7"
+dependencies = [
+    "fastmcp>=3.2.0,<4.0",
+    "pydantic>=2.13.4",
+    "pyyaml>=6.0.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.14,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

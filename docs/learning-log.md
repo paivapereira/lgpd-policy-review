@@ -1386,3 +1386,67 @@ Implementação semana 4-5 do cronograma TCC: skeleton + lógica das duas MCP se
 ### Próximo passo
 
 Sessão #15 abre com **agenda dupla, primeira hora dedicada a artefatos de documentação pendentes**: (a) `SCHEMA.md §7` ajuste distinguindo vocabulários estruturais vs jurisdicionais, (b) ADR-0005 redigindo "LGPD-coupling em vocabulários jurisdicionais: decisão MVP e migration path". Ambos têm structure rascunhada no chat da #14, registrada no handoff. Após esses, retoma branch `feat/policy-reader-skeleton` para Fase B: Commit 5 do `policy_loader.py` com as três mitigações decididas, depois Commit 6 (`get_clause` real), Commit 7 (testes pytest §8.2 incluindo fixture deprecated), Commit 8 (validação manual §8 via Claude Code), Commit 9 (closure #15). PR só após Commit 7 ou 8. Pendente também: ADR-0004 (uv + FastMCP 3.x) — pode ficar para #16 ou intercalado na #15 se houver fôlego.
+
+---
+
+## Sessão #12 — 2026-05-12
+
+**Foco:** destilamento dual canonical+compact das duas specs MCP; aplicação completa da taxonomia A-G; validação empírica do compact via proxy test; ajustes derivados.
+
+### Conceitos da prova exercitados
+
+- **D1 — Task decomposition.** Comparação de patterns para classificação A-G: prompt chaining sequencial (Chat→Code→Chat) vs dynamic adaptive decomposition em single-agent (Chat classifica + Code aplica patch mecânico). Escolha por single-agent quando subtask não exige ferramenta exclusiva.
+- **D1 — Plan mode vs direct execution.** Trade-off explícito: plan mode em commits substantivos (decisões editoriais, ex. Commit 4 e 6); direct execution em commits mecânicos (cortes pré-aprovados, ex. Commit 5 e 7). Heurística destilada.
+- **D1 — Hooks PostToolUse (conceitual).** Sanity checks pós-modificação dos pacotes são análogos a hooks: ferramenta termina → check determinístico roda → decisão prosseguir/parar. Pattern equivalente ao hook PostToolUse para validação determinística.
+- **D2 — Resource vs Tool discrimination.** Princípio articulado e extraído ao draft (`### Resource vs Tool — discriminação pela leitura cognitiva`); aplicado em policy-reader (ambos) e semgrep-runner (só tools). Asimetria entre os dois servers é caso-teste do princípio.
+- **D2 — Tool description design.** Descriptions em inglês, contendo when-to-use, what-it-returns e anti-uses (frases tipo "Do not use this for X — use Y instead"). Anti-uses entram no checklist de paridade canonical↔compact (Commit 8).
+- **D2 — Split de tool, não parametrização condicional.** Princípio extraído ao draft. Origem: §7 do semgrep-runner canonical, articulando o "porque não há `rule_set` parameter".
+- **D2 — Convenção `mcp__<server>__<tool>`** referenciada nos dois compacts; convenção governada por ADR-0002 §2.
+- **D3 — CLAUDE.md hierarchy** preservada sem modificação; sessão exercitou que CLAUDE.md + compact é suficiente para skeleton de implementação (proxy test, zero canonical opens).
+- **D3 — .claude/skills/ não-uso.** Decisão consciente: compact spec vive como file (`docs/specs/<component>/compact.md`), não como skill. Skill faria sentido se a compact fosse referenciada por descrição em vez de path explícito. Anotação para futuro: skill pattern emerge se houver repetição de compact reading em workflows distintos.
+- **D4 — Validation-retry loops com critério categórico.** Aplicado nos sanity checks de Commits 4-7 (range de count + Select-String exhaustivo); aplicado no proxy test (0 silent errors + ≤ 2 GAP markers + canonical opens alinhados a pointers). Calibração registrada: critério categórico vence critério agregado.
+- **D4 — Structured output via tool_use schema.** Pacotes declarativos com `old_str`/`new_str` exatos são instâncias do mesmo pattern aplicado a edição de arquivo. Code aplica via str_replace, validation confirma execução fiel.
+- **D4 — Few-shot via examples generosos.** Compact spec design favorece example-based learning: exemplo por veredito em `check_applicability` (4 exemplos), exemplo de timeout dedicado em `scan_diff`. Cap em cognitive-load content, livre em uniform reference examples.
+- **D5 — Lost-in-the-middle.** Paginação do Commit 4 em duas passadas (§1-§4 e §5-§8) para mitigar degradação atencional na canônica de 691 linhas. Princípio destilável: classificação editorial sobre artefato fixo requer paginação acima de ~500 linhas; abaixo, single-pass.
+- **D5 — Position-aware input ordering.** Compact spec design coloca contract surfaces no início (§1-§3: identity, wire format, error contract) e initialization no fim. Tools (médio) ficam na zona U-shape, mitigado por delimitadores claros (## headers).
+- **D5 — Escalation patterns.** Reframe consumed/reference do compact (sempre lido por Code) vs canonical (referência on-demand) materializa o pattern escalation: small-always-loaded + large-on-demand. Mesmo padrão de `/compact` do Claude Code e scratchpad em multi-agent systems.
+- **D5 — Scratchpad pattern.** Canonical funciona como read-only scratchpad / extended-context resource. Compact:canonical :: tool_description:resource_content.
+- **D5 — Provenance/audit trail.** Decisão de manter §8.\<final\> em forma "three beats" pós-aplicação dos patches (em vez de reduzir a ponteiro de commit hash) é aplicação do princípio: documentação de drift detectado-e-resolvido tem valor de auditoria mesmo após resolução.
+
+### Decisões substantivas
+
+- **Taxonomia A-G aplicada** aos canonicals (Commits 4 e 5). 22 cortes em policy-reader (de 690 para 673), 9 cortes em semgrep-runner (de 449 para 440). Calibração da estimativa #08: superestimação por fator ~3 em linhas absolutas.
+- **Reframe consumed/reference.** Compact é o que Code consome em implementação; canonical é referência on-demand. Substitui frame "governança-paridade" implícito no plano #11 original. Implicação direta: alvo de redução de canonical (575 linhas, estimativa #08) é morto. Canonical fica do tamanho que precisar; compact é orçado pela métrica "Code implementa sem abrir canonical no caso modal".
+- **Proxy test como método de validação empírica.** Aplicado ao compact do policy-reader (resultado: 0 silent errors, 1 GAP marker substantivo, 5 revisões cirúrgicas). NÃO aplicado ao semgrep-runner (compacto menor, lessons learned do policy-reader transferíveis diretamente). Custo do método: ~1h-1h30min por proxy test; vale para artefatos centrais.
+- **Article_source matching semantics.** Per-element hierarchical prefix: cláusula matcha se ANY elemento de `article_source` começa hierarquicamente com a especificação. Decidido inline no compact (OP-3 do Commit 6), nota inline também no canonical (Commit 9). NÃO vira ADR — decisão de design contida na spec.
+- **§8.\<final\> lifecycle.** Mantido em forma "three beats" pós-aplicação dos patches conforme ADR-0002 Decisão 5. Diferido para ADR-0003 retrospectivo a discussão sobre o ciclo de vida formal pós-aplicação.
+- **PR template** em `.github/PULL_REQUEST_TEMPLATE.md` com checkbox bidirecional canonical↔compact (Commit 8). Foco estrito em paridade; ADR/learning-log/sweep ficam fora do checklist.
+- **Princípios destilados ao draft** (`_drafts/spec-authoring-principles.md`): 4 totais ao fim da sessão — Resource vs Tool, Schema fora-comportamento dentro, Spec descreve o quê-não como, Split de tool-não parametrização condicional.
+
+### Calibrações empíricas
+
+- **Estimativa de redução por taxonomia A-G:** fator ~3 de superestimação na #08. Causa: estimativa foi pré-leitura, sem inspeção linha a linha das categorias presentes. Lição: estimar redução por taxonomia A-G só pós-leitura sumária da spec.
+- **File-line estimativa imprecisa quando operações atravessam paragraph-separators.** Commit 4 teve off-by-3 (-17 actual vs -14 expected); Commit 5 bateu exato. Diferença atribuída a blank-line collapses em operações de E (cortes de duplicação).
+- **Compact spec budget:** cap cognitive load (~200-237 linhas em policy-reader, ~121 em semgrep-runner), livre uniform reference examples. Cognitive-load = pure instruction + schema YAML blocks; uniform reference = JSON examples sob header padronizado. Cap não é cap de file count; é cap de conteúdo com cognitive load acumulativo.
+- **Sanity check wrap-aware obrigatório.** Em arquivos hard-wrapped (canonical com ~72-80 char wrap), `Select-String -Pattern` matcha por linha física, não por linha lógica. Padrões devem usar substring contígua dentro de uma linha lógica. Falso positivo capturado no Commit 5 (preservação §6 de "Hash do diretório" que atravessa wrap entre L308 e L309).
+- **Anti-regras em proxy test devem enumerar artefatos colaterais previsíveis.** Sessão #12 pegou `__pycache__` em mcp_servers/ no nível pai (package wrapper criado pelo Code), não previsto nas anti-regras. Princípio operacional: prompt de proxy test inclui lista explícita de "não cria X, Y, Z" para Python (package wrappers, lock files, cache dirs).
+- **Critério de aprovação em validação empírica:** leitura crítica das categorias, não contagem agregada. "≤ 1 open question" como critério tosco foi insuficiente; 4 open questions reportadas decomposeram em 1 gap real + 1 minor unstated + 2 false positives, mudando veredito de fail para pass. Princípio: critério categórico bem-formado distingue categorias de severidade, não soma valores.
+- **Escalation pointers podem ser over-anxious.** Pointer §5.1 do compact do policy-reader (sobre dual-deprecated semantics) disparou no proxy test sem necessidade — prosa local já bastava. Princípio destilado: pointer só justificado quando prosa local explicitamente insuficiente; condição do "if" deve ser estado epistêmico realista, não "se o leitor for cauteloso".
+- **Cross-doc links em fase de draft carregam dívida de path enumerável.** 6 links totais ao fim da sessão (recontados: 2 em policy-reader canonical, 2 em semgrep-runner canonical, 0 em policy-reader compact, 2 em semgrep-runner compact). Sweep registrado para promoção do draft a `docs/spec-authoring-principles.md`.
+- **Validação empírica precisa de canal narrativo aberto além das métricas.** Friction notes opcionais no relatório do proxy test (parte do prompt) revelaram as 5 revisões cirúrgicas. Métricas hard sozinhas teriam dado veredito "pass" + zero ação.
+
+### Artefatos produzidos
+
+- 9 commits da sessão #11 (`4e78f03` → este Commit 9): pre-fix, restructure, draft seed, A-G policy-reader, A-G semgrep-runner, compact policy-reader, compact semgrep-runner, PR template, fechamento.
+- `docs/specs/policy-reader/canonical.md`: 673 linhas (de 690).
+- `docs/specs/policy-reader/compact.md`: 397 linhas (novo).
+- `docs/specs/semgrep-runner/canonical.md`: 440 linhas (de 449).
+- `docs/specs/semgrep-runner/compact.md`: 202 linhas (novo).
+- `docs/_drafts/spec-authoring-principles.md`: 4 princípios extraídos.
+- `.github/PULL_REQUEST_TEMPLATE.md`: criado (18 linhas).
+
+### Próximo passo
+
+- ADR-0003 retrospectivo (sessão #13 ou posterior): reframe consumed/reference + §8.\<final\> lifecycle. Dois conteúdos.
+- Implementação semana 4-5: skeleton + lógica das duas MCP servers, agora ancorados nos compacts cristalizados.
+- Sweep dívida `_drafts/` agendado para promoção do draft (data indefinida — disparado quando algumas cláusulas substantivas exercitarem o SCHEMA e os princípios estabilizarem).

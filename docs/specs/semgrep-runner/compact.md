@@ -200,3 +200,5 @@ At server startup:
 No `policy/SCHEMA.md`-equivalent vocabulary load — `semgrep-runner` has no external schema artifact. Rule content is the artifact, and is server-internal (see §4).
 
 **See canonical §6 if:** considering alternative binary discovery paths or rule set hot-reload. Both are explicit deferrals for the MVP.
+
+**Per-client rule set.** MVP loads a single project-bundled rule set with Brazilian recognizers as pilot. Per-client rule set — separate directories governed by client identity, analogous to how `policy-reader` is per-client via Policy swap under `policy/` (ADR-0005 Decision 1) — is deferred to a future ADR, when the first non-LGPD-Brazilian client materializes. See canonical §2.1 and §7.

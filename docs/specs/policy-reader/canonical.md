@@ -6,11 +6,11 @@
 
 **Nome canônico.** `policy-reader`
 
-**Função.** Servidor MCP que expõe a Política de Proteção de Dados versionada como recurso consultável e como tool de avaliação de conformidade contextual, para uso pelo subagente Matcher no sistema de code review.
+**Função.** Servidor MCP que expõe a Política de Proteção de Dados versionada — sob o framework jurisdicional declarado em seu header (`legal_framework`) — como recurso consultável e como tool de avaliação de conformidade contextual, para uso pelo subagente Matcher no sistema de code review. O servidor é framework-agnóstico: serve qualquer Política cujo `policy_schema_version` esteja dentro de `compatible_schema_range` (handshake estrutural). O `legal_framework` declarado é exposto via handshake para validação do consumidor (ver §3.2).
 
 **Posição na arquitetura.** Ver `docs/architecture-overview.md` §4.2 (MCP servers) e §5.5 (Matcher como consumidor).
 
-**Consumidores autorizados.** Subagente Matcher, exclusivamente. Restrição materializada via configuração de `mcp_servers` no AgentDefinition do Matcher (`architecture-overview.md` §5.7). Outros subagentes não têm este servidor em seu inventário de tools.
+**Consumidores autorizados.** Tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`) são acessadas exclusivamente pelo subagente Matcher. Resources (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`) são consumidos pelo Matcher e, no caso específico de `policy://vocabularies`, também pelo Classifier (read-only, sem acesso às tools). Restrição materializada via configuração de `mcp_servers` no AgentDefinition de cada subagente (`architecture-overview.md` §5.7). Outros subagentes (Triager, Detector, Reporter) não têm este servidor em seu inventário.
 
 **Stack e governança.** Implementação em FastMCP 2.x conforme ADR-0001. Decisões de design deste componente são governadas pelo ADR-0002, incluindo deferimentos registrados explicitamente.
 
@@ -22,14 +22,17 @@ Este componente serve **Políticas de Proteção de Dados** em conformidade com 
 
 O schema canônico é especificado em `policy/SCHEMA.md`. A versão exigida pela implementação atual deste componente é `policy_schema_version: 0.1.0`.
 
-A Política em si carrega dois eixos de versão independentes:
+A Política em si carrega três eixos de identidade independentes:
 
-- `policy_schema_version` — versão do schema (forma) que a Política instancia. Contrato com consumidores. Muda raramente.
+- `policy_schema_version` — versão do schema (forma) que a Política instancia. Contrato estrutural com consumidores. Muda raramente.
 - `policy_version` — versão do conteúdo das cláusulas. Trilha de auditoria. Muda a cada revisão de cláusula.
+- `legal_framework` — identificador da jurisdição sob a qual a Política opera (e.g., `LGPD`, `GDPR`). Valor único (não lista), imutável durante a vida da instância. Governa o conjunto de vocabulários jurisdicionais carregados de `policy/vocabularies/<framework>/`.
 
-A separação evita o anti-padrão "bumpamos schema major porque mudou um texto", que envenena a semântica do versionamento. O componente reporta ambos os campos via o resource `policy://schema-version` (handshake do consumidor) e inclui ambos em retornos relevantes de tools, formando provenance temporal auditável (ver §6 — Provenance e versionamento).
+**Multi-framework — escopo arquitetural.** Uma instância deste componente serve **uma única Política** sob **um único `legal_framework`**. Não há suporte a cross-framework simultâneo: a mesma instância não serve LGPD e GDPR ao mesmo tempo. Multi-framework é alcançado via múltiplas instâncias do servidor, uma por cliente/jurisdição, cada qual com sua Política sob `policy/`. Decisão de design registrada em ADR-0005 Decision 2.
 
-**MVP — escopo de schema.** A v0.1.0 do schema é o único schema suportado pela implementação atual deste componente. Suporte a schemas alternativos (clientes com Políticas estruturalmente distintas) é deferimento explícito registrado em ADR-0002.
+A separação evita o anti-padrão "bumpamos schema major porque mudou um texto", que envenena a semântica do versionamento. O componente reporta os três campos via o resource `policy://schema-version` (handshake do consumidor) e inclui-os em retornos relevantes de tools, formando provenance temporal e jurisdicional auditável (ver §6 — Provenance e versionamento).
+
+**MVP — escopo de schema.** A v0.1.0 do schema é o único schema suportado pela implementação atual deste componente. Suporte a schemas alternativos (clientes com Políticas estruturalmente distintas) é deferimento explícito registrado em ADR-0002. A distinguir de `legal_framework` alternativo, que é nativamente suportado via troca de vocabulários jurisdicionais sem alteração de schema (ver §2.2 e ADR-0005).
 
 ### 2.2 Comportamento contratual perante estados de cláusula
 
@@ -44,9 +47,11 @@ O schema da Política define o estado de cada cláusula via campo `status`. As o
 
 **Justificativa da exclusão em `find_clauses_by_law_article`.** Busca reversa serve à pergunta "quais cláusulas operativas referenciam tal artigo da lei?". Incluir cláusulas deprecated obrigaria todo consumidor a filtrar defensivamente; excluí-las por padrão alinha o comportamento com o caso de uso modal. Recuperação de cláusulas deprecated é caso explícito via `get_clause` com `clause_id` conhecido.
 
+**Comportamento contratual perante framework jurisdicional.** Conforme declarado em §2.1, o componente serve uma Política sob um framework por instância, e o valor de `legal_framework` é imutável durante a vida da instância. O componente é **agnóstico ao valor** de `legal_framework`: nenhum código contém ramificações por `LGPD` vs `GDPR` vs outros. Os vocabulários jurisdicionais (operações, bases legais, controles, motivos de fora de escopo) são lidos no startup do diretório `policy/vocabularies/<framework>/`, onde `<framework>` corresponde ao valor declarado no header da Política. Mudança de framework requer, em ordem: (a) Política nova ou clonada sob nova jurisdição, com header declarando `legal_framework: <new>` e `accepted_law_identifiers` apropriado; (b) população do diretório `policy/vocabularies/<new_framework>/` com os quatro YAMLs canônicos exigidos (`operation`, `lawful_basis`, `control`, `out_of_scope`); (c) restart do servidor. Nenhuma alteração de código é necessária. Ver §2.1 e ADR-0005 Decision 2.
+
 ## 3. Resources expostos
 
-O componente expõe dois resources, ambos sob o scheme `policy://`. O scheme custom para artefato de domínio é convenção do projeto governada pela ADR-0002, Decisão 7.
+O componente expõe três resources, todos sob o scheme `policy://`. O scheme custom para artefato de domínio é convenção do projeto governada pela ADR-0002, Decisão 7.
 
 ### 3.1 `policy://catalog`
 
@@ -70,15 +75,43 @@ A ordem dos itens segue ordem natural do `clause_id` (POL-001, POL-002, ...). N�
 
 **URI.** `policy://schema-version` (estática, sem parâmetros).
 
-**Conteúdo.** Objeto com três campos:
+**Conteúdo.** Objeto com quatro campos:
 
 - `policy_schema_version` — versão do schema instanciado pela Política atual. No MVP, sempre `0.1.0`.
 - `policy_version` — versão do conteúdo das cláusulas da Política atual.
+- `legal_framework` — identificador da jurisdição declarada no header da Política (e.g., `LGPD`, `GDPR`). Valor único, imutável durante a sessão do server. Governa o conjunto de vocabulários jurisdicionais carregados (ver §3.3).
 - `compatible_schema_range` — intervalo de versões de schema que esta implementação do componente sabe servir. No MVP, `0.1.x`.
 
-**Semântica de leitura.** Idempotente. Serve como **handshake**: consumidor lê este resource antes de invocar tools, verifica se `policy_schema_version` está dentro de `compatible_schema_range`, e prossegue ou aborta. Falha do handshake é fail-fast — consumidor não deve tentar tools com schema incompatível.
+**Semântica de leitura.** Idempotente. Serve como **handshake duplo** do consumidor antes de invocar tools:
+
+**Validação estrutural.** Consumidor verifica que `policy_schema_version` está dentro de `compatible_schema_range`. Falha aborta — consumidor não sabe servir a forma desta Política.
+
+**Validação jurisdicional.** Consumidor verifica que `legal_framework` está em sua própria lista de frameworks aceitos (configurada no AgentDefinition do consumidor). Falha aborta — consumidor não sabe operar sob esta jurisdição.
+
+Falha de qualquer uma das duas validações é fail-fast — consumidor não deve tentar tools.
+
+**Onde mora a validação.** Este resource não rejeita consumidores; apenas declara o que a Política instancia. A decisão de prosseguir ou abortar é local ao consumidor: cada subagente (Matcher, Classifier) carrega no seu AgentDefinition a lista de frameworks que aceita operar e o range de schemas que sabe consumir, e compara contra os campos deste resource. O componente não conhece — nem precisa conhecer — a configuração de cada consumidor.
 
 **Casos de erro.** Equivalentes a `policy://catalog`: I/O do arquivo da Política. Sem casos de erro de domínio.
+
+### 3.3 `policy://vocabularies`
+
+**URI.** `policy://vocabularies` (estática, sem parâmetros).
+
+**Conteúdo.** Objeto agregando os quatro vocabulários jurisdicionais carregados de `policy/vocabularies/<framework>/*.yaml`, onde `<framework>` corresponde ao valor de `legal_framework` declarado no header da Política:
+
+- `operation` — vocabulário canônico de operações de tratamento (e.g., coleta, armazenamento, compartilhamento).
+- `lawful_basis` — vocabulário canônico de bases legais admitidas, com campo `category` distinguindo `personal_data` de `sensitive_data`.
+- `control` — vocabulário canônico de controles que a Política pode exigir (e.g., `consent_required`, `anonymization_required`).
+- `out_of_scope` — vocabulário canônico de motivos pelos quais uma categoria candidata foi excluída da classificação em cláusulas `definitional` (e.g., absorvida em classe existente, atributo de regime de tratamento, fora do escopo geográfico do MVP).
+
+Cada vocabulário é objeto com campos `schema_version`, `framework`, e `values[]`, conforme estrutura definida em `policy/SCHEMA.md` §10.
+
+**Semântica de leitura.** Idempotente. Conteúdo determinado em startup pelo valor de `legal_framework` no header da Política; imutável durante a sessão do server. Reload exige restart do server, paralelo a `policy://catalog` e `policy://schema-version`.
+
+**Consumidores autorizados.** Matcher (junto com as tools do componente) e Classifier (read-only, sem acesso às tools). Materializa o princípio Resource vs Tool registrado em ADR-0005 Decision 4: o Classifier consome o vocabulário como contexto léxico para categorização lexical de operações detectadas, sem ganhar capacidade de invocar tools de avaliação contextual (exclusivas do Matcher).
+
+**Casos de erro.** Falha de I/O ao ler qualquer dos quatro arquivos YAML sob `policy/vocabularies/<framework>/` é erro de protocolo (Nível 1 MCP) detectado no startup — server falha o boot e relata erro de configuração. Sem casos de erro de domínio em runtime: consumo do resource numa sessão estabelecida é idempotente.
 
 ## 4. Tools expostas
 
@@ -267,6 +300,8 @@ Output: { "isError": true, "content": [{
 }]}
 ```
 
+**Independência de framework.** Esta tool é agnóstica ao valor de `legal_framework`: opera sobre o índice de cláusulas da Política carregada, qualquer que seja a jurisdição. O vocabulário aceito de `lei` no input é determinado pelo campo `accepted_law_identifiers` do header da Política — não codificado na tool. Trocar de framework (e.g., de `LGPD` para `GDPR`) não altera o comportamento da tool, apenas o conjunto de identificadores de lei aceitos e o conjunto de cláusulas indexadas, ambos derivados da Política carregada.
+
 ### 4.3 `check_applicability`
 
 **Descrição (tool description).**
@@ -293,7 +328,7 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
 | `clause_id` | string | sim | Identificador da cláusula a avaliar. Formato `POL-NNN`. |
 | `structured_context` | object | sim | Contexto estruturado do handling. Campos descritos abaixo. |
 | `structured_context.data_categories` | array de string | sim | Classes de dados envolvidas. Cada elemento deve pertencer ao vocabulário canônico declarado em POL-000 (`policy/SCHEMA.md`). Lista não-vazia. |
-| `structured_context.operation` | string (enum) | sim | Tipo de operação sobre o dado. Enum declarado em `policy/SCHEMA.md`. |
+| `structured_context.operation` | string (enum) | sim | Tipo de operação sobre o dado. Vocabulário canônico definido em `policy/vocabularies/<framework>/operation.yaml`, exposto ao consumidor via resource `policy://vocabularies` (ver §3.3). |
 | `structured_context.legal_basis` | string | não | Base legal declarada pelo código (quando presente). Valor textual livre — não vocabulário fechado. Ausência sinaliza que o código não declara base. |
 | `structured_context.destination` | string | não | Destino do dado quando relevante (ex: `external_service`, `internal_database`, `client_browser`). Ausência sinaliza não-aplicabilidade. |
 
@@ -321,7 +356,7 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
   policy_clause_ref: POL-027,
   verification_scope: {
     dimension: upstream_state,                # vocabulário em SCHEMA.md
-    prescribed_treatment: consent_required,   # vocabulário em SCHEMA.md; MVP cobre consent_required e anonymization_required
+    prescribed_treatment: consent_required,   # control.yaml em policy://vocabularies; MVP cobre consent_required e anonymization_required
     verification_target: <texto em português indicando onde verificar>
   }
 }
@@ -347,6 +382,10 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
 | `INVALID_OPERATION` | validation | false | `operation` fora do enum declarado. | `{provided, accepted_values}` |
 | `EMPTY_DATA_CATEGORIES` | validation | false | `data_categories` é lista vazia. | `{}` |
 
+**Notas sobre o conteúdo de `accepted_values`.** Para `INVALID_DATA_CATEGORY` e `INVALID_OPERATION`, o campo `accepted_values` é populado dinamicamente a partir do vocabulário carregado da Política: `INVALID_OPERATION` enxerga os valores de `policy/vocabularies/<framework>/operation.yaml` (resource `policy://vocabularies`); `INVALID_DATA_CATEGORY` enxerga os valores do vocabulário canônico de classes declarado em POL-000 da Política (governado por `policy/SCHEMA.md`). O conteúdo da lista varia conforme a Política carregada; a **forma do payload** (`{invalid_value, accepted_values}` / `{provided, accepted_values}`) é estável.
+
+**Framework-awareness desta tool.** `check_applicability` é framework-aware via consumo dinâmico de `policy://vocabularies` no startup: a tool não contém ramificações por jurisdição (e.g., `if framework == "LGPD"`), apenas consome o vocabulário carregado. Trocar de framework muda o conjunto de operações válidas (input) e o vocabulário de controles citados em `prescribed_treatment` (output), sem mudar o comportamento codificado da tool. O retorno em sucesso carrega o trinque de provenance (`policy_schema_version`, `policy_version`, `legal_framework`), conforme §6.4. Exemplos abaixo já refletem o trinque.
+
 **Exemplos.**
 
 *Caso compliant — código declara base legal coerente com a cláusula.*
@@ -365,7 +404,10 @@ Output: {
   "structuredContent": {
     "verdict": "compliant",
     "policy_clause_ref": "POL-027",
-    "evidence": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento; código declara base 'consentimento explícito'."
+    "evidence": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento; código declara base 'consentimento explícito'.",
+    "policy_schema_version": "0.1.0",
+    "policy_version": "0.1.0",
+    "legal_framework": "LGPD"
   },
   "content": [
     {
@@ -393,7 +435,10 @@ Output: {
     "verdict": "violation_candidate",
     "policy_clause_ref": "POL-031",
     "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11.",
-    "contradicted_requirement": "R1"
+    "contradicted_requirement": "R1",
+    "policy_schema_version": "0.1.0",
+    "policy_version": "0.1.0",
+    "legal_framework": "LGPD"
   },
   "content": [
     {
@@ -424,7 +469,10 @@ Output: {
       "dimension": "upstream_state",
       "prescribed_treatment": "consent_required",
       "verification_target": "Confirmar se consentimento do titular foi obtido antes desta transmissão. Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento explícito para coleta e transmissão de dados de identificação."
-    }
+    },
+    "policy_schema_version": "0.1.0",
+    "policy_version": "0.1.0",
+    "legal_framework": "LGPD"
   },
   "content": [
     {
@@ -537,16 +585,17 @@ Implementação do `policy-reader` é versionada independentemente da spec. Comp
 
 O resource `policy://schema-version` (estrutura e semântica em §3.2) é o ponto de handshake versional do consumidor com o componente. Sua função no contrato de provenance é registrar contra qual versão de schema o consumidor opera, permitindo fail-fast quando incompatível.
 
-### 6.4 Versão da Política em retornos de `check_applicability`
+### 6.4 Provenance temporal e jurisdicional em retornos de `check_applicability`
 
-Cada retorno bem-sucedido de `check_applicability` carrega, como campo adicional do objeto de veredito, os campos:
+Cada retorno bem-sucedido de `check_applicability` carrega, como campos adicionais do objeto de veredito, o **trinque de provenance** (`policy_schema_version`, `policy_version`, `legal_framework`):
 
-- `policy_schema_version`
-- `policy_version`
+- `policy_schema_version` — versão do schema (forma) que a Política instancia. Estável entre múltiplos vereditos da mesma sessão.
+- `policy_version` — versão do conteúdo das cláusulas. Estável entre múltiplos vereditos da mesma sessão.
+- `legal_framework` — identificador da jurisdição sob a qual a Política opera (e.g., `LGPD`, `GDPR`). Valor único, imutável durante a sessão do server (ADR-0005 Decision 2).
 
-Estes campos são **provenance temporal**: identificam contra qual versão da Política o veredito foi emitido. Permitem ao Reporter agregar Reports auditáveis (ver `architecture-overview.md` §5.6 — Reporter) e a auditores post-hoc reproduzir a decisão.
+Estes três campos são **provenance temporal e jurisdicional**: identificam contra qual versão da Política e sob qual jurisdição o veredito foi emitido. Permitem ao Reporter agregar Reports auditáveis (ver `architecture-overview.md` §5.6 — Reporter) e a auditores post-hoc reproduzir a decisão. O `legal_framework` no veredito é **não-opcional**: em auditoria multi-jurisdição assíncrona, o auditor não tem acesso ao contexto de execução (qual instância do server estava ativa, qual Política foi carregada), então o framework precisa ser **carregado** no veredito, não inferido — o registro é a única fonte estruturalmente confiável. Materializa ADR-0005 Decision 5 (provenance trinque é não-opcional em vereditos).
 
-Justificativa: `get_clause` e `find_clauses_by_law_article` são retrieval — consumidor sabe que está lendo o estado atual e o agregador pode incluir as versões a partir do handshake. `check_applicability` emite veredito que será citado em Report — versão precisa estar no veredito diretamente, não inferida do contexto.
+Justificativa: `get_clause` e `find_clauses_by_law_article` são retrieval — consumidor sabe que está lendo o estado atual e o agregador pode incluir os três campos a partir do handshake (§3.2). `check_applicability` emite veredito que será citado em Report — o trinque precisa estar no veredito diretamente, não inferido do contexto.
 
 ### 6.5 Política sem alteração de versão durante execução
 
@@ -564,13 +613,15 @@ Os comportamentos abaixo estão fora do escopo desta spec. Implementação do co
 
 - **Hot reload da Política em runtime**. Componente carrega Política no startup; mudanças exigem restart. Deferimento por simplicidade do MVP (§6.5). Registrado em ADR-0002.
 
-- **Suporte a schemas alternativos** (Políticas com estrutura distinta da v0.1.0). Componente serve apenas o schema canônico. Generalização para múltiplos schemas é deferimento explícito. Registrado em ADR-0002.
+- **Suporte a schemas alternativos** (Políticas com estrutura distinta da v0.1.0). Componente serve apenas o schema canônico. Generalização para múltiplos schemas é deferimento explícito. Registrado em ADR-0002. Não confundir com suporte a `legal_framework` alternativo, que é nativamente suportado via troca de vocabulários jurisdicionais — ver bullet abaixo sobre múltiplas instâncias e ADR-0005.
 
 - **Emissão do Report consolidado**. Estrutura do Report é definida em outro lugar (`architecture-overview.md` §5.6 — Reporter); este componente fornece os componentes do Report (versões da Política, vereditos) mas não os agrega.
 
 - **Anotações declarativas de tratamento no código** (sugestão de reconhecimento de comentários ou decoradores indicando consentimento obtido, anonymização aplicada, etc.). Deferimento explícito como evolução pós-MVP. Registrado em ADR-0002.
 
 - **Mecanismo interno de avaliação do `check_applicability`**. Spec define contrato; mecanismo é decisão de implementação livre (princípio aplicado: `_drafts/spec-authoring-principles.md` § Spec descreve o quê, não como).
+
+- **Múltiplas Políticas ou múltiplos frameworks jurisdicionais em uma única instância do componente**. Uma instância serve uma Política sob um framework, ambos imutáveis durante a sessão. Servir LGPD + GDPR simultaneamente exige duas instâncias do componente, distinguidas no Matcher via configuração de `mcp_servers` (uma entrada por instância). Hot-swap de Política ou de `legal_framework` durante a sessão é deferimento explícito — registrado em ADR-0002. Decisão arquitetural de servir-uma-Política-por-instância governada por ADR-0005 Decision 2.
 
 ### 7.2 Não-objetivos do escopo da Política do MVP
 
@@ -620,7 +671,8 @@ A implementação do `policy-reader` está completa quando todos os critérios a
 
 - [ ] `policy://catalog` retorna lista de itens conforme estrutura §3.1 para uma Política de teste com pelo menos uma cláusula `active` e uma `deprecated`.
 - [ ] Cláusulas `deprecated` no catálogo carregam `successors`; cláusulas `active` não.
-- [ ] `policy://schema-version` retorna objeto com `policy_schema_version`, `policy_version`, `compatible_schema_range` conforme §3.2.
+- [ ] `policy://schema-version` retorna objeto com `policy_schema_version`, `policy_version`, `legal_framework`, `compatible_schema_range` conforme §3.2; campo `legal_framework` reflete exatamente o valor declarado no header da Política carregada.
+- [ ] `policy://vocabularies` retorna objeto agregando os quatro vocabulários jurisdicionais (`operation`, `lawful_basis`, `control`, `out_of_scope`) carregados de `policy/vocabularies/<framework>/*.yaml` no startup, conforme §3.3. Read-only, idempotente.
 
 ### 8.2 Tools — `get_clause`
 
@@ -643,7 +695,7 @@ A implementação do `policy-reader` está completa quando todos os critérios a
 - [ ] Retorna `verdict: violation_candidate` com `evidence` e `contradicted_requirement` para context que viola requirement.
 - [ ] Retorna `verdict: indeterminate` com `verification_scope` completo (`dimension`, `prescribed_treatment`, `verification_target`) quando análise estática não decide.
 - [ ] Retorna `verdict: not_applicable` quando cláusula não governa o context.
-- [ ] Retornos em sucesso carregam `policy_schema_version` e `policy_version` (provenance §6.4).
+- [ ] Retornos em sucesso carregam o trinque de provenance (`policy_schema_version`, `policy_version`, `legal_framework`) conforme §6.4.
 - [ ] Retorna `CLAUSE_DEPRECATED` (retryable) com `successors` em `details` para `clause_id` deprecated.
 - [ ] Retorna erros de validation (`INVALID_DATA_CATEGORY`, `INVALID_OPERATION`, `EMPTY_DATA_CATEGORIES`) para inputs com vocabulário ou estrutura inválida.
 
@@ -657,13 +709,14 @@ A implementação do `policy-reader` está completa quando todos os critérios a
 ### 8.6 Provenance
 
 - [ ] Handshake via `policy://schema-version` aborta consumidor com schema incompatível.
-- [ ] `check_applicability` em sucesso carrega versões da Política consultada.
+- [ ] `check_applicability` em sucesso carrega o trinque completo de provenance (`policy_schema_version`, `policy_version`, `legal_framework`), conforme §6.4.
 
 ### 8.7 Implementação
 
 - [ ] Stack conforme ADR-0001 (FastMCP 2.x, Python 3.12.7).
 - [ ] Política carregada no startup; restart necessário para reload.
-- [ ] Vocabulário POL-000 e enum de `operation` lidos de `policy/SCHEMA.md`.
+- [ ] Vocabulário POL-000 (classes de dados) lido de `policy/SCHEMA.md`; vocabulários jurisdicionais (`operation`, `lawful_basis`, `control`, `out_of_scope`) lidos de `policy/vocabularies/<framework>/*.yaml` no startup, governados por `legal_framework` do header da Política (nenhum vocabulário hardcoded no componente).
+- [ ] Troca de `legal_framework` da Política não exige alteração de código: instanciar Política nova/clonada sob nova jurisdição, popular `policy/vocabularies/<new_framework>/`, atualizar header, restart. Verificável por exercício de clone sob framework alternativo.
 
 ### 8.8 Review pass do `architecture-overview`
 
@@ -674,3 +727,17 @@ Review pass reconstruído retrospectivamente nos termos do ADR-0003 Decisão 2. 
 **§7.3 — tabela "MVP versus trabalho futuro".** Texto pré-patch: enumeração de cinco evoluções fora do MVP ("Cinco evoluções estão fora do MVP. Para quatro delas, o design não fecha portas... A quinta — AEP — fica fora do roadmap deste trabalho"), sem entrada para o escopo dimensional da Política. Esta spec §7 restringe a cobertura MVP a `consent_required` e `anonymization_required` (as duas dimensões avaliáveis por análise estática); transferência internacional, retenção, direitos do titular, dados de menores e tratamento compartilhado ficam fora. Patch aplicado: acréscimo de linha "Dimensões adicionais da LGPD na Política" à tabela, com critério de reabertura "Validação empírica do MVP completa + demanda concreta documentada"; ajuste das contagens de "Cinco/quatro/quinta" para "Seis/cinco/sexta".
 
 Patches sincronizados em `architecture-overview.md` no commit `6945840` (PR #7, cleanup da sessão #06).
+
+### 8.9 Review pass — sessão #16 (multi-cliente)
+
+Review pass aplicado nos termos de ADR-0002 Decisão 5 durante o cleanup da sessão #16 (architecture rewrite para suporte multi-cliente, ADR-0005). Três classes de inconsistência foram detectadas entre esta spec e o estado pós-Commits 1–3 da branch `arch/multi-client-policy-rewrite`; todas foram sincronizadas no Commit 4.
+
+**§3 — número de resources expostos.** Texto pré-patch: "O componente expõe dois resources" no header da §3, sem entrada para o vocabulário jurisdicional como recurso compartilhado entre Matcher e Classifier. Esta spec pós-Commit 4 expõe três resources (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`); o novo `policy://vocabularies` (§3.3) materializa o princípio Resource vs Tool de ADR-0005 Decision 4 — Classifier consome como contexto léxico sem ganhar acesso às tools. Patch aplicado: header §3 atualizado para "três resources, todos sob o scheme `policy://`"; §3.3 nova com URI, conteúdo, semântica, consumidores autorizados e casos de erro.
+
+**§2.1 — eixos de identidade da Política.** Texto pré-patch: "A Política em si carrega dois eixos de versão independentes" (`policy_schema_version`, `policy_version`), sem entrada para o eixo jurisdicional. ADR-0005 Decision 2 estabelece `legal_framework` como terceiro eixo de identidade, valor único, imutável durante a sessão da instância. Patch aplicado: lista de "dois eixos de versão" expandida para "três eixos de identidade" com inclusão de `legal_framework`; parágrafo "Multi-framework — escopo arquitetural" acrescentado declarando impossibilidade de cross-framework simultâneo numa mesma instância; provenance temporal expandida para "temporal e jurisdicional" em §2.1, §3.2, §4.3 e §6.4.
+
+**§1 — consumidores autorizados do componente.** Texto pré-patch: "Subagente Matcher, exclusivamente" como descrição única de consumidor em §1, sem distinção entre tools e resources. A introdução do resource `policy://vocabularies` quebra essa simetria — tools permanecem exclusivas do Matcher, mas o resource é também consumido pelo Classifier (read-only). Patch aplicado: §1 reescrito para distinguir consumidores de tools (Matcher) de consumidores de resources (Matcher + Classifier para `policy://vocabularies`); §3.3 explicita os consumidores autorizados em subseção dedicada.
+
+Demais ajustes (notas operacionais de payload em §4.3, atualização de checkboxes de aceitação em §8, sub-patches de terminologia em §2.1 e §7.1) são derivativos das três classes acima e foram aplicados no mesmo Commit 4.
+
+Commit 4 da branch `arch/multi-client-policy-rewrite`.

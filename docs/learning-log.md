@@ -1300,3 +1300,153 @@ session-handoff para detalhes.
 - ADR-0003 retrospectivo (sessão #13 ou posterior): reframe consumed/reference + §8.\<final\> lifecycle. Dois conteúdos.
 - Implementação semana 4-5: skeleton + lógica das duas MCP servers, agora ancorados nos compacts cristalizados.
 - Sweep dívida `_drafts/` agendado para promoção do draft (data indefinida — disparado quando algumas cláusulas substantivas exercitarem o SCHEMA e os princípios estabilizarem).
+
+## 2026-05-13 — sessão #13 — ADR-0003 dual-spec architecture
+
+**Foco.** Fechamento do ciclo de meta-decisões de spec design. ADR único cobrindo dois conteúdos acumulados da sessão #12: reframe consumed/reference da arquitetura de docs, e ciclo de vida formal de §8.<final> pós-aplicação dos patches. Companion patches retrofitam policy-reader §8.8 (backfill retrospectivo) e atualizam semgrep-runner §8.<final> (resolution line).
+
+### Conceitos da prova exercitados
+
+- **D5 — Escalation patterns.** Decisão 1 do ADR formaliza compact (always-loaded) + canonical (on-demand) como instância do pattern small-always-loaded + large-on-demand. Same pattern de `/compact` do Claude Code e scratchpad files em multi-agent systems. Vocabulário "consumed/reference" mantido como nome local; "always-loaded/on-demand" intercalado entre parênteses no primeiro uso para amarrar ao vocabulário canônico da prova.
+- **D5 — Provenance/audit trail.** Decisão 2 do ADR materializa a tese de que documentação de drift detectado-e-resolvido tem valor de auditoria mesmo após resolução. Três beats não colapsam em hash pointer; resolution line preserva o commit ref como fechamento, não como substituto.
+- **D5 — Position-aware input ordering aplicado ao próprio ADR.** Context curto no início, Decisões no meio (zona U-shape mitigada por headers `### N`), Aggregated consequences e Companion patches no fim. Auditor lê do começo e do fim; o meio é detalhe técnico.
+- **D2 — Tool design lateralmente.** Companion patches do policy-reader resgatam dois beats que registram drift entre spec e overview na convenção de naming de MCP servers (`policy-reader` vs `lgpd-policy-reader`) — convenção que ADR-0002 D2 formalizou posteriormente.
+
+### Decisões substantivas
+
+- **ADR único cobrindo ambos os conteúdos.** Não dois ADRs separados. Justificativa: ambas as decisões compartilham consumidor (Code + humano) e subject (estrutura e auditoria de spec); fragmentar prejudicaria a leitura do meta-layer.
+- **Proxy test mencionado em passing, não promovido a Decisão 3.** Método é técnica operacional, não decisão arquitetural; ossificá-lo em ADR engessaria iteração futura. Fica no learning-log #12 e migra para `_drafts/spec-authoring-principles.md` quando o draft promover.
+- **Companion patches dentro do mesmo PR do ADR.** Não follow-up patches separados. Materializar a Decisão 2 no mesmo commit em que ela é prescrita é teste de coerência operacional.
+- **Backfill retrospectivo do policy-reader §8.8.** A spec ficou para trás da formalização do pattern "três beats" — authored em #05-#06, antes da forma cristalizar no semgrep-runner em #07 e ser formalizada em ADR-0002 D5 em #09. Reconstrução fiel a partir do diff de `git show 6945840`. Honestidade epistêmica preservada pela declaração explícita de retrospectividade no parágrafo de abertura da seção.
+- **ADR-0002 Decisão 5 não amendada in-place.** Lifecycle vive em ADR-0003; leitor da Decisão 5 chega lá pelo "Related" header do ADR-0003. Justificativa: ADRs registram decisão original imutável; refinamento posterior abre ADR novo que cita.
+
+### Calibrações empíricas
+
+- **Verificação do handoff revelou drift de numeração entre Chat e learning-log.** Sessão aberta como "#11" pelo aluno; handoff em project knowledge registrava #12 fechada e #13 como próxima. Causa: chat numbering vs work-session numbering divergiram durante #11-#12 (extenso, parcialmente parallelizado). Lição: ao abrir nova sessão de Chat, primeira ação é confirmar o número contra o handoff, não contra a memória.
+- **Resolution line exige investigação de git log; não dá para inferir de hash recente.** Tentativa inicial do aluno foi reutilizar `687a9f7` (Commit 8 da sessão #12, PR template) como ref para ambas resolution lines — hash que estava à mão na tela. Mas o ref correto é o commit do squash-merge que aplicou os patches na overview (`6945840` para policy-reader, `f7ec4b1` para semgrep-runner), descoberto via `git log --no-pager --oneline --follow docs/architecture-overview.md`. Lição operacional: resolution line não é "última coisa que aconteceu"; é "commit que materializou o patch específico". Confunde-las quebra a cadeia de auditoria.
+- **Descoberta tardia de anomalia no policy-reader §8.8.** Boilerplate de template em vez de três beats. Detectada apenas após confirmação dos refs de companion patches, ao tentar formular o str_replace exato — não no levantamento inicial. Lição: levantamento de pendência por handoff + learning-log é necessário mas não suficiente; estado real dos arquivos precisa ser inspecionado antes de fechar pacote do Code. Procedimento operacional para ADRs retrospectivos: view de cada arquivo afetado antes de redigir o str_replace, não só leitura do project knowledge.
+
+### Artefatos produzidos
+
+- `docs/adr/0003-dual-spec-architecture.md` (56 linhas, novo).
+- `docs/specs/policy-reader/canonical.md` §8.8 backfilled (boilerplate removido, três parágrafos retrospectivos + resolution line `6945840` adicionados).
+- `docs/specs/semgrep-runner/canonical.md` §8.<final> resolution line atualizada (frase "próximo commit nesta branch" substituída por ref `f7ec4b1`).
+- PR #17 mergeado em main via squash. Branch `docs/adr-0003-dual-spec-architecture` deletada.
+
+### Próximo passo
+
+Implementação semana 4-5 do cronograma TCC: skeleton + lógica das duas MCP servers, ancorados nos compacts cristalizados na sessão #11. Branch nova a partir de main; provavelmente componente por componente (policy-reader primeiro, semgrep-runner em seguida) ou em paralelo se houver fôlego.
+
+## 2026-05-13 — sessão #14 — policy-reader skeleton (Fase A) + decisões de stack
+
+**Foco.** Abertura da fase de implementação. Bootstrap do pacote `mcp-servers` via uv, registro de tools e resources do `policy-reader` como stubs, declaração project-scope via `.mcp.json`, e validação empírica end-to-end com Claude Code. Fase A (skeleton) completa; Fase B (loader + tools reais) deferida para sessão #15. Quatro decisões de stack/arquitetura tomadas no caminho, três delas com ADRs pendentes.
+
+### Conceitos da prova exercitados
+
+- **D2 — MCP server bootstrap com FastMCP.** Instanciação via `FastMCP("policy-reader")` (server identity em kebab-case conforme ADR-0002 D2), decoradores `@mcp.tool` (3.x permite sem parens) e `@mcp.resource(uri)`, retorno tipado em `dict[str, Any]` deixa FastMCP gerar `CallToolResult` com placement híbrido (structuredContent + content[0].text) automaticamente.
+- **D2 — Discriminação tools vs resources no wire format.** Validação empírica revelou: tools retornam JSON direto via `CallToolResult`; resources retornam `{"contents":[{"uri":..., "mimeType":"text/plain", "text":"..."}]}` via `ReadResourceResult` com payload JSON serializado como string dentro do `text`. São primitives diferentes no MCP spec; consumer de resource precisa de `json.loads(text)` para destrinchar. FastMCP default deu `text/plain` para resources estruturados — micro-débito documentado para fix junto com loader real (declaração explícita `mime_type="application/json"`).
+- **D2 — Tool description como prompt real do agente.** Docstring de função decorada com `@mcp.tool` (sem `description=` explícito) é literalmente o input do agente na hora de decidir invocação. Convenção ADR-0002 aplicada: inglês, with when-to-use + what-it-returns + anti-uses. Anti-uses ("Do not use this for X — use Y instead") é o controle mais subestimado contra ambiguidade entre tools similares.
+- **D2 — Project vs user scope em `.mcp.json`.** Três escopos coexistem: `~/.claude/settings.json` (user, pessoal cross-projeto), `.mcp.json` no project root (project, versionado em git, compartilhado), `.claude/settings.local.json` (local, per-machine overrides, ignorado pelo git). Trust decidido per-user no primeiro contato com `.mcp.json` versionado — Claude Code pergunta antes de spawnar subprocess. Aceito como "use this and all future MCP servers in this project" persiste em `.claude/settings.local.json`.
+- **D1 — Skeleton-first vs tool-completo-por-iteração.** Discussão explícita de task decomposition na abertura da sessão. Argumento contra tool-completo: proxy test da #11 validou cognitive load do compact, não wire format implementation. Quatro pressupostos não-validados na sessão (FastMCP+Pydantic+Python produz wire format conformante; `.mcp.json` resolve launch; handle `mcp__policy-reader__<tool>` parseado com hyphen no server name; tool descriptions exibidas) deflados em 1-2h com skeleton; deflação tardia teria custado sunk cost de loader+lógica em cima de pressupostos errados. Pattern: validação empírica determinística pós-toolchain antes de empilhar lógica.
+- **D5 — Fail-fast validation at server startup.** Decisão de design do `policy_loader.py` (a implementar em #15): qualquer cláusula falhando validação aborta o startup, server recusa servir Política corrompida. Pattern alinha-se com §4.5 do SCHEMA.md ("Fail-fast: divergência incompatível entre cláusula e header aborta carregamento do `policy-reader` no startup"). Alternativa "carrega o que der e loga warning" rejeitada como reliability ruim.
+- **D1 — Starting fresh session over resuming stale context.** Sessão encerrada antes de Commit 5 explicitamente para abrir #15 fresh em vez de continuar carregando contexto acumulado da #14. Aplicação direta de task statement 1.7 de D1: "Starting a new session with a structured summary is more reliable than resuming with stale tool results." Handoff estruturado é o mecanismo de transferência.
+
+### Decisões substantivas
+
+- **Toolchain: uv adotado.** Substitui `pip install --user` ad-hoc de sessões anteriores. Razões: lockfile (`uv.lock` versionado) garante reprodutibilidade bit-a-bit entre desenvolvedores e CI; gerenciamento de Python embutido remove dependência de pyenv-win para colaboradores; velocidade (10-100× pip); compatível com restrição corporativa (install em diretório de usuário, sem admin). Pendente: ADR-0004 formalizando.
+- **FastMCP 3.x adotado em vez de 2.x.** `uv add fastmcp` sem cap resolveu 3.2.4. ADR-0001 fixou "2.x" como stack canônica, mas learning-log da #07 já registrava "justificativa FastMCP 2.x vs 3.x" como deferred decision. Decidido formalizar 3.x: arquitetura nova "Providers and Transforms" é invisível ao nosso caso de uso (`@tool`/`@resource` decorators continuam idênticos); component versioning (`@tool(version="X")`) casa com nosso eixo `policy_version`; hot reload em dev; OpenTelemetry nativo. CVE em 2.x mencionado em fonte de terceiro mas não confirmado contra NVD/GitHub Advisories — verificação pendente, vai pro Context do ADR-0004 se procedente. Constraint atualizado para `fastmcp>=3.2.0,<4.0` (floor de 3.2.0 onde os supostos CVEs ficaram patcheados, cap em `<4.0` previne pulo silencioso de major).
+- **Multi-tenant LGPD-only com mitigações para evolução multi-jurisdição.** Discussão arquitetural disparada por questionamento de João: "vocabulários jurisdicionais (Operation, Control, OutOfScopeReason, LawfulBasis) não deveriam estar em Layer 1?". Análise revelou que SPECs já estão design-intent corretas em pontos críticos (`accepted_law_identifiers` consumido do header, decidido na #04; specs apontam para SCHEMA.md como fonte para vocabulários). Mas implementação proposta do `policy_loader.py` duplicava esses dados como enum estático em código. Decisão: manter (a) multi-tenant LGPD-only no MVP v0.1.0 com três mitigações no `policy_loader.py` que reduzem custo de migração futura para (b) multi-jurisdição: (1) campos jurisdicionais tipados como `str` em vez de `Enum` em modelos Pydantic, (2) validação dinâmica via `model_validator` contra constantes nomeadas (`frozenset` no módulo), (3) marcadores `# JURISDICTIONAL — LGPD MVP, see ADR-0005` em cada ponto de coupling. `AcceptedLaw` validado dinamicamente contra `header.accepted_law_identifiers` desde o MVP (não hardcoded). Pendente: ADR-0005 formalizando + SCHEMA.md §7 ajuste distinguindo vocabulários estruturais vs jurisdicionais.
+- **Skeleton-first para o `policy-reader` em vez de tool-completo-por-iteração.** Quatro pressupostos não-validados deflados antes de empilhar lógica. Híbrido aplicado: skeleton de todos os tools/resources com stub data, depois iteração tool-por-tool começando com `get_clause` (deferida para #15). Validação empírica end-to-end via Claude Code completa para os cinco surfaces.
+- **`.mcp.json` em project-scope, sem env var no skeleton.** Server declarado em `.mcp.json` no root do repo (versionado em git). Env var `POLICY_READER_POLICY_DIR` deliberadamente fora do skeleton — server.py ainda não carrega Política, declarar agora geraria impressão errada de funcionalidade. Adicionada junto com loader real no Commit 5.
+
+### Calibrações empíricas
+
+- **uv `--managed-python` no `init` não força download de Python managed se há Python compatível visível no PATH.** Comportamento observado: `uv add fastmcp` usou pyenv-win Python (`C:\Users\...\pyenv-win\versions\3.12.7\python.exe`) em vez de baixar managed. Implicação: a história de "reprodutibilidade para colegas sem pyenv-win" fica parcialmente comprometida no setup atual — novos colaboradores precisarão *ou* ter pyenv-win com 3.12.7, *ou* deixar uv baixar quando rodar `uv sync` em máquina sem 3.12.7+. Vai pro Context do ADR-0004.
+- **PowerShell 5.1 default code page é cp1252; lê arquivo UTF-8 como cp1252 e exibe `ã` como `Ã£`.** Não é problema do arquivo. Fix: `chcp 65001` muda console para UTF-8 (vale uma vez por janela). `Get-Content -Encoding UTF8 arquivo` força leitura UTF-8 sem mudar console.
+- **Git CRLF→LF auto-conversion ativa por default no Windows.** Warning "CRLF will be replaced by LF" em cada `git add` de arquivo novo é informacional, não erro. Arquivos no repo ficam LF; checkout local reconverte para CRLF transparentemente. Eliminar warning requer `.gitattributes` com regras explícitas (não feito; não bloqueia).
+- **`fastmcp inspect` é CLI 3.x para verificar metadata sem rodar server stdio "vivo".** Output mostra Name, Version, Generation, contagem de Tools/Prompts/Resources/Templates. Validação cheap antes de empacotar commit. Significado exato de "Generation: N" no output não confirmado — possivelmente counter interno de re-registros; investigação deferida, não bloqueia.
+- **Server iniciado "nu" no terminal (`uv run python -m ...`) trava aguardando JSON-RPC em stdin, com erros de parse JSON quando recebe linhas vazias.** Comportamento correto, não bug. stdio transport sempre vai parecer assim sem cliente do outro lado. FastMCP 3.x trouxe `fastmcp call` e `fastmcp list` CLIs para invocação manual sem cliente MCP.
+- **Tetralogia do MCP primitive registry: Tools, Resources, Prompts, Templates.** Output do `fastmcp inspect` lista os quatro. Prompts (terceiro primitive, templates reutilizáveis de mensagem) e Resource Templates (resources parametrizados via URI patterns) descartados pro MVP em ADR-0002 mas valem internalizar por ser vocabulário de prova.
+- **51 tools no contexto do Claude Code atual (40 Postman + 8 AEM + 3 policy-reader + 0 Gmail/Drive pendentes de auth).** Tool inventory bloat afeta seleção; modelo lê todas as descriptions a cada turn. Não bloqueia agora mas vale considerar quais MCPs ficam ligados durante development do `check_applicability` na sessão de implementação real (Commit 6+).
+- **João questionou estado de contexto/sessão antes de iniciar Commit 5 (`policy_loader.py`).** Pergunta válida; análise honesta levou ao encerramento da sessão para abrir #15 fresh. Aplicação prática do conceito D1 task statement 1.7. Sintomas detectados: respostas mais longas que necessário, repetição de conceitos já estabelecidos, tentação de overengineer crescente.
+
+### Artefatos produzidos
+
+- Branch `feat/policy-reader-skeleton` (aberta, sem PR ainda) com 3 commits:
+  - `a5e715a` feat: bootstrap mcp-servers package with uv and policy-reader skeleton
+  - `de9be95` feat(policy-reader): register 2 resources and 3 tools as skeleton stubs
+  - `501fe17` feat(policy-reader): declare project-scope MCP server registration
+- `pyproject.toml` declarando pacote `mcp-servers` com FastMCP 3.x (`fastmcp>=3.2.0,<4.0`), Pydantic, PyYAML + pytest dev
+- `uv.lock` versionado (74 packages resolvidos)
+- `.python-version` pinado em 3.12.7
+- `src/mcp_servers/__init__.py`, `src/mcp_servers/py.typed`
+- `src/mcp_servers/policy_reader/__init__.py`, `src/mcp_servers/policy_reader/server.py` (133 linhas, skeleton com 2 resources + 3 tools, descriptions em inglês conforme ADR-0002)
+- `.mcp.json` em project-scope declarando `policy-reader`
+
+### Próximo passo
+
+Sessão #15 abre com **agenda dupla, primeira hora dedicada a artefatos de documentação pendentes**: (a) `SCHEMA.md §7` ajuste distinguindo vocabulários estruturais vs jurisdicionais, (b) ADR-0005 redigindo "LGPD-coupling em vocabulários jurisdicionais: decisão MVP e migration path". Ambos têm structure rascunhada no chat da #14, registrada no handoff. Após esses, retoma branch `feat/policy-reader-skeleton` para Fase B: Commit 5 do `policy_loader.py` com as três mitigações decididas, depois Commit 6 (`get_clause` real), Commit 7 (testes pytest §8.2 incluindo fixture deprecated), Commit 8 (validação manual §8 via Claude Code), Commit 9 (closure #15). PR só após Commit 7 ou 8. Pendente também: ADR-0004 (uv + FastMCP 3.x) — pode ficar para #16 ou intercalado na #15 se houver fôlego.
+
+---
+
+## Sessão #12 — 2026-05-12
+
+**Foco:** destilamento dual canonical+compact das duas specs MCP; aplicação completa da taxonomia A-G; validação empírica do compact via proxy test; ajustes derivados.
+
+### Conceitos da prova exercitados
+
+- **D1 — Task decomposition.** Comparação de patterns para classificação A-G: prompt chaining sequencial (Chat→Code→Chat) vs dynamic adaptive decomposition em single-agent (Chat classifica + Code aplica patch mecânico). Escolha por single-agent quando subtask não exige ferramenta exclusiva.
+- **D1 — Plan mode vs direct execution.** Trade-off explícito: plan mode em commits substantivos (decisões editoriais, ex. Commit 4 e 6); direct execution em commits mecânicos (cortes pré-aprovados, ex. Commit 5 e 7). Heurística destilada.
+- **D1 — Hooks PostToolUse (conceitual).** Sanity checks pós-modificação dos pacotes são análogos a hooks: ferramenta termina → check determinístico roda → decisão prosseguir/parar. Pattern equivalente ao hook PostToolUse para validação determinística.
+- **D2 — Resource vs Tool discrimination.** Princípio articulado e extraído ao draft (`### Resource vs Tool — discriminação pela leitura cognitiva`); aplicado em policy-reader (ambos) e semgrep-runner (só tools). Asimetria entre os dois servers é caso-teste do princípio.
+- **D2 — Tool description design.** Descriptions em inglês, contendo when-to-use, what-it-returns e anti-uses (frases tipo "Do not use this for X — use Y instead"). Anti-uses entram no checklist de paridade canonical↔compact (Commit 8).
+- **D2 — Split de tool, não parametrização condicional.** Princípio extraído ao draft. Origem: §7 do semgrep-runner canonical, articulando o "porque não há `rule_set` parameter".
+- **D2 — Convenção `mcp__<server>__<tool>`** referenciada nos dois compacts; convenção governada por ADR-0002 §2.
+- **D3 — CLAUDE.md hierarchy** preservada sem modificação; sessão exercitou que CLAUDE.md + compact é suficiente para skeleton de implementação (proxy test, zero canonical opens).
+- **D3 — .claude/skills/ não-uso.** Decisão consciente: compact spec vive como file (`docs/specs/<component>/compact.md`), não como skill. Skill faria sentido se a compact fosse referenciada por descrição em vez de path explícito. Anotação para futuro: skill pattern emerge se houver repetição de compact reading em workflows distintos.
+- **D4 — Validation-retry loops com critério categórico.** Aplicado nos sanity checks de Commits 4-7 (range de count + Select-String exhaustivo); aplicado no proxy test (0 silent errors + ≤ 2 GAP markers + canonical opens alinhados a pointers). Calibração registrada: critério categórico vence critério agregado.
+- **D4 — Structured output via tool_use schema.** Pacotes declarativos com `old_str`/`new_str` exatos são instâncias do mesmo pattern aplicado a edição de arquivo. Code aplica via str_replace, validation confirma execução fiel.
+- **D4 — Few-shot via examples generosos.** Compact spec design favorece example-based learning: exemplo por veredito em `check_applicability` (4 exemplos), exemplo de timeout dedicado em `scan_diff`. Cap em cognitive-load content, livre em uniform reference examples.
+- **D5 — Lost-in-the-middle.** Paginação do Commit 4 em duas passadas (§1-§4 e §5-§8) para mitigar degradação atencional na canônica de 691 linhas. Princípio destilável: classificação editorial sobre artefato fixo requer paginação acima de ~500 linhas; abaixo, single-pass.
+- **D5 — Position-aware input ordering.** Compact spec design coloca contract surfaces no início (§1-§3: identity, wire format, error contract) e initialization no fim. Tools (médio) ficam na zona U-shape, mitigado por delimitadores claros (## headers).
+- **D5 — Escalation patterns.** Reframe consumed/reference do compact (sempre lido por Code) vs canonical (referência on-demand) materializa o pattern escalation: small-always-loaded + large-on-demand. Mesmo padrão de `/compact` do Claude Code e scratchpad em multi-agent systems.
+- **D5 — Scratchpad pattern.** Canonical funciona como read-only scratchpad / extended-context resource. Compact:canonical :: tool_description:resource_content.
+- **D5 — Provenance/audit trail.** Decisão de manter §8.\<final\> em forma "three beats" pós-aplicação dos patches (em vez de reduzir a ponteiro de commit hash) é aplicação do princípio: documentação de drift detectado-e-resolvido tem valor de auditoria mesmo após resolução.
+
+### Decisões substantivas
+
+- **Taxonomia A-G aplicada** aos canonicals (Commits 4 e 5). 22 cortes em policy-reader (de 690 para 673), 9 cortes em semgrep-runner (de 449 para 440). Calibração da estimativa #08: superestimação por fator ~3 em linhas absolutas.
+- **Reframe consumed/reference.** Compact é o que Code consome em implementação; canonical é referência on-demand. Substitui frame "governança-paridade" implícito no plano #11 original. Implicação direta: alvo de redução de canonical (575 linhas, estimativa #08) é morto. Canonical fica do tamanho que precisar; compact é orçado pela métrica "Code implementa sem abrir canonical no caso modal".
+- **Proxy test como método de validação empírica.** Aplicado ao compact do policy-reader (resultado: 0 silent errors, 1 GAP marker substantivo, 5 revisões cirúrgicas). NÃO aplicado ao semgrep-runner (compacto menor, lessons learned do policy-reader transferíveis diretamente). Custo do método: ~1h-1h30min por proxy test; vale para artefatos centrais.
+- **Article_source matching semantics.** Per-element hierarchical prefix: cláusula matcha se ANY elemento de `article_source` começa hierarquicamente com a especificação. Decidido inline no compact (OP-3 do Commit 6), nota inline também no canonical (Commit 9). NÃO vira ADR — decisão de design contida na spec.
+- **§8.\<final\> lifecycle.** Mantido em forma "three beats" pós-aplicação dos patches conforme ADR-0002 Decisão 5. Diferido para ADR-0003 retrospectivo a discussão sobre o ciclo de vida formal pós-aplicação.
+- **PR template** em `.github/PULL_REQUEST_TEMPLATE.md` com checkbox bidirecional canonical↔compact (Commit 8). Foco estrito em paridade; ADR/learning-log/sweep ficam fora do checklist.
+- **Princípios destilados ao draft** (`_drafts/spec-authoring-principles.md`): 4 totais ao fim da sessão — Resource vs Tool, Schema fora-comportamento dentro, Spec descreve o quê-não como, Split de tool-não parametrização condicional.
+
+### Calibrações empíricas
+
+- **Estimativa de redução por taxonomia A-G:** fator ~3 de superestimação na #08. Causa: estimativa foi pré-leitura, sem inspeção linha a linha das categorias presentes. Lição: estimar redução por taxonomia A-G só pós-leitura sumária da spec.
+- **File-line estimativa imprecisa quando operações atravessam paragraph-separators.** Commit 4 teve off-by-3 (-17 actual vs -14 expected); Commit 5 bateu exato. Diferença atribuída a blank-line collapses em operações de E (cortes de duplicação).
+- **Compact spec budget:** cap cognitive load (~200-237 linhas em policy-reader, ~121 em semgrep-runner), livre uniform reference examples. Cognitive-load = pure instruction + schema YAML blocks; uniform reference = JSON examples sob header padronizado. Cap não é cap de file count; é cap de conteúdo com cognitive load acumulativo.
+- **Sanity check wrap-aware obrigatório.** Em arquivos hard-wrapped (canonical com ~72-80 char wrap), `Select-String -Pattern` matcha por linha física, não por linha lógica. Padrões devem usar substring contígua dentro de uma linha lógica. Falso positivo capturado no Commit 5 (preservação §6 de "Hash do diretório" que atravessa wrap entre L308 e L309).
+- **Anti-regras em proxy test devem enumerar artefatos colaterais previsíveis.** Sessão #12 pegou `__pycache__` em mcp_servers/ no nível pai (package wrapper criado pelo Code), não previsto nas anti-regras. Princípio operacional: prompt de proxy test inclui lista explícita de "não cria X, Y, Z" para Python (package wrappers, lock files, cache dirs).
+- **Critério de aprovação em validação empírica:** leitura crítica das categorias, não contagem agregada. "≤ 1 open question" como critério tosco foi insuficiente; 4 open questions reportadas decomposeram em 1 gap real + 1 minor unstated + 2 false positives, mudando veredito de fail para pass. Princípio: critério categórico bem-formado distingue categorias de severidade, não soma valores.
+- **Escalation pointers podem ser over-anxious.** Pointer §5.1 do compact do policy-reader (sobre dual-deprecated semantics) disparou no proxy test sem necessidade — prosa local já bastava. Princípio destilado: pointer só justificado quando prosa local explicitamente insuficiente; condição do "if" deve ser estado epistêmico realista, não "se o leitor for cauteloso".
+- **Cross-doc links em fase de draft carregam dívida de path enumerável.** 6 links totais ao fim da sessão (recontados: 2 em policy-reader canonical, 2 em semgrep-runner canonical, 0 em policy-reader compact, 2 em semgrep-runner compact). Sweep registrado para promoção do draft a `docs/spec-authoring-principles.md`.
+- **Validação empírica precisa de canal narrativo aberto além das métricas.** Friction notes opcionais no relatório do proxy test (parte do prompt) revelaram as 5 revisões cirúrgicas. Métricas hard sozinhas teriam dado veredito "pass" + zero ação.
+
+### Artefatos produzidos
+
+- 9 commits da sessão #11 (`4e78f03` → este Commit 9): pre-fix, restructure, draft seed, A-G policy-reader, A-G semgrep-runner, compact policy-reader, compact semgrep-runner, PR template, fechamento.
+- `docs/specs/policy-reader/canonical.md`: 673 linhas (de 690).
+- `docs/specs/policy-reader/compact.md`: 397 linhas (novo).
+- `docs/specs/semgrep-runner/canonical.md`: 440 linhas (de 449).
+- `docs/specs/semgrep-runner/compact.md`: 202 linhas (novo).
+- `docs/_drafts/spec-authoring-principles.md`: 4 princípios extraídos.
+- `.github/PULL_REQUEST_TEMPLATE.md`: criado (18 linhas).
+
+### Próximo passo
+
+- ADR-0003 retrospectivo (sessão #13 ou posterior): reframe consumed/reference + §8.\<final\> lifecycle. Dois conteúdos.
+- Implementação semana 4-5: skeleton + lógica das duas MCP servers, agora ancorados nos compacts cristalizados.
+- Sweep dívida `_drafts/` agendado para promoção do draft (data indefinida — disparado quando algumas cláusulas substantivas exercitarem o SCHEMA e os princípios estabilizarem).

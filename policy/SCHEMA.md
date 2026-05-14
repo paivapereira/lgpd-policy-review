@@ -2,7 +2,7 @@
 
 **schema_version:** `0.1.0`
 **Status:** ativo, em refinamento (§6 sobre cláusula `substantive` é destilada do esqueleto aprovado, não de instância concreta; refinamento previsto quando POL-001 for redigida)
-**Última revisão:** 2026-05-10 (sessão #10)
+**Última revisão:** 2026-05-14 (sessão #16)
 
 ---
 
@@ -14,15 +14,31 @@ Documento de arquitetura da Política — especifica forma, vocabulários e regr
 
 ```
 policy/
-├── SCHEMA.md                  # este documento
-├── policy.yaml                # header global (versão, vocabulários aceitos, metadata)
+├── SCHEMA.md                  # este documento (camada estrutural universal)
+├── policy.yaml                # header global (legal_framework, versões, metadata)
 ├── clauses/                   # destilação operacional consumida pelo MCP
 │   ├── POL-000.yaml
 │   └── ...
-└── rationale/                 # canônico jurídico consumido por humano
-    ├── POL-000.md
-    └── ...
+├── rationale/                 # canônico jurídico consumido por humano
+│   ├── POL-000.md
+│   └── ...
+└── vocabularies/              # vocabulários jurisdicionais (per-cliente)
+    └── <framework>/           # e.g., LGPD/
+        ├── operation.yaml
+        ├── lawful_basis.yaml
+        ├── control.yaml
+        └── out_of_scope.yaml
 ```
+
+### 2.1 Layering: estrutural universal vs jurisdicional per-cliente
+
+A Política tem duas camadas com regras de versionamento, audiência e fonte canônica distintas.
+
+**Camada estrutural (universal).** SCHEMA.md, `clauses/` e `rationale/` definem mecanismo: forma da Política, envelope de cláusula, vocabulários estruturais (e.g., `clause_state`, `vocabulary_kind`), regras de validação. Esta camada é universal — não depende do framework jurisdicional. Vive no projeto.
+
+**Camada jurisdicional (per-cliente).** `policy.yaml` (header com `legal_framework`, `accepted_law_identifiers`, versões) e `policy/vocabularies/<framework>/*.yaml` carregam conteúdo: qual lei, quais operações de tratamento, quais bases legais, quais controles, quais motivos de out-of-scope são reconhecíveis na jurisdição declarada. Esta camada é per-cliente — substituí-la (LGPD → GDPR) não exige alteração estrutural.
+
+Decisão arquitetural formal: ADR-0005 (Architecture for multi-client policy support).
 
 ## 3. Header global — `policy/policy.yaml`
 
@@ -32,6 +48,7 @@ policy/
 |---|---|---|
 | `policy_schema_version` | string semver | Versão do schema com a qual esta Política é compatível |
 | `policy_version` | string semver | Versão agregada do conteúdo |
+| `legal_framework` | string | Framework jurisdicional sob o qual a Política opera (valor único, e.g., `LGPD`). Imutável durante sessão do server. Determina qual `policy/vocabularies/<framework>/` é carregado pelo `policy-reader` em startup. |
 | `accepted_law_identifiers` | array de string | Vocabulário fechado de leis citáveis em `statutory_reference.lei`. Ver §9.3 |
 | `policy_owner` | string | Papel jurídico responsável (declarativo, não vinculante) |
 | `effective_date` | string ISO 8601 | A partir de quando esta versão vale |
@@ -51,7 +68,12 @@ policy/
 - **minor**: cláusula nova publicada com `status: active`, ou alteração em cláusula que muda comportamento sem quebrar callers.
 - **patch**: correção textual em rationale, atualização de fonte, ajuste de exemplo canônico em cláusula `definitional` sem alteração do critério.
 
-**Provenance temporal.** Os dois campos juntos identificam univocamente o estado da Política no momento de uma decisão. Retornos de `check_applicability` carregam ambos para reprodutibilidade.
+**`legal_framework`** (jurisdição da Política) — não-semver, valor único:
+- Imutável durante sessão do `policy-reader`. Não há mecanismo de hot-swap.
+- Trocar de framework (e.g., LGPD → GDPR) é exercício de substituição de dados: nova Política com header declarando `legal_framework: GDPR`, nova `policy/vocabularies/GDPR/*.yaml`, restart do server. Sem alteração de código.
+- Mudança de `legal_framework` em uma Política existente é antipadrão — equivale a Política nova sob jurisdição distinta. Ver ADR-0005 Decision 2.
+
+**Provenance temporal e jurisdicional.** Os três campos juntos (`policy_schema_version`, `policy_version`, `legal_framework`) identificam univocamente o estado da Política e a jurisdição no momento de uma decisão. Retornos de `check_applicability` carregam o trinque para reprodutibilidade e auditoria multi-jurisdição.
 
 ## 4. Campos comuns a toda cláusula
 
@@ -158,16 +180,16 @@ Array. Cada item:
 
 ## 7. Vocabulários fechados
 
-| Vocabulário | Onde aparece | Apêndice |
-|---|---|---|
-| `lawful_basis` | input de `check_applicability`, retornos de tools | §9.1 |
-| `operation` | `applies_to.operation` e input de `check_applicability` | §9.2 |
-| `accepted_law_identifiers` | header global; referenciado por `statutory_reference.lei` | §9.3 |
-| `reason` | `out_of_scope[].reason` em cláusulas `definitional` | §9.4 |
-| `control` | campo top-level de cláusulas `substantive` | §9.5 |
-| `vocabulary_kind` | `defines.vocabulary_kind` em cláusulas `definitional` | §9.6 |
+| Vocabulário | Onde aparece | Natureza | Canonical |
+|---|---|---|---|
+| `lawful_basis` | input de `check_applicability`, retornos de tools | jurisdicional | `policy/vocabularies/LGPD/lawful_basis.yaml` |
+| `operation` | `applies_to.operation` e input de `check_applicability` | jurisdicional | `policy/vocabularies/LGPD/operation.yaml` |
+| `accepted_law_identifiers` | header global; referenciado por `statutory_reference.lei` | jurisdicional | `policy/policy.yaml` (header) |
+| `reason` | `out_of_scope[].reason` em cláusulas `definitional` | jurisdicional | `policy/vocabularies/LGPD/out_of_scope.yaml` |
+| `control` | campo top-level de cláusulas `substantive` | jurisdicional | `policy/vocabularies/LGPD/control.yaml` |
+| `vocabulary_kind` | `defines.vocabulary_kind` em cláusulas `definitional` | estrutural | `policy/SCHEMA.md` §9.6 |
 
-**Nota arquitetural.** `lawful_basis`, `operation` e `control` são fechados pela legislação ou pela arquitetura, não pelo controlador — vivem aqui no schema, não em cláusula da Política. Apenas `personal_data_categories` é vocabulário extensível pela Política, via cláusula `definitional` (atualmente POL-000).
+**Nota arquitetural.** Vocabulários `jurisdicional` têm canonical em `policy/vocabularies/<framework>/*.yaml` (lidos como dados em startup do `policy-reader`, não hardcoded em código do componente). `accepted_law_identifiers` é declarado pelo header de `policy.yaml`. `vocabulary_kind` é estrutural e permanece no SCHEMA.md §9.6 — universal a qualquer framework. `personal_data_categories` continua extensível pela Política via cláusula `definitional` (atualmente POL-000), independente de framework: a categorização é semântica, não jurisdicional (ver ADR-0005 Decision 3). As subseções §9.1, §9.2, §9.4 e §9.5 abaixo são referência humana — em divergência com o YAML canonical, o YAML prevalece.
 
 ## 8. Correspondência YAML ↔ Markdown rationale
 
@@ -176,6 +198,8 @@ Princípio geral aplicado a toda cláusula da Política. Documentado integralmen
 ## 9. Apêndices
 
 ### 9.1 Enum completo de `lawful_basis`
+
+**Canonical:** `policy/vocabularies/LGPD/lawful_basis.yaml`. Esta subseção é referência humana; em caso de divergência, o YAML prevalece e esta tabela é corrigida.
 
 **Bases para dados pessoais (Art. 7º LGPD × Art. 6(1) GDPR).**
 
@@ -206,6 +230,8 @@ Princípio geral aplicado a toda cláusula da Política. Documentado integralmen
 | Art. 11, II, "g" | Art. 9(2)(g) | `fraud_prevention_and_subject_safety` | prevenção à fraude e segurança do titular |
 
 ### 9.2 Enum completo de `operation`
+
+**Canonical:** `policy/vocabularies/LGPD/operation.yaml`. Esta subseção é referência humana; em caso de divergência, o YAML prevalece e esta tabela é corrigida.
 
 União de LGPD Art. 5º X e GDPR Art. 4(2). Ambos os róis são exemplificativos — schema admite `other` como fallback, obrigando campo livre `operation_description` quando usado.
 
@@ -238,6 +264,9 @@ União de LGPD Art. 5º X e GDPR Art. 4(2). Ambos os róis são exemplificativos
 MVP v0.1.0: apenas `LGPD` (Lei nº 13.709/2018). Evolução prevista: `MARCO_CIVIL_INTERNET` (Lei 12.965/2014) quando cláusulas substantivas precisarem.
 
 ### 9.4 `reason` (em `out_of_scope[]`)
+
+**Canonical:** `policy/vocabularies/LGPD/out_of_scope.yaml`. Esta subseção é referência humana; em caso de divergência, o YAML prevalece e esta tabela é corrigida.
+
 MVP v0.1.0 (sete valores, todos materializados em POL-000):
 - `unmodeled_special_category` — falha o critério de reconhecibilidade técnica (sensíveis difusos do Art. 5º II).
 - `absorbed_into_existing_class` — espécie absorvida por classe já modelada.
@@ -248,6 +277,9 @@ MVP v0.1.0 (sete valores, todos materializados em POL-000):
 - `out_of_geographic_scope` — fora do escopo geográfico do MVP.
 
 ### 9.5 `control`
+
+**Canonical:** `policy/vocabularies/LGPD/control.yaml`. Esta subseção é referência humana; em caso de divergência, o YAML prevalece e esta tabela é corrigida.
+
 MVP v0.1.0 (dois valores):
 - `consent_required` — Política exige consentimento como base legal.
 - `anonymization_required` — Política exige anonimização antes de uso/persistência.
@@ -255,4 +287,44 @@ MVP v0.1.0 (dois valores):
 Caminho evolutivo: forma objeto `{type, value}` quando cláusulas precisarem prescrever mais que lawful basis. Documentado em §6.3.
 
 ### 9.6 `vocabulary_kind`
-MVP v0.1.0: apenas `personal_data_categories`.
+MVP v0.1.0: apenas `personal_data_categories`. Estrutural — universal a qualquer framework.
+
+## 10. Layout multi-cliente
+
+A Política é personalizada por cliente. Cada cliente do sistema mantém sua própria Política sob o framework jurisdicional aplicável. LGPD é instância exemplar do MVP, não framework default codificado.
+
+### 10.1 Estrutura `policy/vocabularies/<framework>/`
+
+Cada framework jurisdicional suportado tem um diretório dedicado com exatamente quatro arquivos YAML, fonte canônica programática dos vocabulários jurisdicionais:
+
+| Arquivo | Vocabulário | Quantidade no MVP LGPD |
+|---|---|---|
+| `operation.yaml` | `operation` | 22 valores (LGPD Art. 5º X ∪ GDPR Art. 4(2)) |
+| `lawful_basis.yaml` | `lawful_basis` | 18 valores (Art. 7º + Art. 11) |
+| `control.yaml` | `control` | 2 valores no MVP (`consent_required`, `anonymization_required`) |
+| `out_of_scope.yaml` | `reason` (out_of_scope) | 7 valores |
+
+### 10.2 Formato dos arquivos
+
+Cabeçalho comum:
+
+```yaml
+schema_version: "0.1.0"
+framework: LGPD
+values:
+  - name: <snake_case>
+    [campos específicos do vocabulário]
+```
+
+Campos por entry variam conforme o vocabulário — ver os YAMLs em `policy/vocabularies/LGPD/` para a forma canônica.
+
+### 10.3 Troca de framework
+
+Substituir o framework de uma Política (LGPD → GDPR, p.ex.) é exercício de substituição de dados:
+
+1. Nova Política sob `policy/` com `legal_framework: GDPR` no header.
+2. Novo diretório `policy/vocabularies/GDPR/` com os quatro YAMLs equivalentes.
+3. Cláusulas em `clauses/` reautoradas sob o novo framework (sucessão é intra-Política, não cross-framework — ver ADR-0005 Decision 6).
+4. Restart do `policy-reader`.
+
+Nenhuma alteração de código do sistema. Decisão arquitetural formal: ADR-0005.

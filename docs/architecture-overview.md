@@ -10,7 +10,7 @@ O glossário a seguir define os termos centrais que aparecem ao longo do documen
 
 **MCP (Model Context Protocol).** Protocolo aberto que define como agentes de IA consomem dados estruturados (chamados *resources*) e invocam operações externas (chamadas *tools*). Um *MCP server* é um processo independente que expõe esses dois tipos de capacidade; um agente atua como cliente MCP. Neste sistema, dois MCP servers são implementados: `policy-reader` e `semgrep-runner`.
 
-**Política versionada.** Termo técnico deste trabalho. Refere-se ao artefato declarativo em YAML sob `policy/` que codifica obrigações da LGPD em cláusulas verificáveis, com versionamento explícito tanto do schema quanto do conteúdo. Não confundir com "política de privacidade" no sentido jurídico-empresarial usual — aqui, *Política* (com inicial maiúscula) é sempre esse arquivo estruturado.
+**Política versionada.** Termo técnico deste trabalho. Refere-se ao artefato declarativo em YAML+Markdown sob `policy/` que codifica obrigações do framework jurisdicional declarado no header (e.g., LGPD) em cláusulas verificáveis, com versionamento explícito do schema, do conteúdo e do framework. Personalizada por cliente. Não confundir com "política de privacidade" no sentido jurídico-empresarial usual — aqui, *Política* (com inicial maiúscula) é sempre esse arquivo estruturado.
 
 **Subagente.** Agente especializado, com responsabilidade delimitada e tools restritas, invocado por um *coordinator* (agente de orquestração). A decomposição multi-agente deste sistema usa cinco subagentes (Triager, Detector, Classifier, Matcher, Reporter) sob um coordinator.
 
@@ -20,7 +20,7 @@ O glossário a seguir define os termos centrais que aparecem ao longo do documen
 
 ## 1. Visão de negócio
 
-Sistema de code review automatizado em pull requests que verifica conformidade do tratamento de dados pessoais com uma Política versionada derivada da LGPD.
+Sistema de code review automatizado em pull requests que verifica conformidade do tratamento de dados pessoais com uma Política versionada que codifica o framework jurisdicional declarado (LGPD no MVP).
 
 ## 2. Arquitetura em três camadas
 
@@ -43,7 +43,7 @@ flowchart TB
     M -->|Report JSON| C
 ```
 
-**Camada 1 — Política versionada.** Artefato declarativo em YAML sob `policy/`. Fonte de verdade do que constitui conformidade. Versionada em dois eixos: `policy_schema_version` para o esquema do arquivo e `policy_version` para o conteúdo das cláusulas. Independente da máquina que a consome — pode ser revisada por humanos, validada em CI, ou consumida por qualquer agente que implemente o protocolo MCP.
+**Camada 1 — Política versionada.** Artefato declarativo em YAML+Markdown sob `policy/`, **personalizada por cliente**. Fonte de verdade do que constitui conformidade. Versionada em três eixos independentes: `policy_schema_version` (esquema estrutural), `policy_version` (conteúdo das cláusulas) e `legal_framework` (framework jurisdicional, e.g., LGPD no MVP). Vocabulários jurisdicionais vivem como dados em `policy/vocabularies/<framework>/`, não hardcoded no sistema. Independente da máquina que a consome — pode ser revisada por jurista sem conhecimento de agentes, validada em CI, ou consumida por qualquer agente que implemente o protocolo MCP. Trocar o framework do cliente (LGPD → GDPR) é trocar a Política, não o código do sistema.
 
 **Camada 2 — Sistema multi-agente.** Um coordinator orquestra cinco subagentes especializados (Triager, Detector, Classifier, Matcher, Reporter) e dois MCP servers (`policy-reader` para acesso à Política, `semgrep-runner` para detecção sintática). Recognizers brasileiros — CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde — compõem o módulo de detecção. A camada inteira é detalhada na seção 5.
 
@@ -91,13 +91,28 @@ Esta seção enumera os componentes do sistema. Detalhamento de cada um vive em 
 
 ### 4.1 Artefato declarativo
 
-**Política versionada.** Arquivo (ou conjunto de arquivos) YAML sob `policy/`. Estrutura definida pelo schema `policy_schema_version: 0.1.0`. Versionada em dois eixos independentes: `policy_schema_version` para o esquema do arquivo e `policy_version` para o conteúdo das cláusulas. Cada cláusula tem `clause_id` opaco com prefixo `POL-`, `article_source` como lista hierárquica (lei, artigo, parágrafo, inciso, alínea), `requirements`, `exceptions`, e ciclo de vida com `status: active|deprecated` mais `successors` para tombstone. Detalhes completos no spec do `policy-reader` (a ser redigido) e ADR-0002 (em redação).
+**Política versionada.** Artefato declarativo em YAML+Markdown sob `policy/`, **personalizada por cliente**. Cada cliente do sistema mantém sua própria Política sob o framework jurisdicional aplicável; LGPD é instância exemplar do MVP, não framework default codificado.
+
+Identidade da Política tem **três eixos independentes**, todos declarados no header global `policy.yaml`:
+
+- `policy_schema_version` — esquema estrutural do artefato (universal, versionado no projeto).
+- `policy_version` — conteúdo das cláusulas (per-cliente, evolui conforme entendimento jurídico do cliente).
+- `legal_framework` — framework jurisdicional sob o qual a Política opera (valor único, imutável durante sessão do server). Ver ADR-0005.
+
+A Política é composta por quatro peças sob `policy/`:
+
+- `policy.yaml` — header global com os três eixos de identidade e `accepted_law_identifiers` (lista de leis citáveis dentro da jurisdição declarada).
+- `clauses/` — cláusulas em YAML. Cada cláusula tem `clause_id` opaco com prefixo `POL-`, `article_source` como lista hierárquica (lei, artigo, parágrafo, inciso, alínea), `requirements`, `exceptions`, e ciclo de vida com `status: active|deprecated` mais `successors` para tombstone (sucessão intra-Política, não cross-framework).
+- `rationale/` — canônico jurídico em Markdown, consumido por humano. Prevalece em drift contra YAML (ver `policy/SCHEMA.md` §8).
+- `SCHEMA.md` — separa explicitamente **camada estrutural** (universal, vive no projeto) de **camada de vocabulários jurisdicionais** (per-cliente, vive em `policy/vocabularies/<framework>/`). Vocabulários jurisdicionais — `operation`, `lawful_basis`, `control`, `out_of_scope` — não são hardcoded em código; são lidos como dados em startup do `policy-reader`.
+
+Detalhes contratuais no spec do `policy-reader` (`docs/specs/policy-reader/canonical.md` + `compact.md`). Decisões arquiteturais em ADR-0002 (MCP conventions) e ADR-0005 (multi-cliente).
 
 ### 4.2 MCP servers
 
-**`policy-reader`.** Servidor MCP que expõe a Política como recurso consultável por agentes. Implementação em FastMCP 2.x (decidido em ADR-0001). Expõe dois resources (`policy://catalog`, `policy://schema-version`) e três tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`). Contratos de erro em três categorias (validation/business/system) com `isError` flag, `errorCode` estável em inglês e `message` em português.
+**`policy-reader`.** Servidor MCP que expõe a Política do cliente carregada em startup como recurso consultável por agentes. Implementação em FastMCP 2.x (decidido em ADR-0001). Expõe **três resources** (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`) e três tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`). O resource `policy://vocabularies` é read-only e idempotente, expondo os quatro vocabulários jurisdicionais (`operation`, `lawful_basis`, `control`, `out_of_scope`) carregados de `policy/vocabularies/<framework>/*.yaml` da Política. Contratos de erro em três categorias (validation/business/system) com `isError` flag, `errorCode` estável em inglês e `message` em português. Uma instância serve uma Política sob um framework, imutáveis durante a sessão — multi-framework simultâneo exige instâncias paralelas (ver ADR-0005).
 
-**`semgrep-runner`.** Servidor MCP que expõe execução de Semgrep diff-aware como tool para o subagente Detector. Recebe os refs `base_ref` e `head_ref` do PR e aplica server-side o conjunto curado de regras de detecção, retornando matches estruturados (arquivo, linha, regra, snippet). Spec em `docs/specs/semgrep-runner/canonical.md`.
+**`semgrep-runner`.** Servidor MCP que expõe execução de Semgrep diff-aware como tool para o subagente Detector. Recebe os refs `base_ref` e `head_ref` do PR e aplica server-side o conjunto curado de regras de detecção, retornando matches estruturados (arquivo, linha, regra, snippet). No MVP, o rule set é bundled no projeto, com recognizers brasileiros como caso-piloto; rule set per-cliente é deferimento explícito até primeiro cliente fora do escopo LGPD-brasileiro materializar (ver §7.1 do canonical do `semgrep-runner`). Spec em `docs/specs/semgrep-runner/canonical.md`.
 
 ### 4.3 Sistema multi-agente
 
@@ -139,7 +154,7 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 
 ### 5.2 Triager
 
-**Responsabilidade.** Decide se um PR é relevante para análise de conformidade LGPD.
+**Responsabilidade.** Decide se um PR é relevante para análise de conformidade contra a Política carregada.
 
 **Tools permitidas.** Read (sobre arquivos do diff), Glob (para inspecionar paths alterados). Sem MCP servers, sem Bash, sem Write/Edit.
 
@@ -165,25 +180,29 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 
 **Responsabilidade.** Extrai contexto estruturado de cada ponto de tratamento candidato.
 
-**Tools permitidas.** Read (sobre arquivos do projeto, para inspecionar imports, definições de função, contexto além das linhas do snippet), Grep (para buscar declarações de base legal, transformações ou anonimização em comentários e docstrings próximas). Sem MCP servers, sem Write/Edit/Bash.
+**Tools permitidas.** Read (sobre arquivos do projeto, para inspecionar imports, definições de função, contexto além das linhas do snippet), Grep (para buscar declarações de base legal, transformações ou anonimização em comentários e docstrings próximas), e leitura do resource `policy://vocabularies` do `policy-reader` (read-only, sem acesso às tools do `policy-reader`). Sem `semgrep-runner`, sem Write/Edit/Bash.
 
 **Input.** Lista de candidatos do Detector.
 
-**Output.** Mesma lista enriquecida com `structured_context: {operation_type, data_categories, declared_legal_basis, declared_transformations}` por candidato.
+**Output.** Mesma lista enriquecida com `structured_context: {operation_type, data_categories, declared_legal_basis, declared_transformations}` por candidato. Valores em `operation_type`, `data_categories` e `declared_legal_basis` são restringidos aos vocabulários jurisdicionais expostos por `policy://vocabularies`.
 
-**Justificativa do escopo.** Classifier opera só sobre o código local — não consulta a Política nem julga conformidade. A separação é deliberada: o `structured_context` é descrição factual do que o código faz e do que ele declara fazer, independente do que a Política exige. Confundir extração com avaliação é o anti-padrão clássico de classificador acoplado a regras — o que torna impossível trocar a Política sem reescrever o Classifier.
+**Justificativa do escopo.** Classifier opera sobre o código local e contra os vocabulários jurisdicionais publicados pela Política — não consulta cláusulas nem julga conformidade. A separação é deliberada: o `structured_context` é descrição factual do que o código faz e do que ele declara fazer, alinhada ao vocabulário do framework declarado, mas independente do que a Política exige cláusula a cláusula. Confundir extração com avaliação é o anti-padrão clássico de classificador acoplado a regras — o que torna impossível trocar a Política sem reescrever o Classifier.
+
+A inclusão do resource `policy://vocabularies` (sem acesso às tools do `policy-reader`) materializa o princípio **Resource vs Tool**: vocabulários jurisdicionais são catálogo idempotente compartilhável por múltiplos consumidores; cláusulas são consultas direcionadas com semântica de ação, restritas ao Matcher. Classifier ganha visibilidade ao vocabulário sem ganhar capacidade de inferir veredito — fronteira "Classifier descreve, Matcher julga" preservada.
 
 ### 5.5 Matcher
 
 **Responsabilidade.** Avalia conformidade de cada candidato contra cláusulas aplicáveis da Política.
 
-**Tools permitidas.** MCP server `policy-reader` (`find_clauses_by_law_article`, `get_clause`, `check_applicability`). Sem `semgrep-runner`, sem Read/Write/Edit/Bash/Grep/Glob no filesystem.
+**Tools permitidas.** MCP server `policy-reader` — tools (`find_clauses_by_law_article`, `get_clause`, `check_applicability`) e resource `policy://vocabularies` (compartilhado com Classifier). Sem `semgrep-runner`, sem Read/Write/Edit/Bash/Grep/Glob no filesystem.
 
 **Input.** Lista de candidatos classificados (com `structured_context` completo).
 
-**Output.** Lista de findings: `[{candidate_ref, clause_id, verdict, verification_scope?, requires_human_review?, evidence}]` onde `verdict ∈ {compliant, violation_candidate, indeterminate, not_applicable}`.
+**Output.** Lista de findings: `[{candidate_ref, clause_id, verdict, verification_scope?, requires_human_review?, evidence}]` onde `verdict ∈ {compliant, violation_candidate, indeterminate, not_applicable}`. Cada veredito carrega trinque de provenance `(policy_schema_version, policy_version, legal_framework)` retornado pelas tools do `policy-reader`.
 
-**Justificativa do escopo.** Matcher é o único subagente que consulta a Política, e é o único autorizado a emitir vereditos. Restrição de tools materializa a regra: ninguém mais pode "espiar" cláusulas para inferir veredito atalhando o protocolo. Sem acesso ao filesystem, o Matcher é forçado a confiar no `structured_context` que recebe — qualquer informação do código que ele precise vem do Classifier, não de leitura própria. Isso amarra a fronteira contratual entre as etapas 2 e 3.
+**Justificativa do escopo.** Matcher é o único subagente autorizado a invocar tools do `policy-reader` e o único autorizado a emitir vereditos. Restrição de tools materializa a regra: ninguém mais pode "espiar" cláusulas para inferir veredito atalhando o protocolo. Sem acesso ao filesystem, o Matcher é forçado a confiar no `structured_context` que recebe — qualquer informação do código que ele precise vem do Classifier, não de leitura própria. Isso amarra a fronteira contratual entre as etapas 2 e 3.
+
+Matcher é explicitamente **framework-aware**: consome vocabulários jurisdicionais via `policy://vocabularies` no startup e propaga `legal_framework` no trinque de provenance de cada veredito. Reasoning de aplicabilidade não codifica regras específicas a framework — regras vivem na Política como combinações `applies_to × control × exceptions`. Trocar o framework do cliente (e.g., LGPD → GDPR) é trocar a Política, não reescrever o Matcher.
 
 ### 5.6 Reporter
 
@@ -193,22 +212,23 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 
 **Input.** Lista completa de findings do Matcher, mais metadados de execução (versão da Política consultada, escopo, identificadores do PR).
 
-**Output.** Report JSON final entregue via `emit_report`, com a estrutura definida no spec do `policy-reader`: `{report_id, policy_schema_version, policy_version, scope, summary, findings}`.
+**Output.** Report JSON final entregue via `emit_report`, com a estrutura definida no spec do `policy-reader`: `{report_id, policy_schema_version, policy_version, legal_framework, scope, summary, findings}`. O campo `legal_framework` é top-level e não-opcional — em audit trails multi-jurisdição, sem ele o auditor não saberia sob qual framework a decisão foi tomada. Trinque de provenance `(policy_schema_version, policy_version, legal_framework)` é temporal e jurisdicional.
 
 **Justificativa do escopo.** Reporter não detecta, não classifica, não julga — só formata. Dar a ele acesso a qualquer outra tool seria convidar refazimento de trabalho upstream. A exclusividade de `emit_report` (Reporter é o único subagente autorizado a invocá-la) garante que o output do sistema tem origem rastreável: se algo emitiu um Report, foi o Reporter; se o Report está malformado, há um único subagente para auditar.
 
 ### 5.7 Matriz tools × subagentes
 
-| Tool / Recurso              | Coord | Triager | Detector | Classifier | Matcher | Reporter |
-| --------------------------- | :---: | :-----: | :------: | :--------: | :-----: | :------: |
-| Read                        |       |    ✓    |    ✓     |     ✓      |         |          |
-| Glob                        |       |    ✓    |          |            |         |          |
-| Grep                        |       |         |          |     ✓      |         |          |
-| Write / Edit / Bash         |       |         |          |            |         |          |
-| `semgrep-runner` MCP        |       |         |    ✓     |            |         |          |
-| `policy-reader` MCP    |       |         |          |            |    ✓    |          |
-| `emit_report` (custom)      |       |         |          |            |         |    ✓     |
-| Despacho de subagentes      |   ✓   |         |          |            |         |          |
+| Tool / Recurso                                  | Coord | Triager | Detector | Classifier | Matcher | Reporter |
+| ----------------------------------------------- | :---: | :-----: | :------: | :--------: | :-----: | :------: |
+| Read                                            |       |    ✓    |    ✓     |     ✓      |         |          |
+| Glob                                            |       |    ✓    |          |            |         |          |
+| Grep                                            |       |         |          |     ✓      |         |          |
+| Write / Edit / Bash                             |       |         |          |            |         |          |
+| `semgrep-runner` MCP                            |       |         |    ✓     |            |         |          |
+| `policy-reader` — tools                         |       |         |          |            |    ✓    |          |
+| `policy-reader` — resource `policy://vocabularies` |    |         |          |     ✓      |    ✓    |          |
+| `emit_report` (custom)                          |       |         |          |            |         |    ✓     |
+| Despacho de subagentes                          |   ✓   |         |          |            |         |          |
 
 A linha "Write / Edit / Bash" inteira em branco é deliberada: nenhum subagente do MVP escreve no filesystem do projeto sob análise — o sistema é apenas leitor. Qualquer side effect futuro (ex: subagente fix-proposer abrindo PR de correção) exigiria adição explícita nesta tabela e justificativa em ADR.
 
@@ -276,7 +296,7 @@ Seis evoluções estão fora do MVP. Para cinco delas, o design não fecha porta
 | Bloqueio condicional de merge             | Decisão pragmática de demonstrar valor antes de assumir gatekeeping (seção 6.3)                                                            | Sob critério de FPR validada e calibração por veredito (ADR específica)      |
 | Mapa de dados longitudinal (cross-PR)     | Escopo PR-scoped do MVP; cada execução produz Report independente, sem memória entre execuções                                             | Após decisão arquitetural sobre persistência de Reports e modelo de consulta |
 | AEP (Algoritmo de Equivalência de PII)    | Reconhecimento semântico de PII excede recognizers sintáticos do MVP; recognizers brasileiros sintáticos cobrem o escopo deste trabalho    | Pós-TCC; fora do roadmap deste trabalho                                      |
-| Dimensões adicionais da LGPD na Política | v0.1.0 da Política cobre apenas `consent_required` e `anonymization_required` (avaliáveis por análise estática); transferência internacional, retenção, direitos do titular, dados de menores e tratamento compartilhado ficam fora | Validação empírica do MVP completa + demanda concreta documentada |
+| Dimensões adicionais da Política (LGPD no MVP) | v0.1.0 da Política cobre apenas `consent_required` e `anonymization_required` (avaliáveis por análise estática); transferência internacional, retenção, direitos do titular, dados de menores e tratamento compartilhado ficam fora | Validação empírica do MVP completa + demanda concreta documentada |
 
 ### 7.4 O que esta arquitetura não pretende provar
 

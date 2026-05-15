@@ -1450,3 +1450,91 @@ Sessão #15 abre com **agenda dupla, primeira hora dedicada a artefatos de docum
 - ADR-0003 retrospectivo (sessão #13 ou posterior): reframe consumed/reference + §8.\<final\> lifecycle. Dois conteúdos.
 - Implementação semana 4-5: skeleton + lógica das duas MCP servers, agora ancorados nos compacts cristalizados.
 - Sweep dívida `_drafts/` agendado para promoção do draft (data indefinida — disparado quando algumas cláusulas substantivas exercitarem o SCHEMA e os princípios estabilizarem).
+
+---
+
+## 2026-05-14 — sessão #16 — Fase 1 (multi-client architecture rewrite) complete
+
+**Foco.** Fechamento da arquitetura multi-cliente declarada em `docs/proposta-tcc2.md` §6 via reescrita documental coordenada em 7 commits sequenciais na branch `arch/multi-client-policy-rewrite`. Sem código de implementação — toda a sessão viveu na camada de docs (`architecture-overview.md`, ADR-0005, `SCHEMA.md`, specs canonical+compact dos dois servers, `DESIGN.md` novo, learning-log, session-handoff). Materializa a separação estrutural/jurisdicional já implícita na proposta e cristaliza-a antes do início da Fase 2.
+
+### Conceitos da prova exercitados
+
+**Domínio 2 — Tool Design & MCP Integration.**
+
+- **Resource vs Tool em caso-livro.** `policy://vocabularies` ganhou existência como recurso compartilhável (consumido por Classifier e Matcher) enquanto as tools do `policy-reader` (`get_clause`, `find_clauses_by_law_article`, `check_applicability`) continuaram exclusivas do Matcher. Materializa a discriminação app-controlled context (resources) vs model-controlled invocation (tools): vocabulário é catálogo idempotente lido por múltiplos agentes; cláusula é consulta direcionada com semântica de ação. Princípio articulado no draft `_drafts/spec-authoring-principles.md` § Resource vs Tool, aplicado aqui em forma de caso-livro — assimetria com `semgrep-runner` (que não expõe resources) é o caso-teste do princípio.
+- **Tool authorization granular.** Classifier ganhou visibilidade ao resource `policy://vocabularies` sem ganhar acesso às tools — `mcp_servers` da AgentDefinition reflete somente o que o subagente precisa, princípio "only what they need". Matriz §5.7 de `architecture-overview.md` ganhou linha dedicada para resource compartilhado, distinta da linha de tools.
+- **Handshake protocol como pattern.** `policy://schema-version` evoluiu de handshake simples (estrutural via `compatible_schema_range`) para handshake duplo (estrutural + jurisdicional via `legal_framework`). Componente declara; consumidor (Matcher) decide. Validação de framework é responsabilidade do consumidor, não do componente — simétrica ao tratamento de `compatible_schema_range`. Padrão de design replicável para outros pontos de provenance multi-axial.
+
+**Domínio 5 — Context Management & Reliability.**
+
+- **Provenance trinque.** `(policy_schema_version, policy_version, legal_framework)` carregado em cada retorno de `check_applicability`, em cada veredito do Matcher e no `Report` final do Reporter. Materializa o princípio "provenance carried, not inferred" para auditoria multi-jurisdição assíncrona — sem `legal_framework` no veredito o auditor não saberia sob qual lei a decisão foi tomada. Campo não-opcional por design, não por convenção.
+- **Forma estável de payload vs conteúdo variável.** `accepted_values` em `INVALID_DATA_CATEGORY` e `INVALID_OPERATION` permanece com a mesma forma (lista de strings); o conteúdo vem dinamicamente dos vocabulários da Política carregada. Separação modeling × parametrization: o contrato congelado, o dado parametrizado. Implementação da Fase 2 vai materializar isso lendo `policy/vocabularies/<framework>/*.yaml` no startup e injetando em respostas de erro — não hardcoded.
+- **Lost-in-the-middle mitigado proativamente.** `/compact` disparado no Code antes do Commit 4 (24+ edits no canonical em 8 grupos por seção). Sem o compact, o turno acumulado dos Commits 1-3 teria empurrado patches do início do Commit 4 para a zona U-shape do contexto. Aplicação do padrão "compactar em ~60%, não em 95%" — preservei estado (branch, hashes aplicados, decisões substantivas, pendências) e descartei diffs verbatim e turnos de review já encerrados.
+
+**Domínio 1 — Agentic Architecture & Orchestration.**
+
+- **Fixed sequential pipeline (prompt chaining).** Os 7 commits da Fase 1 são pipeline determinística: cada um consome o output do anterior (Commit 4 só faz sentido pós-Commit 3 que externalizou os vocabulários; Commit 5.5 só faz sentido pós-Commits 1-5 que produziram os pointers). Alternativa (dynamic adaptive decomposition em single-agent) descartada porque o handoff da sessão #15 já congelou o plano — re-decidir a sequência em runtime teria adicionado custo sem ganho. Pattern: quando o plano está fechado em handoff estruturado, chaining vence orchestrator-workers.
+- **Separação de planos epistêmicos.** Detector raciocina no plano sintático (Semgrep sobre diff), Classifier no plano lexical (vocabulário da Política via `policy://vocabularies`), Matcher no plano jurídico (`check_applicability`). Coordinator agencia a tradução entre planos. Materializa task decomposition por responsabilidade disjunta — cada subagente tem vocabulário próprio, sem sobreposição. Princípio cristalizado em bloco dedicado de `DESIGN.md` (Commit `d466f37`).
+
+**Domínio 3 — Claude Code Configuration & Workflows.**
+
+- **Plan mode aplicado seletivamente.** Commits 2 (ADR-0005), 4 (policy-reader rewrite) e 5.5 (DESIGN.md novo) entraram em plan mode — alto grau de liberdade editorial, escolhas substantivas a alinhar antes de escrever. Demais commits (1, 3, 5) em direct execution — patches literais do handoff. Heurística: plan mode quando o output tem mais de uma forma defensável; direct execution quando o handoff já especificou a forma única.
+- **`/compact` proativo com preservação explícita.** Antes do Commit 4 invoquei `/compact` listando o que preservar (branch, hashes, decisões, pendências) e o que descartar (diffs verbatim, turnos de revisão encerrados). Padrão "compactar em ~60%" exercitado — sem instrução de preservação, `/compact` tende ao extremo de 95% e perde estado operacional.
+
+**Domínio 4 — Prompt Engineering & Structured Output.**
+
+- **Multi-instance review como mecanismo de captura de drift.** Chat (revisor) e Code (gerador) operam com reasoning contexts independentes; cada patch passou pelo crivo do chat antes da aplicação. Capturou drift do `succeeds`/`treatment_observations` no Commit 2 e drift do `out_of_scope` no Grupo 3 do Commit 4 (description inicial divergia do conteúdo real do YAML — corrigido pós-review). Sem o review separado, ambos teriam entrado.
+- **Few-shot anchoring via exemplos consistentes.** §4.3 de `policy-reader/canonical.md` pós-Patch F5 carrega três exemplos de output de `check_applicability` com mesmo formato do trinque de provenance — anchor confiável para o implementador da Fase 2 que vai escrever o Matcher. Few-shot generoso (3 exemplos, não 1) é decisão deliberada de spec design.
+
+### Conceitos fora do escopo da prova (registro)
+
+- **Schema-as-contract vs implementation-as-server reforçado.** A separação estrutural × jurisdicional no `SCHEMA.md` materializa o princípio em duas camadas: estrutural universal (vive no projeto, schema-as-contract) e jurisdicional per-cliente (vive na Política do cliente, implementation-as-data). Pattern replicável quando emergir um terceiro eixo de variabilidade.
+- **ADR como concretização arquitetural pré-implementação.** ADR-0005 escrito antes da Fase 2 (greenfield) — pattern "register before, not after". Contrasta com ADRs retrospectivos (0003 foi pós-aplicação). Padrão "register before" aplicável quando a arquitetura está fechada conceitualmente mas a implementação ainda não tocou nela — caso típico de greenfield com Spec-Driven Development.
+- **Plan mode é literal.** "Exceto patches óbvios" não vale como atalho: Patch 1 do Commit 3 escapou da revisão por essa lógica e teve que ser recuperado. Lição: plan mode antes de patches contratuais é não-negociável, mesmo quando o patch parece mecânico.
+
+### Calibrações metodológicas
+
+- **Agrupamento por seção em commits densos de spec reduz drift entre revisor e executor.** Os patches originais do Commit 4 viraram 8 grupos por seção do arquivo (§1, §2.1, §2.2, §3.2, §3.3, §4.2, §4.3, §6.4/§7.1/§8), não 17+ rodadas individuais. Overhead de coordenação aceitável; ganho de coerência substancial — revisor vê todos os edits que tocam uma seção em uma única passagem, evita drift de terminologia entre patches contíguos. Metodologia destilável para commits densos futuros (Fase 1.5 `requirements.md` e `tasks.md` podem se beneficiar).
+- **Handoff literal vs coerência interna é decisão no momento da aplicação.** Trailers de commit messages podem ser ajustados (`Refs ADR-0005 (next commit)` → `Refs ADR-0005`) quando o "next commit" envelheceria mal após squash-merge. Princípio: handoff é template, não contrato verbatim — coerência atemporal prevalece sobre fidelidade literal.
+- **Nome de campo é invariante de schema; valor de campo é dado variável.** `description` (não `description_pt`) foi a escolha — o nome do campo independe do idioma do conteúdo. Argumento articulado pelo João. Pattern aplicável a qualquer schema bilíngue: estrutura em inglês, conteúdo na língua-alvo, sem refletir o idioma no nome do campo.
+- **Coerência terminológica cross-doc é provenance secundária.** Quando `architecture-overview`, ADR-0005 e `DESIGN.md` divergem em uma frase de uma palavra, o auditor (humano ou Matcher futuro) tem que decidir qual prevalece. Convenção adotada: doc canônico (`architecture-overview`) lidera; demais ecoam. Aplicado em Commit 5.5 § Visão com a frase verbatim de §1 da overview.
+
+### Decisões substantivas
+
+Conteúdo canônico das decisões em ADR-0005; aqui só o registro do processo de cristalização.
+
+- **ADR-0005 aceito como concretização arquitetural completa.** Versão original planejada na #14 era parcial (só LGPD-coupling em vocabulários jurisdicionais). Versão final cobre arquitetura multi-cliente inteira (Camada 1 per-cliente, vocabulários externalizados, `policy://vocabularies` como resource, trinque de provenance, multi-instance non-objective). Decisão tomada na abertura da #16: "se vamos abrir essa caixa, abrimos por inteiro".
+- **`policy://vocabularies` como resource compartilhado Matcher+Classifier.** Tools do `policy-reader` continuam exclusivas Matcher. Boundary anterior "só Matcher consulta Política" relaxado para "só Matcher consulta tools da Política; resources são compartilháveis". Fronteira preservada porque resource não dá ao Classifier capacidade de inferir veredito — só capacidade de descrever no vocabulário correto.
+- **POL-000 mantido como vocabulário universal (não jurisdicional).** Categorização de dados pessoais é semântica, não estatutária — POL-000 funciona em qualquer framework com conteúdo per-cliente. Permanece em `clauses/` (camada estrutural), não migra para `vocabularies/<framework>/`. Decisão registrada em ADR-0005 Decision 3.
+- **`legal_framework` top-level único e imutável durante sessão do server.** Multi-framework simultâneo via múltiplas instâncias do server (cada uma com sua Política), não dentro de uma instância. Hot-swap durante sessão é deferimento explícito. Decisão registrada em ADR-0005 Decision 2.
+- **§8.9 separada de §8.8 no canonical do `policy-reader`.** Em vez de mesclar a nova review-pass com a existente (sessão #12/#13), criei §8.9 nova com fechamento atemporal `Commit 4 da branch arch/multi-client-policy-rewrite`. Preserva histórico ADR-0003 Decision 2 (three beats lifecycle pós-aplicação) e sobrevive a squash-merge porque a branch aparece no PR title/body.
+- **`semgrep-runner` per-cliente fica deferido a ADR futuro.** Generalização de regras sintáticas (namespace de `rule_id` cross-cliente, provenance de regras, semântica de detecção) é problema distinto do problema jurisdicional do `policy-reader` que motivou ADR-0005. Adiamento explícito em §7 do canonical, espelhado no compact §6. Decisão registrada em ADR-0005 Decision 8.
+
+### Pendências para sessão #18+ ou ADR futuro
+
+- Semântica de `last_revision` em `policy.yaml` — formal vs informativo, atualização manual vs automática, comportamento em CI.
+- Semântica de `schema_version` no header dos YAMLs de vocabulário — coerência com `policy_schema_version` do header global, regras de bump quando vocabulário evoluir.
+- Validação cruzada per-cliente (vocabulary × Semgrep metadata) quando materializar ADR de per-client rule set — `rule_id` que cita um valor de `operation` precisa que esse valor exista em `policy/vocabularies/<framework>/operation.yaml`.
+- Formalização em ADR retroativo da convenção "português para docs técnicos não-ADR" (specs, `architecture-overview`, `DESIGN.md`, `SCHEMA.md`). Atualmente convenção implícita herdada das sessões #04-#11.
+- Promoção do draft `_drafts/spec-authoring-principles.md` para `docs/` — sweep dos cross-doc links e atualização dos pointers nas specs.
+- ADR-0004 (uv + FastMCP 3.x) — número reservado desde sessão #14, decisão pendente. Inclui CVE 2.x check pendente desde #14 (confirmar contra NVD/GitHub Advisories).
+- `mime_type` micro-débito em resources — FastMCP 3.x default é `text/plain`, declarar `application/json` no loader real.
+
+### Artefatos produzidos
+
+Branch `arch/multi-client-policy-rewrite` com 6 commits aplicados + 2 a aplicar (esta entry + handoff reescrito):
+
+- `2612f99` — `docs(architecture)`: overview rewrite (7 patches cirúrgicos em §4.1, §4.2, §5.4, §5.5, §5.6, §5.7, §1).
+- `c08bbd4` — `docs(adr)`: ADR-0005 multi-client architecture (354 linhas, 8 Decisions).
+- `a54f99a` — `docs(schema)`: SCHEMA layered + `policy/vocabularies/LGPD/` (4 YAMLs, 49 valores totais: 22 `operation`, 18 `lawful_basis`, 2 `control`, 7 `out_of_scope`).
+- `8583499` — `docs(spec)`: `policy-reader` canonical + compact (24+ edits no canonical em 8 grupos por seção, 13 edits no compact preservando paridade em contract surfaces).
+- `823b03b` — `docs(spec)`: `semgrep-runner` per-client deferral (2 edits no canonical em §2.1 e §7, 1 edit no compact em §6).
+- `d466f37` — `docs`: `DESIGN.md` entrypoint SDD (49 linhas, novo — wrapper de pointers para implementação Fase 2).
+- Commit 6 (esta entry) — `docs(log)`: close session #16.
+- Commit 7 (próximo) — `docs`: session-handoff reescrito para estado pós-Fase 1.
+
+### Próximo passo
+
+Fase 1.5 (Chat) — `docs/requirements.md` e `docs/tasks.md` em branch nova `docs/requirements-and-tasks` ramificando de main após PR da Fase 1 mergeado. Custo estimado 10-16h, uma ou duas sessões de Chat. Detalhamento em `session-handoff.md` (a reescrever no Commit 7).
+
+Fase 2 (Code) começa depois, consumindo `tasks.md` task-a-task em ordem topológica. Estimativa 4-6 sessões de Code para policy-reader + semgrep-runner + integração CI/CD.

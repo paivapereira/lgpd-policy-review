@@ -1,0 +1,97 @@
+# policy/vocabularies/LGPD/lawful_basis.yaml
+# Canonical do vocabulário `lawful_basis` para framework LGPD.
+# Referência humana: policy/SCHEMA.md §9.1.
+
+schema_version: "0.1.0"
+framework: LGPD
+values:
+  - name: consent
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, I
+    gdpr_equivalent: GDPR Art. 6(1)(a)
+    description: consentimento do titular
+  - name: legal_obligation
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, II
+    gdpr_equivalent: GDPR Art. 6(1)(c)
+    description: cumprimento de obrigação legal ou regulatória
+  - name: public_administration_policy
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, III
+    gdpr_equivalent: GDPR Art. 6(1)(e)
+    description: execução de políticas públicas
+  - name: research_by_research_body
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, IV
+    gdpr_equivalent: null
+    description: estudos por órgão de pesquisa
+  - name: contract_performance
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, V
+    gdpr_equivalent: GDPR Art. 6(1)(b)
+    description: execução de contrato
+  - name: regular_exercise_of_rights
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, VI
+    gdpr_equivalent: GDPR Art. 6(1)(f)
+    description: exercício regular de direitos
+  - name: vital_interests
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, VII
+    gdpr_equivalent: GDPR Art. 6(1)(d)
+    description: proteção da vida
+  - name: health_protection
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, VIII
+    gdpr_equivalent: GDPR Art. 9(2)(h)
+    description: tutela da saúde
+  - name: legitimate_interests
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, IX
+    gdpr_equivalent: GDPR Art. 6(1)(f)
+    description: legítimo interesse
+  - name: credit_protection
+    category: personal_data
+    statutory_reference: LGPD Art. 7º, X
+    gdpr_equivalent: null
+    description: proteção do crédito
+  - name: explicit_consent
+    category: sensitive_data
+    statutory_reference: LGPD Art. 11, I
+    gdpr_equivalent: GDPR Art. 9(2)(a)
+    description: consentimento específico e destacado
+  - name: legal_obligation_sensitive
+    category: sensitive_data
+    statutory_reference: LGPD Art. 11, II, "a"
+    gdpr_equivalent: GDPR Art. 9(2)(b)/(g)
+    description: obrigação legal (sensíveis)
+  - name: public_administration_policy_sensitive
+    category: sensitive_data
+    statutory_reference: LGPD Art. 11, II, "b"
+    gdpr_equivalent: GDPR Art. 9(2)(g)
+    description: políticas públicas compartilhadas
+  - name: research_by_research_body_sensitive
+    category: sensitive_data
+    statutory_reference: LGPD Art. 11, II, "c"
+    gdpr_equivalent: GDPR Art. 9(2)(j)
+    description: estudos por órgão de pesquisa
+  - name: regular_exercise_of_rights_sensitive
+    category: sensitive_data
+    statutory_reference: LGPD Art. 11, II, "d"
+    gdpr_equivalent: GDPR Art. 9(2)(f)
+    description: exercício regular de direitos
+  - name: vital_interests_sensitive
+    category: sensitive_data
+    statutory_reference: LGPD Art. 11, II, "e"
+    gdpr_equivalent: GDPR Art. 9(2)(c)
+    description: proteção da vida
+  - name: health_protection_sensitive
+    category: sensitive_data
+    statutory_reference: LGPD Art. 11, II, "f"
+    gdpr_equivalent: GDPR Art. 9(2)(h)
+    description: tutela da saúde
+  - name: fraud_prevention_and_subject_safety
+    category: sensitive_data
+    statutory_reference: LGPD Art. 11, II, "g"
+    gdpr_equivalent: GDPR Art. 9(2)(g)
+    description: prevenção à fraude e segurança do titular

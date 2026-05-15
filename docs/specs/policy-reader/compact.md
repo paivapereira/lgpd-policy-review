@@ -10,8 +10,8 @@
 ## 1. Identity
 
 **Server name:** `policy-reader`
-**Function:** MCP server that exposes the versioned Data Protection Policy as queryable resource and as compliance-evaluation tool, consumed by the Matcher subagent in the code review system.
-**Authorized consumer:** Matcher subagent, exclusively. Enforced via `mcp_servers` config in Matcher's AgentDefinition.
+**Function:** MCP server that exposes the versioned Data Protection Policy — under the jurisdictional framework declared in its header (`legal_framework`) — as queryable resource and as compliance-evaluation tool, consumed by the Matcher subagent in the code review system. Framework-agnostic: serves any Policy whose `policy_schema_version` is within `compatible_schema_range` (structural handshake). The declared `legal_framework` is exposed via handshake for consumer validation (see §4.2).
+**Authorized consumers:** Tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`) — Matcher subagent, exclusively. Resources (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`) — Matcher; `policy://vocabularies` additionally consumed by Classifier (read-only, no tool access). Enforced via `mcp_servers` config in each subagent's AgentDefinition.
 
 ## 2. Wire format
 
@@ -33,6 +33,8 @@ Three error classes (see ADR-0002 §3 for class semantics). Empty result and `in
 
 **Empty error class declaration:** system errors are intentionally absent — Policy I/O failures are caught at startup, not at request runtime. See canonical §5.4 if implementing additional system error handling.
 
+**Dynamic `accepted_values` content:** for `INVALID_DATA_CATEGORY` and `INVALID_OPERATION`, `accepted_values` is populated from the loaded Policy at runtime — `INVALID_OPERATION` from `policy/vocabularies/<framework>/operation.yaml` (resource `policy://vocabularies`); `INVALID_DATA_CATEGORY` from POL-000 of the Policy (governed by `policy/SCHEMA.md`). Content varies per loaded Policy; payload **shape** (`{invalid_value, accepted_values}` / `{provided, accepted_values}`) is stable.
+
 **Error payload shape (all errorCodes):**
 
 ```yaml
@@ -46,7 +48,7 @@ Three error classes (see ADR-0002 §3 for class semantics). Empty result and `in
 
 ## 4. Resources
 
-Two resources, both under `policy://` scheme (custom scheme convention per ADR-0002 §7).
+Three resources, all under `policy://` scheme (custom scheme convention per ADR-0002 §7).
 
 ### 4.1 `policy://catalog`
 
@@ -69,18 +71,44 @@ Ordering: natural order of `clause_id` (POL-001, POL-002, ...). No pagination in
 ### 4.2 `policy://schema-version`
 
 **URI:** `policy://schema-version` (static, no parameters)
-**Read semantics:** idempotent. Serves as version **handshake**.
+**Read semantics:** idempotent. Serves as **dual handshake** (structural + jurisdictional).
 **Content:**
 
 ```yaml
 {
   policy_schema_version: 0.1.0,
   policy_version: <versão do conteúdo da Política>,
+  legal_framework: <LGPD | GDPR | ...>,   # único, imutável durante a sessão; governa policy/vocabularies/<framework>/
   compatible_schema_range: 0.1.x
 }
 ```
 
-**Handshake protocol:** consumer reads this resource before invoking any tool; aborts fail-fast if `policy_schema_version` is outside `compatible_schema_range`.
+**Handshake protocol:** consumer reads this resource before invoking any tool.
+- **Structural:** verify `policy_schema_version` is within `compatible_schema_range`; abort if not.
+- **Jurisdictional:** verify `legal_framework` is in the consumer's accepted-frameworks list (configured in its AgentDefinition); abort if not.
+
+Either failure is fail-fast — consumer must not invoke tools. This resource declares what the Policy instantiates; the consumer decides locally (component does not reject consumers).
+
+### 4.3 `policy://vocabularies`
+
+**URI:** `policy://vocabularies` (static, no parameters)
+**Read semantics:** idempotent. Content determined at startup by `legal_framework` in the Policy header; immutable during session. Reload requires restart.
+**Content:** object aggregating the four jurisdictional vocabularies loaded from `policy/vocabularies/<framework>/*.yaml`:
+
+```yaml
+{
+  operation:     {schema_version, framework, values: [...]},   # operações de tratamento
+  lawful_basis:  {schema_version, framework, values: [...]},   # com campo `category`: personal_data | sensitive_data
+  control:       {schema_version, framework, values: [...]},   # e.g., consent_required, anonymization_required
+  out_of_scope:  {schema_version, framework, values: [...]}    # motivos de exclusão de categoria em cláusulas definitional
+}
+```
+
+Vocabulary structure (`schema_version`, `framework`, `values[]`) governed by `policy/SCHEMA.md` §10.
+
+**Authorized consumers:** Matcher (alongside tools) and Classifier (read-only, no tool access — Resource vs Tool, ADR-0005 Decision 4).
+
+**Error cases:** I/O failure on any of the four YAMLs at startup aborts boot (protocol-level config error). No runtime errors during session.
 
 ## 5. Tools
 
@@ -237,11 +265,11 @@ Output: {
 |---|---|---|---|
 | `clause_id` | string | yes | `^POL-\d{3}$` |
 | `structured_context.data_categories` | array<string> | yes | Non-empty; vocabulary in POL-000 |
-| `structured_context.operation` | enum string | yes | Enum in `policy/SCHEMA.md` |
+| `structured_context.operation` | enum string | yes | Vocabulary in `policy/vocabularies/<framework>/operation.yaml` (resource `policy://vocabularies`, see §4.3) |
 | `structured_context.legal_basis` | string | no | Free text; absence = code does not declare basis |
 | `structured_context.destination` | string | no | e.g., `external_service`, `internal_database` |
 
-**Output structure (success) — varies by verdict:**
+**Output structure (success) — varies by verdict. Trinque de provenance (`policy_schema_version`, `policy_version`, `legal_framework`) trailing every successful return; see §4.2 and canonical §6.4.**
 
 ```yaml
 # Veredito compliant
@@ -250,7 +278,8 @@ Output: {
   policy_clause_ref: POL-NNN,
   evidence: <texto curto>,
   policy_schema_version: 0.1.0,
-  policy_version: <versão>
+  policy_version: <versão>,
+  legal_framework: <LGPD | GDPR | ...>
 }
 
 # Veredito violation_candidate
@@ -259,7 +288,7 @@ Output: {
   policy_clause_ref: POL-NNN,
   evidence: <texto>,
   contradicted_requirement: R1,   # sub-id do requirement contradito
-  policy_schema_version, policy_version
+  policy_schema_version, policy_version, legal_framework
 }
 
 # Veredito indeterminate
@@ -268,10 +297,10 @@ Output: {
   policy_clause_ref: POL-NNN,
   verification_scope: {
     dimension: <enum: upstream_state | ...>,
-    prescribed_treatment: <enum: consent_required | anonymization_required>,
+    prescribed_treatment: <enum: consent_required | anonymization_required>,   # vocabulário em policy/vocabularies/<framework>/control.yaml (resource policy://vocabularies)
     verification_target: <texto em português>
   },
-  policy_schema_version, policy_version
+  policy_schema_version, policy_version, legal_framework
 }
 
 # Veredito not_applicable
@@ -279,7 +308,7 @@ Output: {
   verdict: not_applicable,
   policy_clause_ref: POL-NNN,
   evidence: <texto explicando por que a cláusula não governa>,
-  policy_schema_version, policy_version
+  policy_schema_version, policy_version, legal_framework
 }
 ```
 
@@ -305,7 +334,8 @@ Output: {
     "policy_clause_ref": "POL-027",
     "evidence": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento; código declara base 'consentimento explícito'.",
     "policy_schema_version": "0.1.0",
-    "policy_version": "..."
+    "policy_version": "0.1.0",
+    "legal_framework": "LGPD"
   },
   "content": [{"type": "text", "text": "POL-027 compliant: base legal declarada coerente com requirement."}]
 }
@@ -330,7 +360,8 @@ Output: {
     "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11.",
     "contradicted_requirement": "R1",
     "policy_schema_version": "0.1.0",
-    "policy_version": "..."
+    "policy_version": "0.1.0",
+    "legal_framework": "LGPD"
   },
   "content": [{"type": "text", "text": "POL-031 violation_candidate: base legal declarada não está entre as hipóteses do Art. 11."}]
 }
@@ -358,7 +389,8 @@ Output: {
       "verification_target": "Confirmar se consentimento do titular foi obtido antes desta transmissão."
     },
     "policy_schema_version": "0.1.0",
-    "policy_version": "..."
+    "policy_version": "0.1.0",
+    "legal_framework": "LGPD"
   },
   "content": [{"type": "text", "text": "POL-027 indeterminate: análise estática não decide; verificar consentimento upstream."}]
 }
@@ -386,12 +418,12 @@ Output: {
 
 **See canonical §4.3 if:** the four-verdict enum or the structure of `verification_scope` feels ambiguous. The canonical has long-form prose distinguishing why `indeterminate` is a success and what `verification_target` should look like.
 
-**See canonical §6.4 if:** unsure why `policy_schema_version` and `policy_version` are in every `check_applicability` success but not in `get_clause` or `find_clauses_by_law_article`. Provenance temporal is required when the return is a verdict that will be cited in a Report.
+**See canonical §6.4 if:** unsure why the trinque (`policy_schema_version`, `policy_version`, `legal_framework`) is in every `check_applicability` success but not in `get_clause` or `find_clauses_by_law_article`. Provenance temporal e jurisdicional is required when the return is a verdict that will be cited in a Report.
 
 ## 6. Initialization
 
 Policy is loaded at server **startup**. File I/O errors during load abort startup (no runtime I/O errors during tool calls). Reload requires restart — hot reload is deferred (ADR-0002).
 
-Vocabulary POL-000 and `operation` enum read from `policy/SCHEMA.md` at startup.
+Vocabulary POL-000 (data categories) read from `policy/SCHEMA.md`; jurisdictional vocabularies (`operation`, `lawful_basis`, `control`, `out_of_scope`) read from `policy/vocabularies/<framework>/*.yaml` at startup, governed by `legal_framework` in the Policy header. No vocabulary hardcoded in the component. Changing `legal_framework` requires a new/cloned Policy + populated `policy/vocabularies/<new_framework>/` + restart; no code change.
 
 **See canonical §6.5 if:** considering hot reload or in-session Policy mutation. Explicitly deferred for MVP.

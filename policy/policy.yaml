@@ -5,6 +5,7 @@
 
 policy_schema_version: "0.1.0"
 policy_version: "0.1.0"
+legal_framework: "LGPD"
 
 accepted_law_identifiers:
   - LGPD

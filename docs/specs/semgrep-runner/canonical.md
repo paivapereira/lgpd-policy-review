@@ -42,6 +42,13 @@ regra matcha em uma única região contígua de um único arquivo. Suporte a
 findings interfile (regras com taint analysis cross-file via metavariáveis
 e traces) é deferimento explícito registrado em ADR-0002.
 
+**MVP — escopo do rule set per-cliente.** O MVP carrega um único rule set
+bundled no projeto, com recognizers brasileiros como caso-piloto, comum a
+todas as invocações do servidor. Rule set per-cliente — diretórios
+separados governados por identidade do cliente, análogo a como
+`policy-reader` é per-cliente via troca de Política sob `policy/`
+(ADR-0005 Decision 1) — é deferimento explícito registrado em §7.
+
 ### 2.2 Motor de execução
 
 O componente delega análise estática ao binário `semgrep` instalado no PATH
@@ -332,6 +339,17 @@ deferimento registrado em ADR-0002.
 como parâmetro. Set fixo curado pelo projeto. Para modos distintos de scan
 (ex: fast vs full), princípio aplicado: `_drafts/spec-authoring-principles.md`
 § Split de tool, não parametrização condicional.
+
+**Rule set per-cliente.** MVP carrega rule set bundled no projeto com
+recognizers brasileiros como caso-piloto. Per-cliente — diretório
+`policy/<cliente>/semgrep_rules/` ou similar, análogo a como
+`policy-reader` é per-cliente via troca de Política sob `policy/`
+(ADR-0005 Decision 1) — fica para ADR futuro, quando o primeiro cliente
+fora do escopo LGPD-brasileiro materializar. Motivo do adiamento:
+generalização de regras de detecção sintática requer análise de domínio
+(semântica de detecção, namespace de `rule_id` cross-cliente, provenance
+de regras) distinta do problema jurisdicional do `policy-reader` que
+motivou ADR-0005.
 
 **Integração com Semgrep AppSec Platform.** Componente opera com Semgrep
 open-source sem login. `SEMGREP_APP_TOKEN` não é lido. Findings não são

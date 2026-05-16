@@ -1,50 +1,61 @@
 # Session handoff
 
-**Última sessão fechada:** #17 (Chat) — 2026-05-15
-**Próxima sessão:** #18 (Chat) — Matcher como evaluator iterativo + preparação ADR-0007
-**Branch ativa atual:** `arch/multi-client-policy-rewrite` (8 commits incluindo este handoff, aguardando push e PR)
-**Branch nova a abrir para #16.5:** `docs/requirements-and-tasks` (ramificar de main após PR da Fase 1 mergeado)
+## Handoff de fechamento da #17 (consolidado e final)
 
-## Estado atual
+**Sessão fechada:** #17 (Chat) — 2026-05-15
+**Próxima sessão:** #18 (Chat) — Authoring de `docs/tasks.md` sob ADR-0008 + sessão Chat pré-implementação de POL-001
+**Estado do git:** main em `914b00f` (PR #24 mergeado, último). PR #23 e PR #24 ambos em main; branches `docs/adr-retroactive-conventions` e `docs/adr-0008-sdd-calibration` podem ser deletadas.
 
-Arquitetura multi-cliente cristalizada em ADR-0005 e materializada em 7 commits documentais na branch `arch/multi-client-policy-rewrite`. Camada 1 (Política) é per-cliente, com vocabulários jurisdicionais externalizados em `policy/vocabularies/<framework>/`; Camadas 2 (MCP servers) e 3 (CI/CD) são framework-agnósticas. LGPD é instância exemplar do MVP, não framework default codificado. Implementação real (Fase 2) é greenfield, ancorada em `docs/specs/policy-reader/compact.md` e `docs/specs/semgrep-runner/compact.md`. `docs/DESIGN.md` serve como entrypoint acionável de leitura para a Fase 2.
+---
 
-Push da branch + abertura do PR em main são ação manual pós-Commit 7 (`git push -u origin arch/multi-client-policy-rewrite` + `gh pr create --base main --head arch/multi-client-policy-rewrite ...`). Após merge do PR, a branch `arch/multi-client-policy-rewrite` torna-se histórica; main absorve os 8 commits via squash. A branch da Fase 1.5 (`docs/requirements-and-tasks`) ramifica de main pós-merge.
+### Estado consolidado dos artefatos pós-#17
 
-## Onde encontrar detalhes do que a Fase 1 cristalizou
+Em main já — Fase 1 (PR #22 mergeado em sessão #16):
+- `docs/architecture-overview.md` v final pós-multi-cliente
+- `docs/adr/0001-bootstrap.md` (em débito: drift com FastMCP 3.x; ADR-0004 reservado)
+- `docs/adr/0002-mcp-conventions-and-deferments.md`
+- `docs/adr/0003-dual-spec-architecture.md`
+- `docs/adr/0005-multi-client-policy-architecture.md`
+- `docs/specs/policy-reader/canonical.md` + `compact.md`
+- `docs/specs/semgrep-runner/canonical.md` + `compact.md`
+- `policy/SCHEMA.md` (camada estrutural + jurisdicional)
+- `policy/clauses/POL-000.yaml` + `policy/rationale/POL-000.md`
+- `policy/vocabularies/LGPD/{operation,lawful_basis,control,out_of_scope}.yaml`
+- `docs/DESIGN.md`
 
-- **Decisões arquiteturais formais:** `docs/adr/0005-multi-client-policy-architecture.md` (8 Decisions).
-- **Componentes, camadas, matriz tools × subagentes:** `docs/architecture-overview.md`.
-- **Forma da Política, layering estrutural vs jurisdicional:** `policy/SCHEMA.md`.
-- **Processo de cristalização e calibrações metodológicas da sessão #16:** `docs/learning-log.md` (entry 2026-05-14).
-- **Entrypoint operacional para implementação:** `docs/DESIGN.md` (roteiro de leitura por componente).
+Em main já — pós-#17 (PR #23 mergeado como `f63ddf7`):
+- `docs/REQUIREMENTS.md` v1.0 — 9 RFs + 2 RNFs, source-of-truth de capacidades observáveis
+- `docs/adr/0006-language-conventions.md` — PT em docs técnicos + EN em vocabulários jurisdicionais
+- Patches em specs do `policy-reader` (`collect` → `collection`)
+- (ADR-0007 foi adicionado e revertido dentro do PR — não consta em main; squash message inclui o título por ter agregado todos os commits do branch)
 
-## Pendências cross-sessão (organizado por horizonte de resolução)
+Em main já — pós-#17 (PR #24 mergeado como `914b00f`):
+- `docs/adr/0008-task-decomposition-and-verification.md` — calibração SDD para Opus 4.7
+- Pointer em `CLAUDE.md`
+- §7 + §11 atualizados em `docs/proposta-tcc2.md` (Rajasekaran 2026 + Building Effective Agents 2025)
 
-**Resolver na Fase 1.5 (#16.5 — Chat):**
+---
 
-- Conteúdo de `docs/requirements.md` (RFs/RNFs com critério Dado/Quando/Então).
-- Conteúdo de `docs/tasks.md` (15-25 tasks granulares, formato Spec-Kit-inspirado).
+### Hashes da #17 (audit trail interno)
 
-**Resolver na Fase 2 (#17+ — Code, antes do primeiro código rodar):**
+Sobrevive a squash-merge — após merge dos PRs, hashes individuais somem do main, mas ficam registrados aqui.
 
-- ADR-0004 (uv + FastMCP 3.x) — número reservado desde sessão #14; inclui CVE 2.x check.
-- ADR-0007 (escopo de operações MVP v0.1.0 — only `collection` evaluated against clauses) — número reservado em PR #23; redação diferida para sessão Chat dedicada. Rationale primária a registrar: sistema é ferramenta acessória a mapa de tagueamento de coleta de dados, não a política inteira de proteção de dados da empresa. Argumentos secundários (foundational data-flow position, signal density, compliance-domain breadth) podem complementar mas não substituir a motivação primária. Citado por REQUIREMENTS.md RF-004 e por docs/adr/0006 (referência cruzada).
-- ADR-0008 (task decomposition granularity and verification gate) — materializado nesta sessão como governance da forma do `docs/tasks.md`. Não-bloqueante para implementação se `tasks.md` for redigido sob suas decisões.
-- `mime_type` micro-débito em resources (declarar `application/json` no loader real).
+**PR #23** (`docs/adr-retroactive-conventions`) — squash em main como `f63ddf7`:
+- `4953a9b` — docs(specs): fix collect → collection token in policy-reader example
+- `9d0d38a` — docs(adr): add ADR-0006 — language conventions
+- `1a5bed5` — docs(adr): add ADR-0007 — MVP collection-only scope (revertido)
+- `09d4914` — docs: scope PR-23 cleanup — revert ADR-0007, calibrate ADR-0006
 
-**Adiar para sessão #18+:**
+**PR #24** (`docs/adr-0008-sdd-calibration`) — squash em main como `914b00f`:
+- `2ece0f3` — docs: add ADR-0008 calibrating SDD task decomposition for Opus 4.7
 
-- Semântica de `last_revision` em `policy/policy.yaml` — formal vs informativo, atualização manual vs automática.
-- Semântica de `schema_version` no header dos YAMLs de vocabulário — coerência com `policy_schema_version` do header global, regras de bump.
-- Validação cruzada per-cliente (vocabulary × Semgrep metadata) — só relevante quando ADR de per-client rule set materializar.
-- ADR retroativo formalizando convenção "português para docs técnicos não-ADR" (specs, `architecture-overview`, `DESIGN.md`, `SCHEMA.md`).
-- Promoção do draft `_drafts/spec-authoring-principles.md` para `docs/` — sweep + atualização de cross-doc links.
-- Decisão sobre rule set per-cliente do `semgrep-runner` (quando primeiro cliente não-LGPD materializar).
+(Hash do próprio handoff omitido — só conhecido pós-`git commit`.)
 
-## Defaults arquiteturais consolidados (pós-Fase 1)
+---
 
-Estado **realizado** (não plano em progresso). Referência canônica de cada item em ADR-0005.
+### Defaults arquiteturais consolidados (intactos pós-#17)
+
+Estado **realizado** (não plano em progresso). Referência canônica em ADR-0005, herdado da Fase 1.
 
 - Camada 1 (Política) é per-cliente; substituível por cliente sem alteração de código (ADR-0005 Decision 1).
 - `legal_framework` é campo top-level único do header da Política, imutável durante sessão do server (ADR-0005 Decision 2).
@@ -58,130 +69,92 @@ Estado **realizado** (não plano em progresso). Referência canônica de cada it
 - Mecanismo interno de reasoning de `check_applicability` é deferido para Fase 2 (ADR-0005 Decision 7).
 - `semgrep-runner` rule set é bundled no projeto no MVP; per-cliente é deferimento explícito (ADR-0005 Decision 8).
 
-## Plano de ação Fase 1.5 — Requirements e Tasks (sessão de Chat)
+---
 
-Sessão de Chat (não Code) dedicada a redigir dois artefatos que fecham o gap SDD restante: requirements verificáveis derivados da proposta-tcc2, e tasks decompostas para Fase 2. Branch separada `docs/requirements-and-tasks` ramificando de main após PR da Fase 1 mergeado. Custo estimado: 10-16h, uma ou duas sessões.
+### Pendências organizadas por horizonte
 
-**Justificativa.** O trio `requirements / design / tasks` é a forma de SDD informal que sobrevive sem framework (Spec Kit ou similar). Design já existe distribuído pós-Fase 1 (`DESIGN.md` como entrypoint). Faltam requirements (contrato de aceitação global verificável) e tasks (decomposição executável que substitui a decisão one-shot-vs-decomposto da Fase 2 original).
+**Imediato (operacional seu):**
+- Deletar branches mergeadas: `git push origin --delete docs/adr-retroactive-conventions docs/adr-0008-sdd-calibration` (e `git branch -d` no local).
 
-### Commit 1.5.1 — docs/requirements.md
+**Sessão #18 (Chat) — agenda:**
+- Authoring de `docs/tasks.md` v1.0 sob governança de ADR-0008. Conteúdo:
+  - Estrutura por Milestones (A, B, C)
+  - Milestone A detalhado: T01-T05 + pré-implementação POL-001
+  - Milestones B e C como placeholders ("specs a redigir, tasks a decompor após A")
+  - Cada task carrega: nome, dependências, files previstos, RFs/RNFs cobertos, gate tripartite (testes automatizados + revisão independente Chat + exercício manual via Inspector)
+- Estimativa: 2-3 horas. PR dedicado de redação.
 
-**Goal.** Extrair da proposta-tcc2 e da documentação arquitetural um conjunto enxuto de requisitos funcionais (RF) e não-funcionais (RNF), cada um com critério de aceitação observável.
+**Sessões Chat dedicadas (antes de Fase 2 começar — ordem importa):**
 
-**Source material.** `docs/proposta-tcc2.md` inteira, `docs/architecture-overview.md` pós-Fase 1, ADRs 0001-0005.
+1. **ADR-0007** (escopo MVP collection-only) com rationale real do mapa de tagueamento como motivação primária. Argumentos secundários (foundational data-flow position, signal density, compliance-domain breadth) podem complementar, não substituir. Estimativa: 45-90 min.
 
-**Estrutura.**
+2. **POL-001** — cláusula sobre consentimento na coleta de dados pessoais. Critério: conteúdo suficiente para exercitar os quatro vereditos de `check_applicability` (compliant, violation_candidate, indeterminate, not_applicable) nos testes de T03. Trabalho jurídico-textual, não de Code. Estimativa: 1 sessão.
 
-- RF-001 a RF-NNN — requisitos funcionais. Cada um: descrição em 1-3 frases + critério de aceitação no formato "Dado X, quando Y, então Z".
-- RNF-001 a RNF-NNN — requisitos não-funcionais. Cobrir: stack tech (ADR-0001), latência alvo, observabilidade mínima, reprodutibilidade, framework-agnosticismo (ADR-0005).
-- Cobertura mínima esperada: detecção de tratamento, classificação de contexto, avaliação de conformidade, geração de Report, provenance temporal e jurisdicional, troca de framework sem alteração de código.
+   Ordem deliberada: ADR-0007 antes de POL-001. ADR-0007 fixa que T03 só avalia `collection` — isso enquadra o escopo da cláusula que POL-001 vai precisar cobrir, evitando reautoria depois.
 
-**Critério geral para aceitação como bem-formado.** Cada RF e RNF deve ser verificável por terceiro sem julgamento subjetivo. Critério ambíguo é defeito, refazer.
+**Etapa 2 (Chat, após Milestone A completo):**
+- Specs leves dos 5 subagentes (`docs/specs/subagents/<nome>.md`). Formato mais leve que canonical+compact dos MCPs — contrato comportamental + esboço de AgentDefinition (`mcp_servers`, `allowed-tools`) + decisões de prompt principais. 1-2 páginas por subagente.
+- Discussão Matcher como evaluator iterativo (Rajasekaran-pattern). Decisão informada pelo aprendizado empírico de Milestone A. Possível materialização em ADR-0009 (a reservar) se a decisão for substantiva. Estimativa: 1-2 sessões Chat para o pacote completo.
 
-**Acceptance criteria.**
+**Etapa 4 (Chat, após Milestone B completo):**
+- Spec leve do CI/CD (workflow YAML + posting via API) e do Reporter (`emit_report`). Pode ser meia-sessão. Documento único provável.
 
-- Arquivo `docs/requirements.md` criado.
-- Todo RF tem critério no formato "Dado / quando / então" com componentes observáveis.
-- Todo RNF tem métrica ou referência arquitetural (e.g., RNF-stack referencia ADR-0001).
-- Pelo menos um RF cobre framework-agnosticismo com cenário de troca LGPD → GDPR.
+**Fase 2 Code (consumindo tasks.md):**
 
-**Commit message.**
+Numeração T01-T10 abaixo é **indicativa** — autorada definitivamente em #18 sob restrição de 8-12 tasks total da ADR-0008. Ranges podem deslocar conforme decomposição real.
 
-```
-docs: add requirements.md with verifiable functional and non-functional requirements
+- Milestone A — MCPs standalone validados (T01-T05, estimativa 4-5 sessões Code de 2-4h)
+- Milestone B — multi-agente operacional (T06-T08, estimativa 3-4 sessões)
+- Milestone C — CI/CD + benchmark + validação (T09-T10, estimativa 2-3 sessões)
 
-Distilled from proposta-tcc2 and architecture-overview into numbered
-RFs/RNFs with observable acceptance criteria (Given/When/Then format).
-Includes explicit framework-agnostic requirement covering LGPD→GDPR
-substitution scenario.
+**Sessão Code curta de cleanup editorial (oportunística, baixa prioridade):**
+- Drift "LGPD" → "Proteção de Dados" em `architecture-overview`, `proposta-tcc2`
+- Drift "trinque" → "trinca" cross-doc
+- ADR-0001 sync com `uv.lock` real (FastMCP 3.x — parte simbólica; ADR-0004 ainda pendente como decisão substantiva)
+- ADR-0001 D3/D4: drift `clause_id` "LGPD-Art-7-I" → `POL-NNN` (formato evoluiu; precisa amendment ou supersede)
+- Token `store` → `storage` em [`docs/specs/policy-reader/compact.md`](docs/specs/policy-reader/compact.md) §5.3 exemplo violation_candidate (drift análogo ao `collect`/`collection` consertado em PR #23, mas em outra cláusula do exemplo)
+- Promoção do draft `_drafts/spec-authoring-principles.md` para `docs/` (pendência herdada de #16)
 
-Refs ADR-0005, DESIGN.md validation global.
-```
+**Adiar para sessão #20+:**
+- Semântica de `last_revision` em `policy/policy.yaml`
+- Semântica de `schema_version` no header dos YAMLs de vocabulário
+- Validação cruzada per-cliente (vocabulary × Semgrep metadata) — só quando ADR de per-client rule set materializar
+- Decisão sobre rule set per-cliente do `semgrep-runner`
+- `mime_type` declaration em resources
 
-### Commit 1.5.2 — docs/tasks.md
+---
 
-**Goal.** Decompor implementação do `policy-reader` e `semgrep-runner` em tasks granulares executáveis pelo Code uma a uma, com dependências, file paths e critério de aceitação por task.
+### Decisões metodológicas calibradas nesta sessão
 
-**Source material.** SPECs pós-Fase 1 (`compact.md` de cada server), `architecture-overview.md`, `DESIGN.md`, `requirements.md` recém-redigido.
+- **Granularidade de tasks calibrada para Opus 4.7** sob ADR-0008: 8-12 tasks médias (1-3h) em vez de 15-25 finas (30-60min), com referência empírica explícita a Rajasekaran 2026.
+- **Estrutura por Milestones interna**: A (MCPs standalone), B (multi-agente), C (CI/CD + validação). Não recorte de entrega — Milestones são checkpoints empíricos dentro do escopo declarado em `proposta-tcc2 §3, §6`.
+- **Calibração proporcional de Specify**: specs canonical+compact denso para MCP servers (decididas em sessões #07-#13); specs leves para subagentes (a redigir após Milestone A); spec curta para CI/CD (a redigir após Milestone B). Defensável academicamente como adaptação de SDD ao objeto.
+- **Authoring de cláusulas emerge sob demanda**: POL-001 quando T03 pedir; POL-002+ quando task futura pedir. Pattern "cláusula nasce quando teste pede".
+- **Authoring de cláusula é trabalho Chat, não Code**: provenance jurídico-textual, formação do autor.
+- **Authoring de `tasks.md` também é Chat, não Code**: preserva independência do gate tripartite (ADR-0008 D3) — Code que consome tasks não pode ter sido o mesmo agente que as escreveu, sob risco de quebrar a separação no nível do plano.
+- **Discussão Matcher-evaluator adiada**: decisão arquitetural amadurece com base empírica de Milestone A, não com especulação prévia.
 
-**Formato (inspirado em Spec Kit, sem dependência dele).**
+---
 
-```
-## T001 — Loader real da Política
-**Depends on:** —
-**Files:** src/mcp_servers/policy_reader/loader.py (novo)
-**Parallel:** []
-**Goal:** Implementar carregamento de policy/policy.yaml + policy/clauses/*.yaml + policy/vocabularies/<framework>/*.yaml em startup. Validação contra SCHEMA.md (estrutural) e contra vocabulários (jurisdicional).
-**Acceptance:** Server inicia com Política LGPD válida; aborta startup com erro descritivo se schema inválido; carrega quatro vocabulários jurisdicionais como objetos Pydantic.
+### Sintomas operacionais observados nesta sessão (meta-aprendizado)
 
-## T002 — Resource policy://schema-version
-**Depends on:** T001
-**Files:** src/mcp_servers/policy_reader/server.py (modificar)
-**Parallel:** [T003]
-**Goal:** [...]
-**Acceptance:** [...]
-```
+Vale registrar como padrão pra calibrar comportamento futuro:
 
-**Granularidade alvo.** Cada task cabe em sessão de implementação de 30-60 minutos. Mais curta que isso é over-decomposed; mais longa que isso é under-decomposed.
+- **Generator (Chat sem filesystem) introduz drift factual** que Code (com filesystem) pega: token `collection`/`coleta`, exemplos errados em RF-004, self-contradiction T05/T07 vs ADR-0008 D3, path errado de ADR-0003 no draft do handoff. Padrão recorrente; reforça empiricamente o D3 de ADR-0008 (revisão multi-instância) com evidência da própria sessão de calibração — o ADR previu o sintoma e o sintoma se manifestou na mesma sessão.
+- **Disciplina de scope** retomada nesta sessão (cleanup do PR-23, pause-and-ask do PR-24) contrasta com sessão anterior onde Code expandiu scope silenciosamente.
+- **Pause-and-ask funcionando** como gate de qualidade: 3 pauses nesta sessão (leftover POL-000 em ADR-0006; conflict de branch base em PR-24; race-condition de push do handoff vs merge dos PRs no GitHub UI). Todas resolveram bem com input curto seu.
+- **Race-condition push vs merge:** durante o commit do próprio handoff, PR #23 e PR #24 foram mergeados via GitHub UI em paralelo. Push rejeitado, rebase com conflito, resolvido sobrescrevendo com versão atualizada que reflete merged-state. Padrão a antecipar: handoff que registra PRs pendentes pode ficar stale entre commit e push se o usuário operar em paralelo. Mitigação prática: redigir handoff como descrição de estado pós-merge, não pre-merge.
 
-**Decomposição mínima esperada.**
+---
 
-- 1 task — loader real
-- 4 tasks — uma por surface (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`, mais checklist cruzado)
-- 3 tasks — uma por tool (`get_clause`, `find_clauses_by_law_article`, `check_applicability`)
-- 2-3 tasks — testes unitários e integração end-to-end
-- `semgrep-runner`: 1 task loader, 2 tasks tool + testes
+### Próximo passo recomendado
 
-Total estimado: 15-25 tasks. Numeração T001-T0NN, prefixadas `PR-` para `policy-reader` e `SR-` para `semgrep-runner` se preferir clareza.
+**Abertura da #18.** Quando você abrir, sugestão de prompt curto:
 
-**Acceptance criteria.**
+> Session #18 - Authoring de tasks.md sob ADR-0008. Ver handoff #17. Foco: Milestone A detalhado (T01-T05 + POL-001 pré), Milestones B/C como placeholders. Gate tripartite por task amarrado a RFs.
 
-- Arquivo `docs/tasks.md` ou diretório `docs/tasks/` criado.
-- Toda task tem campos depends/files/parallel/goal/acceptance preenchidos.
-- Toda acceptance é observável (resultado de teste, comportamento verificável manualmente).
-- Ordem topológica respeitada (T001 → T002 não cria ciclo de dependência).
+Posso abrir com explicação do conceito gate tripartite se você quiser revisar antes de redigirmos, ou ir direto pra redação se já estiver internalizado.
 
-**Commit message.**
+---
 
-```
-docs: decompose policy-reader and semgrep-runner implementation into tasks
-
-15-25 numbered tasks with dependencies, file paths, and observable
-acceptance per task. Granularity calibrated for 30-60min implementation
-sessions. Replaces one-shot vs decomposed decision deferred from #14.
-
-Refs DESIGN.md roteiro de leitura, requirements.md.
-```
-
-### Push e PR
-
-```powershell
-git push -u origin docs/requirements-and-tasks
-gh pr create --base main --head docs/requirements-and-tasks `
-  --title "docs: requirements and tasks for SDD-driven implementation" `
-  --body "Closes SDD gap: verifiable requirements + decomposed tasks. Fase 2 (implementation) consumes tasks.md as input."
-```
-
-## Plano de ação Fase 2 — Code (sessão #17 ou posterior)
-
-**Input para Code.** `docs/tasks.md` é o source-of-truth da Fase 2 sob governança de ADR-0008 (granularidade 8-12 tasks médias, acceptance amarrada a REQUIREMENTS.md RFs/RNFs, gate tripartite por task). Code consome task a task em ordem topológica, validando os três mecanismos do gate antes de marcar como done.
-
-Decisão one-shot vs tasks granulares — deferida da #14 — fica resolvida automaticamente: tasks já são granulares por design da Fase 1.5. Cada task é one-shot dentro de si.
-
-**Estado de partida.** PR da Fase 1.5 mergeado em main. Branch `feat/policy-reader-skeleton` já mergeada em main (sessão #15 closure, squash `6b8d4ea`). Code começa nova branch `feat/policy-reader-implementation` ramificando de main.
-
-**Custo estimado.** Com tasks decompostas: 1 sessão por bloco de 3-5 tasks paralelizáveis ou em sequência curta. Total para `policy-reader`: 2-3 sessões. Total para `semgrep-runner`: 1-2 sessões. End-to-end + integração CI/CD: 1 sessão. Estimativa total da Fase 2: 4-6 sessões.
-
-## Hashes da Fase 1 (audit trail interno)
-
-Sobrevive a squash-merge — após merge do PR, hashes individuais somem do main, mas ficam registrados aqui:
-
-- `2612f99` — docs(architecture): rewrite overview for multi-client policy support
-- `c08bbd4` — docs(adr): add ADR-0005 — multi-client architecture for policy support
-- `a54f99a` — docs(schema): layer SCHEMA.md into structural + jurisdictional, externalize LGPD vocabularies
-- `8583499` — docs(spec): rewrite policy-reader for multi-framework, add policy://vocabularies resource
-- `823b03b` — docs(spec): note semgrep-runner rule-set scope under multi-client architecture
-- `d466f37` — docs: add DESIGN.md as actionable entrypoint for SDD workflow
-- `05883c8` — docs(log): close session #16 — Fase 1 (multi-client architecture rewrite) complete
-
-(Hash do próprio handoff omitido — só conhecido pós-`git commit`. O 8º commit da branch é o presente arquivo.)
+Sessão #17 produtiva e densa. Você sai com REQUIREMENTS estabelecido, duas convenções formalizadas em ADRs (linguagem + decomposição), provenance arquitetural intacta, e Code desbloqueado assim que tasks.md materializar na #18. Boa sessão.

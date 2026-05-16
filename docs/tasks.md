@@ -24,7 +24,7 @@
 
 Uma provisão precede o início de T03 especificamente. Não bloqueia T01, T02a, T02b ou T04 — Code pode começar Milestone A pelo topo sem que esteja fechada.
 
-**POL-001 — pacote teste de quatro cláusulas para check_applicability.** A Política atualmente contém apenas POL-000 (vocabulário estruturador de classes de dados, sem cláusulas substantivas avaliáveis). T03 precisa de cláusulas substantivas mínimas para exercitar os quatro vereditos de `check_applicability` com fixtures reais ou cláusulas mergeadas. Proposta de pacote abaixo; redação canônica é trabalho jurídico-textual de sessão Chat dedicada, ancorada em ADR-0007 já ratificado (escopo MVP collection-only, commit 893c0f7).
+**POL-001 — pacote teste de quatro cláusulas para check_applicability.** A Política atualmente contém apenas POL-000 (vocabulário estruturador de classes de dados, sem cláusulas substantivas avaliáveis). T03 precisa de cláusulas substantivas mínimas para exercitar os quatro vereditos de `check_applicability` com fixtures reais. Pack mergeado em `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/` como fixture de teste isolada — sem rationale files, sem bump de `policy_version`, sem estabilização de SCHEMA §6. Detalhamento operacional (AS coverage por arquivo, pattern de fixture root assembly via `tmp_path`, ressalvas) no README do próprio pack. Design intent das quatro cláusulas abaixo, mantido como registro histórico da decisão.
 
 Pacote mínimo proposto, quatro cláusulas, cada uma calibrada para um veredito específico de `check_applicability` ou um caso modal de `get_clause` / `find_clauses_by_law_article`. Estrutura `substantive` conforme `policy/SCHEMA.md` §6:
 
@@ -144,7 +144,7 @@ Validação na redação canônica: nomes de categorias substituídos por valore
 
 **Função entregue.** Tool `check_applicability(clause_id, structured_context)` retorna veredito no conjunto `{compliant, violation_candidate, indeterminate, not_applicable}` com trinca de provenance `(policy_schema_version, policy_version, legal_framework)` em todo retorno em sucesso. Implementa honestidade epistêmica via `indeterminate` quando análise estática não decide (RF-005). Implementa filtro de escopo MVP via `not_applicable` para `operation ≠ collection` antes do matching de cláusulas, evitando invocação de matching fora de escopo (RF-004, ADR-0007). Erros de input conforme spec §5.4. `CLAUSE_DEPRECATED` retryable com `details` completo quando cláusula referenciada está deprecated.
 
-**Dependências.** T01 (estado da Política), T02a (módulo `tools.py` já estabelecido). Pré-implementação obrigatória: POL-001 pacote teste (quatro cláusulas) disponível em `policy/clauses/` ou como fixture em `tests/.../fixtures/` se ainda não mergeado.
+**Dependências.** T01 (estado da Política), T02a (módulo `tools.py` já estabelecido). Pré-implementação obrigatória: pack POL-001..POL-004 disponível em `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/` (estrutura e pattern de fixture root assembly via `tmp_path` documentados no README do pack).
 
 **Files previstos** (sugestão):
 - `src/mcp_servers/policy_reader/tools.py` (modificar — adicionar `check_applicability`)
@@ -174,7 +174,7 @@ Validação na redação canônica: nomes de categorias substituídos por valore
 
 **Gate task-level.**
 
-*Automated.* AS-1 a AS-8 em `tests/mcp_servers/policy_reader/test_check_applicability.py`; passam sob `uv run pytest`. Fixtures de POL-001..POL-004 em `tests/mcp_servers/policy_reader/fixtures/` se POL-001 ainda não estiver mergeado em `policy/clauses/` no momento da implementação.
+*Automated.* AS-1 a AS-8 em `tests/mcp_servers/policy_reader/test_check_applicability.py`; passam sob `uv run pytest`. Fixtures consomem o pack mergeado em `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/` via pattern de assembly de fixture root descrito no README do pack.
 
 *Chat review.* Sessão Chat independente verifica: o filtro de `operation ≠ collection` (AS-5) executa estrutural e demonstravelmente antes do matching, não como side-effect; o mecanismo interno de reasoning de `check_applicability` (regra hardcoded em código, single LLM call, híbrido, ou qualquer outro) está livre por ADR-0005 Decision 7 — documentação em docstring é recomendada para auditabilidade futura mas não obrigatória pela ADR; em todos os casos de AS-3, `verification_scope` carrega os três sub-campos populados, nunca placeholder ou string vazia; a trinca de provenance vem de fonte única — o header carregado por T01 — e nunca é derivada ou duplicada em campo separado do código; em AS-7, `details` carrega os três campos do contrato de erro, não só `successors`.
 

@@ -33,6 +33,17 @@ Three contextual constraints shape every decision below:
    `2026-05-01 — bootstrap-claude-md-d3` for the empirical validation of
    the CLAUDE.md adherence tests).
 
+## Decisions at a glance
+
+| # | Decision | Read when |
+|---|----------|-----------|
+| 1 | Repository: single private monorepo, MIT-licensed code | Deciding repo layout; reviewing license questions; preparing the repo for public release; choosing a license for `policy/` content |
+| 2 | Canonical stack | Adding dependencies; setting up env; reviewing stack changes; introducing a new tool category |
+| 3 | Languages: English for code, Portuguese for legal content | Authoring any artifact; verifying language choice; cross-reference with ADR-0006 |
+| 4 | Three immutable domain rules in CLAUDE.md | Designing any agent or tool path; reviewing for invariant violation; reasoning about escalation, citation, or schema-version |
+| 5 | Git workflow: Conventional Commits, feature branches, squash-merge | Opening a PR; naming a branch; writing a commit message |
+| 6 | Direct-commit allowlist for two metadocuments (permanent convention) | Touching `docs/session-handoff.md` or `docs/learning-log.md`; proposing to add a third file to the allowlist |
+
 ## Decision
 
 ### 1. Repository: single private monorepo, MIT-licensed code

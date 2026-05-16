@@ -395,7 +395,7 @@ Input: {
   "clause_id": "POL-027",
   "structured_context": {
     "data_categories": ["dados_de_identificacao"],
-    "operation": "collect",
+    "operation": "collection",
     "legal_basis": "consentimento explícito"
   }
 }

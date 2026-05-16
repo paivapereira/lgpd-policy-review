@@ -34,6 +34,19 @@ immutable during the server session. Multi-framework support is a
 data-substitution exercise (replace Policy + vocabularies, restart),
 not a code-modification one.
 
+## Decisions at a glance
+
+| # | Decision | Read when |
+|---|----------|-----------|
+| 1 | SCHEMA.md layered: structural universal + jurisdictional per-client | Authoring or modifying `policy/SCHEMA.md`; deciding where a new vocabulary belongs |
+| 2 | `legal_framework` is a top-level header field, immutable during the server session | Implementing `policy-reader` startup; reasoning about multi-framework support |
+| 3 | Four canonical vocabulary files per framework; POL-000 universal | Authoring vocabularies under `policy/vocabularies/<framework>/`; deciding whether a new vocabulary is universal (POL-000-like) or per-framework |
+| 4 | `policy://vocabularies` is a shared resource (Matcher + Classifier); tools remain Matcher-exclusive | Implementing Classifier or Matcher; designing subagent `allowed-tools` |
+| 5 | Provenance trinque: jurisdiction is non-optional in verdicts | Implementing `check_applicability`; understanding why every verdict carries `legal_framework`; consuming Matcher output downstream |
+| 6 | Clause succession is intra-Policy, not cross-framework | Implementing `successors` lookup; reasoning about Policy evolution |
+| 7 | Internal reasoning strategy of `check_applicability` is implementation, not contract | Implementing the Matcher logic in Phase 2; deciding between data-driven and hybrid strategies |
+| 8 | `semgrep-runner` rule set is bundled in MVP; per-client deferred | Implementing `semgrep-runner` rule loading; planning Phase 2+ multi-client work |
+
 ## Decision
 
 ### 1. SCHEMA.md layered: structural universal + jurisdictional per-client

@@ -134,11 +134,9 @@ no validation errors because `base_ref` and `head_ref` are Git ref
 strings validated by Git itself during subprocess invocation,
 surfacing as the system-class `INVALID_REF_RESOLUTION` when invalid.
 
-**Rationale.** Materializes principles #5 and #7 of the 26
-spec-authoring principles (to be consolidated in
-`docs/spec-authoring-principles.md`). An absent class in an error
-table can mean either "not yet thought through" or "deliberately
-empty"; the reader should not have to guess. The positive
+**Rationale.** An absent class in an error table can mean either
+"not yet thought through" or "deliberately empty"; the reader should
+not have to guess. The positive
 declaration also surfaces the mechanism by which validation happens
 elsewhere (downstream tool, OS, protocol), preventing a future
 contributor from adding a redundant validation layer.
@@ -360,7 +358,3 @@ tracked in `docs/session-handoff.md` for the next session:
 - Add explicit declaration of empty error classes to any spec
   section where a class is currently absent without comment
   (Decision 4).
-- Resolve forward-references to `docs/spec-authoring-principles.md`
-  remaining in `policy-reader.md` §5.5 and `semgrep-runner.md` §3
-  once the principles document is consolidated (session #10 or
-  cleanup window).

@@ -47,7 +47,7 @@ Three error classes (see ADR-0002 §3 for class semantics). Empty `findings` lis
 
 The Semgrep rule set is server-internal input, not consumer-navigable content. The Detector consumes findings produced by `scan_diff` (§5); it does not enumerate, read, or reason over rule content before scan invocation.
 
-Principle applied: `_drafts/spec-authoring-principles.md` § Resource vs Tool — discriminação pela leitura cognitiva. The asymmetry vs `policy-reader` (which exposes two resources) is deliberate and is the case-test for the principle.
+Principle applied: Resource vs Tool — discriminação pela leitura cognitiva. The asymmetry vs `policy-reader` (which exposes two resources) is deliberate and is the case-test for the principle.
 
 ## 5. Tools
 
@@ -63,7 +63,7 @@ One tool. Naming convention: `mcp__semgrep-runner__scan_diff` (runtime-generated
 >
 > Returns success with a list of findings (possibly empty) on completion. Returns business/validation error if refs are unresolvable, system error if the scan times out or the Semgrep binary fails.
 
-**Note:** `scan_diff` does not accept `rule_set` as a parameter. For potential future modes (e.g., fast vs full scan), see `_drafts/spec-authoring-principles.md` § Split de tool, não parametrização condicional — the canonical response is tool split, not parameter.
+**Note:** `scan_diff` does not accept `rule_set` as a parameter. For potential future modes (e.g., fast vs full scan), the canonical response is tool split, not parametrization of `scan_diff`.
 
 **`inputSchema`:**
 

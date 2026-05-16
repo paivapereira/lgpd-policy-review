@@ -57,6 +57,8 @@ These rules express the core thesis of the project. Violating them in code, prom
 
 This project follows Spec-Driven Development. Implementation work proceeds against written specifications under `docs/specs/` and architectural decisions under `docs/adr/`. Architecture context lives in `docs/architecture-overview.md`. When asked to implement a component without a corresponding spec, confirm with the user that the spec is intentionally absent before writing code.
 
+Task decomposition and verification follow ADR-0008: medium-granularity tasks (1-3h each) with acceptance bound to REQUIREMENTS.md RFs/RNFs and a tripartite verification gate (automated tests, independent Chat review, manual exercise).
+
 ## Privacy and safety
 
 - **Never commit real PII** in fixtures, tests, examples, or documentation. All test data must be synthetic. If a user pastes a real CPF, CNPJ, name, or address into a session, redact it before writing to disk and warn the user.

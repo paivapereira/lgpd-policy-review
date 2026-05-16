@@ -33,6 +33,25 @@ brief rationale and consequences; each deferment carries description,
 why-deferred, and revisit criterion. Detail lives in the specs and in
 the learning-log; this ADR is the index.
 
+## Decisions at a glance
+
+### Part 1 — Conventions
+
+| # | Decision | Read when |
+|---|----------|-----------|
+| 1 | `CallToolResult` payload placement: hybrid `structuredContent` + `content` | Implementing any MCP tool return; reviewing tool spec §4 |
+| 2 | MCP server and tool naming convention | Naming a new MCP server or tool; writing `mcp__server__tool` references; aligning `.mcp.json` keys with AgentDefinition `tools` lists |
+| 3 | Three-class error contract (`validation`, `business`, `system`) | Implementing any tool error path; designing new `errorCode` values; deciding `isRetryable` semantics |
+| 4 | Positive declaration of empty error classes | Reviewing or authoring spec §5; deciding whether to omit an empty class |
+| 5 | "Three beats" review pass form in §8.<final> | Reviewing a spec against `architecture-overview.md`; authoring a new spec's review section |
+| 6 | Specification versioning | Bumping `spec_version`; deciding major/minor/patch for a spec change; preparing 0.x → 1.0 promotion |
+| 7 | Custom URI schemes for domain resources | Adding a new resource; designing resource URI; deciding between `policy://` (or analogous) vs generic schemes |
+
+### Part 2 — Deferments (A–I)
+
+Referenced by letter elsewhere in the project. See Part 2 section
+below for descriptions, why-deferred, and revisit criteria.
+
 ## Part 1 — Project conventions
 
 ### 1. CallToolResult payload placement: hybrid structuredContent + content
@@ -77,11 +96,10 @@ follow the convention used by Anthropic reference servers
 form is what Claude Code generates when exposing MCP tools to the
 model.
 
-**Consequences.** The current `semgrep-runner.md` text uses
-`semgrep_runner` (underscore) in some `mcp__server__tool` references,
-inherited from an earlier convention. A patch pass over the spec is
-required as a follow-up commit — see "Follow-up patches" below.
-Future servers follow the hyphen convention.
+**Consequences.** Specs authored before this ADR may carry
+`semgrep_runner` (underscore) in `mcp__server__tool` references,
+inherited from an earlier convention; such drift is patched on
+detection. Future servers follow the hyphen convention.
 
 ### 3. Three-class error contract
 
@@ -339,22 +357,3 @@ partial scans (currently strong — see `semgrep-runner.md` §7).
   to `docs/roadmap.md`, not to this one. The heuristic registered
   in session #03's learning-log applies: consolidate roadmap when
   deferments cross ≥3 ADRs.
-
-## Follow-up patches (not part of this decision)
-
-These are tasks that follow mechanically from this ADR and are
-tracked in `docs/session-handoff.md` for the next session:
-
-- Patch `semgrep-runner.md` to replace `semgrep_runner` (underscore)
-  with `semgrep-runner` (hyphen) in `mcp__server__tool` references
-  (Decision 2). Verify `architecture-overview.md` carries no
-  underscore form.
-- Replace the forward-reference text in `policy-reader.md` §3
-  ("registrada em ADR-0002") with a citation of this ADR's
-  Decision 7.
-- Replace the forward-reference text in `policy-reader.md` §5.5
-  ("cláusula sobre versionamento desta spec será formalizada em
-  ADR-0002") with a citation of this ADR's Decision 6.
-- Add explicit declaration of empty error classes to any spec
-  section where a class is currently absent without comment
-  (Decision 4).

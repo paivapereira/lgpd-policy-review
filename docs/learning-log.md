@@ -929,7 +929,7 @@ finais necessários após primeiro contato com a orientadora.
 - `docs/specs/policy-reader.md` (v0.1.0, oito seções, mergeado)
 - `docs/specs/_template.md` (v0.1.0, esqueleto canônico, mergeado)
 - `policy/SCHEMA.md` (stub, mergeado)
-- **26 princípios de spec-authoring em formação** (consolidação canônica em `docs/spec-authoring-principles.md` agendada para sessão pós-#07, após validação na redação do `semgrep-runner.md`):
+- **26 princípios de spec-authoring em formação:**
 
   1. **Frame frontal** — início da spec (~150 palavras) molda como o resto é interpretado.
   2. **Função em uma sentença** — componente que não cabe em uma sentença ainda não está conhecido.
@@ -976,14 +976,11 @@ Sessão #07: redação completa de `docs/specs/semgrep-runner.md` (design real �
 
 Sessão #08: ADR-0002 com seção de deferimentos explícita (browseability humana de cláusulas, hot reload, schemas alternativos, anotações declarativas, escopo ampliado da Política, mapa cross-PR longitudinal).
 
-Sessão pós-#07 (datada conforme andamento): consolidação dos princípios em `docs/spec-authoring-principles.md` canônico, com nome + regra + racional + exemplo por princípio. Citável pelo relatório de TCC2 como contribuição metodológica.
-
 ### Pendências (não bloqueantes)
 
 - PR de cleanup da sessão #06 (renomeação + sync de escopo restrito da Política)
 - `policy/SCHEMA.md` redação completa em paralelo à implementação (semana 2)
 - ADR-0002 (sessão #08)
-- Consolidação de `docs/spec-authoring-principles.md` (pós-#07)
 - Migração de conta GitHub para Team (ativa branch protection)
 - `~/.claude/CLAUDE.md` user-scope com preferências cross-projeto
 
@@ -1084,7 +1081,7 @@ Sessão #07: redação completa de `docs/specs/semgrep-runner.md`. Diferente do 
 **Notas de calibração (fora do PR).**
 - Assimetria §6 ("três eixos de versão") vs `scan_metadata` (cinco campos): `elapsed_seconds` é métrica de execução, não provenance. Mantido.
 - `rule_severity: info` não exercitado em exemplos. Princípio #9 (estados, não enums). Mantido.
-- Forward-references a ADR-0002 e `spec-authoring-principles.md`: débito implícito, risco de orfandade se #08-#09 não materializarem.
+- Forward-reference a ADR-0002: débito implícito, risco de orfandade se #08-#09 não materializarem.
 
 **Meta — primeira sessão com Claude Code.**
 - Plan mode via `claude --permission-mode plan` no startup eliminou ambiguidade do keybinding Shift+Tab no Windows.
@@ -1248,9 +1245,9 @@ session-handoff para detalhes.
 - **D1 — Task decomposition.** Comparação de patterns para classificação A-G: prompt chaining sequencial (Chat→Code→Chat) vs dynamic adaptive decomposition em single-agent (Chat classifica + Code aplica patch mecânico). Escolha por single-agent quando subtask não exige ferramenta exclusiva.
 - **D1 — Plan mode vs direct execution.** Trade-off explícito: plan mode em commits substantivos (decisões editoriais, ex. Commit 4 e 6); direct execution em commits mecânicos (cortes pré-aprovados, ex. Commit 5 e 7). Heurística destilada.
 - **D1 — Hooks PostToolUse (conceitual).** Sanity checks pós-modificação dos pacotes são análogos a hooks: ferramenta termina → check determinístico roda → decisão prosseguir/parar. Pattern equivalente ao hook PostToolUse para validação determinística.
-- **D2 — Resource vs Tool discrimination.** Princípio articulado e extraído ao draft (`### Resource vs Tool — discriminação pela leitura cognitiva`); aplicado em policy-reader (ambos) e semgrep-runner (só tools). Asimetria entre os dois servers é caso-teste do princípio.
+- **D2 — Resource vs Tool discrimination.** Princípio articulado (Resource vs Tool — discriminação pela leitura cognitiva); aplicado em policy-reader (ambos) e semgrep-runner (só tools). Asimetria entre os dois servers é caso-teste do princípio.
 - **D2 — Tool description design.** Descriptions em inglês, contendo when-to-use, what-it-returns e anti-uses (frases tipo "Do not use this for X — use Y instead"). Anti-uses entram no checklist de paridade canonical↔compact (Commit 8).
-- **D2 — Split de tool, não parametrização condicional.** Princípio extraído ao draft. Origem: §7 do semgrep-runner canonical, articulando o "porque não há `rule_set` parameter".
+- **D2 — Split de tool, não parametrização condicional.** Origem: §7 do semgrep-runner canonical, articulando o "porque não há `rule_set` parameter".
 - **D2 — Convenção `mcp__<server>__<tool>`** referenciada nos dois compacts; convenção governada por ADR-0002 §2.
 - **D3 — CLAUDE.md hierarchy** preservada sem modificação; sessão exercitou que CLAUDE.md + compact é suficiente para skeleton de implementação (proxy test, zero canonical opens).
 - **D3 — .claude/skills/ não-uso.** Decisão consciente: compact spec vive como file (`docs/specs/<component>/compact.md`), não como skill. Skill faria sentido se a compact fosse referenciada por descrição em vez de path explícito. Anotação para futuro: skill pattern emerge se houver repetição de compact reading em workflows distintos.
@@ -1271,7 +1268,7 @@ session-handoff para detalhes.
 - **Article_source matching semantics.** Per-element hierarchical prefix: cláusula matcha se ANY elemento de `article_source` começa hierarquicamente com a especificação. Decidido inline no compact (OP-3 do Commit 6), nota inline também no canonical (Commit 9). NÃO vira ADR — decisão de design contida na spec.
 - **§8.\<final\> lifecycle.** Mantido em forma "three beats" pós-aplicação dos patches conforme ADR-0002 Decisão 5. Diferido para ADR-0003 retrospectivo a discussão sobre o ciclo de vida formal pós-aplicação.
 - **PR template** em `.github/PULL_REQUEST_TEMPLATE.md` com checkbox bidirecional canonical↔compact (Commit 8). Foco estrito em paridade; ADR/learning-log/sweep ficam fora do checklist.
-- **Princípios destilados ao draft** (`_drafts/spec-authoring-principles.md`): 4 totais ao fim da sessão — Resource vs Tool, Schema fora-comportamento dentro, Spec descreve o quê-não como, Split de tool-não parametrização condicional.
+- **Princípios destilados:** 4 totais ao fim da sessão — Resource vs Tool, Schema fora-comportamento dentro, Spec descreve o quê-não como, Split de tool-não parametrização condicional.
 
 ### Calibrações empíricas
 
@@ -1282,7 +1279,7 @@ session-handoff para detalhes.
 - **Anti-regras em proxy test devem enumerar artefatos colaterais previsíveis.** Sessão #12 pegou `__pycache__` em mcp_servers/ no nível pai (package wrapper criado pelo Code), não previsto nas anti-regras. Princípio operacional: prompt de proxy test inclui lista explícita de "não cria X, Y, Z" para Python (package wrappers, lock files, cache dirs).
 - **Critério de aprovação em validação empírica:** leitura crítica das categorias, não contagem agregada. "≤ 1 open question" como critério tosco foi insuficiente; 4 open questions reportadas decomposeram em 1 gap real + 1 minor unstated + 2 false positives, mudando veredito de fail para pass. Princípio: critério categórico bem-formado distingue categorias de severidade, não soma valores.
 - **Escalation pointers podem ser over-anxious.** Pointer §5.1 do compact do policy-reader (sobre dual-deprecated semantics) disparou no proxy test sem necessidade — prosa local já bastava. Princípio destilado: pointer só justificado quando prosa local explicitamente insuficiente; condição do "if" deve ser estado epistêmico realista, não "se o leitor for cauteloso".
-- **Cross-doc links em fase de draft carregam dívida de path enumerável.** 6 links totais ao fim da sessão (recontados: 2 em policy-reader canonical, 2 em semgrep-runner canonical, 0 em policy-reader compact, 2 em semgrep-runner compact). Sweep registrado para promoção do draft a `docs/spec-authoring-principles.md`.
+- **Cross-doc links em fase de draft carregam dívida de path enumerável.** 6 links totais ao fim da sessão (recontados: 2 em policy-reader canonical, 2 em semgrep-runner canonical, 0 em policy-reader compact, 2 em semgrep-runner compact).
 - **Validação empírica precisa de canal narrativo aberto além das métricas.** Friction notes opcionais no relatório do proxy test (parte do prompt) revelaram as 5 revisões cirúrgicas. Métricas hard sozinhas teriam dado veredito "pass" + zero ação.
 
 ### Artefatos produzidos
@@ -1292,14 +1289,12 @@ session-handoff para detalhes.
 - `docs/specs/policy-reader/compact.md`: 397 linhas (novo).
 - `docs/specs/semgrep-runner/canonical.md`: 440 linhas (de 449).
 - `docs/specs/semgrep-runner/compact.md`: 202 linhas (novo).
-- `docs/_drafts/spec-authoring-principles.md`: 4 princípios extraídos.
 - `.github/PULL_REQUEST_TEMPLATE.md`: criado (18 linhas).
 
 ### Próximo passo
 
 - ADR-0003 retrospectivo (sessão #13 ou posterior): reframe consumed/reference + §8.\<final\> lifecycle. Dois conteúdos.
 - Implementação semana 4-5: skeleton + lógica das duas MCP servers, agora ancorados nos compacts cristalizados.
-- Sweep dívida `_drafts/` agendado para promoção do draft (data indefinida — disparado quando algumas cláusulas substantivas exercitarem o SCHEMA e os princípios estabilizarem).
 
 ## 2026-05-13 — sessão #13 — ADR-0003 dual-spec architecture
 
@@ -1315,7 +1310,7 @@ session-handoff para detalhes.
 ### Decisões substantivas
 
 - **ADR único cobrindo ambos os conteúdos.** Não dois ADRs separados. Justificativa: ambas as decisões compartilham consumidor (Code + humano) e subject (estrutura e auditoria de spec); fragmentar prejudicaria a leitura do meta-layer.
-- **Proxy test mencionado em passing, não promovido a Decisão 3.** Método é técnica operacional, não decisão arquitetural; ossificá-lo em ADR engessaria iteração futura. Fica no learning-log #12 e migra para `_drafts/spec-authoring-principles.md` quando o draft promover.
+- **Proxy test mencionado em passing, não promovido a Decisão 3.** Método é técnica operacional, não decisão arquitetural; ossificá-lo em ADR engessaria iteração futura. Fica no learning-log #12.
 - **Companion patches dentro do mesmo PR do ADR.** Não follow-up patches separados. Materializar a Decisão 2 no mesmo commit em que ela é prescrita é teste de coerência operacional.
 - **Backfill retrospectivo do policy-reader §8.8.** A spec ficou para trás da formalização do pattern "três beats" — authored em #05-#06, antes da forma cristalizar no semgrep-runner em #07 e ser formalizada em ADR-0002 D5 em #09. Reconstrução fiel a partir do diff de `git show 6945840`. Honestidade epistêmica preservada pela declaração explícita de retrospectividade no parágrafo de abertura da seção.
 - **ADR-0002 Decisão 5 não amendada in-place.** Lifecycle vive em ADR-0003; leitor da Decisão 5 chega lá pelo "Related" header do ADR-0003. Justificativa: ADRs registram decisão original imutável; refinamento posterior abre ADR novo que cita.
@@ -1398,9 +1393,9 @@ Sessão #15 abre com **agenda dupla, primeira hora dedicada a artefatos de docum
 - **D1 — Task decomposition.** Comparação de patterns para classificação A-G: prompt chaining sequencial (Chat→Code→Chat) vs dynamic adaptive decomposition em single-agent (Chat classifica + Code aplica patch mecânico). Escolha por single-agent quando subtask não exige ferramenta exclusiva.
 - **D1 — Plan mode vs direct execution.** Trade-off explícito: plan mode em commits substantivos (decisões editoriais, ex. Commit 4 e 6); direct execution em commits mecânicos (cortes pré-aprovados, ex. Commit 5 e 7). Heurística destilada.
 - **D1 — Hooks PostToolUse (conceitual).** Sanity checks pós-modificação dos pacotes são análogos a hooks: ferramenta termina → check determinístico roda → decisão prosseguir/parar. Pattern equivalente ao hook PostToolUse para validação determinística.
-- **D2 — Resource vs Tool discrimination.** Princípio articulado e extraído ao draft (`### Resource vs Tool — discriminação pela leitura cognitiva`); aplicado em policy-reader (ambos) e semgrep-runner (só tools). Asimetria entre os dois servers é caso-teste do princípio.
+- **D2 — Resource vs Tool discrimination.** Princípio articulado (Resource vs Tool — discriminação pela leitura cognitiva); aplicado em policy-reader (ambos) e semgrep-runner (só tools). Asimetria entre os dois servers é caso-teste do princípio.
 - **D2 — Tool description design.** Descriptions em inglês, contendo when-to-use, what-it-returns e anti-uses (frases tipo "Do not use this for X — use Y instead"). Anti-uses entram no checklist de paridade canonical↔compact (Commit 8).
-- **D2 — Split de tool, não parametrização condicional.** Princípio extraído ao draft. Origem: §7 do semgrep-runner canonical, articulando o "porque não há `rule_set` parameter".
+- **D2 — Split de tool, não parametrização condicional.** Origem: §7 do semgrep-runner canonical, articulando o "porque não há `rule_set` parameter".
 - **D2 — Convenção `mcp__<server>__<tool>`** referenciada nos dois compacts; convenção governada por ADR-0002 §2.
 - **D3 — CLAUDE.md hierarchy** preservada sem modificação; sessão exercitou que CLAUDE.md + compact é suficiente para skeleton de implementação (proxy test, zero canonical opens).
 - **D3 — .claude/skills/ não-uso.** Decisão consciente: compact spec vive como file (`docs/specs/<component>/compact.md`), não como skill. Skill faria sentido se a compact fosse referenciada por descrição em vez de path explícito. Anotação para futuro: skill pattern emerge se houver repetição de compact reading em workflows distintos.
@@ -1421,7 +1416,7 @@ Sessão #15 abre com **agenda dupla, primeira hora dedicada a artefatos de docum
 - **Article_source matching semantics.** Per-element hierarchical prefix: cláusula matcha se ANY elemento de `article_source` começa hierarquicamente com a especificação. Decidido inline no compact (OP-3 do Commit 6), nota inline também no canonical (Commit 9). NÃO vira ADR — decisão de design contida na spec.
 - **§8.\<final\> lifecycle.** Mantido em forma "three beats" pós-aplicação dos patches conforme ADR-0002 Decisão 5. Diferido para ADR-0003 retrospectivo a discussão sobre o ciclo de vida formal pós-aplicação.
 - **PR template** em `.github/PULL_REQUEST_TEMPLATE.md` com checkbox bidirecional canonical↔compact (Commit 8). Foco estrito em paridade; ADR/learning-log/sweep ficam fora do checklist.
-- **Princípios destilados ao draft** (`_drafts/spec-authoring-principles.md`): 4 totais ao fim da sessão — Resource vs Tool, Schema fora-comportamento dentro, Spec descreve o quê-não como, Split de tool-não parametrização condicional.
+- **Princípios destilados:** 4 totais ao fim da sessão — Resource vs Tool, Schema fora-comportamento dentro, Spec descreve o quê-não como, Split de tool-não parametrização condicional.
 
 ### Calibrações empíricas
 
@@ -1432,7 +1427,7 @@ Sessão #15 abre com **agenda dupla, primeira hora dedicada a artefatos de docum
 - **Anti-regras em proxy test devem enumerar artefatos colaterais previsíveis.** Sessão #12 pegou `__pycache__` em mcp_servers/ no nível pai (package wrapper criado pelo Code), não previsto nas anti-regras. Princípio operacional: prompt de proxy test inclui lista explícita de "não cria X, Y, Z" para Python (package wrappers, lock files, cache dirs).
 - **Critério de aprovação em validação empírica:** leitura crítica das categorias, não contagem agregada. "≤ 1 open question" como critério tosco foi insuficiente; 4 open questions reportadas decomposeram em 1 gap real + 1 minor unstated + 2 false positives, mudando veredito de fail para pass. Princípio: critério categórico bem-formado distingue categorias de severidade, não soma valores.
 - **Escalation pointers podem ser over-anxious.** Pointer §5.1 do compact do policy-reader (sobre dual-deprecated semantics) disparou no proxy test sem necessidade — prosa local já bastava. Princípio destilado: pointer só justificado quando prosa local explicitamente insuficiente; condição do "if" deve ser estado epistêmico realista, não "se o leitor for cauteloso".
-- **Cross-doc links em fase de draft carregam dívida de path enumerável.** 6 links totais ao fim da sessão (recontados: 2 em policy-reader canonical, 2 em semgrep-runner canonical, 0 em policy-reader compact, 2 em semgrep-runner compact). Sweep registrado para promoção do draft a `docs/spec-authoring-principles.md`.
+- **Cross-doc links em fase de draft carregam dívida de path enumerável.** 6 links totais ao fim da sessão (recontados: 2 em policy-reader canonical, 2 em semgrep-runner canonical, 0 em policy-reader compact, 2 em semgrep-runner compact).
 - **Validação empírica precisa de canal narrativo aberto além das métricas.** Friction notes opcionais no relatório do proxy test (parte do prompt) revelaram as 5 revisões cirúrgicas. Métricas hard sozinhas teriam dado veredito "pass" + zero ação.
 
 ### Artefatos produzidos
@@ -1442,14 +1437,12 @@ Sessão #15 abre com **agenda dupla, primeira hora dedicada a artefatos de docum
 - `docs/specs/policy-reader/compact.md`: 397 linhas (novo).
 - `docs/specs/semgrep-runner/canonical.md`: 440 linhas (de 449).
 - `docs/specs/semgrep-runner/compact.md`: 202 linhas (novo).
-- `docs/_drafts/spec-authoring-principles.md`: 4 princípios extraídos.
 - `.github/PULL_REQUEST_TEMPLATE.md`: criado (18 linhas).
 
 ### Próximo passo
 
 - ADR-0003 retrospectivo (sessão #13 ou posterior): reframe consumed/reference + §8.\<final\> lifecycle. Dois conteúdos.
 - Implementação semana 4-5: skeleton + lógica das duas MCP servers, agora ancorados nos compacts cristalizados.
-- Sweep dívida `_drafts/` agendado para promoção do draft (data indefinida — disparado quando algumas cláusulas substantivas exercitarem o SCHEMA e os princípios estabilizarem).
 
 ---
 
@@ -1461,7 +1454,7 @@ Sessão #15 abre com **agenda dupla, primeira hora dedicada a artefatos de docum
 
 **Domínio 2 — Tool Design & MCP Integration.**
 
-- **Resource vs Tool em caso-livro.** `policy://vocabularies` ganhou existência como recurso compartilhável (consumido por Classifier e Matcher) enquanto as tools do `policy-reader` (`get_clause`, `find_clauses_by_law_article`, `check_applicability`) continuaram exclusivas do Matcher. Materializa a discriminação app-controlled context (resources) vs model-controlled invocation (tools): vocabulário é catálogo idempotente lido por múltiplos agentes; cláusula é consulta direcionada com semântica de ação. Princípio articulado no draft `_drafts/spec-authoring-principles.md` § Resource vs Tool, aplicado aqui em forma de caso-livro — assimetria com `semgrep-runner` (que não expõe resources) é o caso-teste do princípio.
+- **Resource vs Tool em caso-livro.** `policy://vocabularies` ganhou existência como recurso compartilhável (consumido por Classifier e Matcher) enquanto as tools do `policy-reader` (`get_clause`, `find_clauses_by_law_article`, `check_applicability`) continuaram exclusivas do Matcher. Materializa a discriminação app-controlled context (resources) vs model-controlled invocation (tools): vocabulário é catálogo idempotente lido por múltiplos agentes; cláusula é consulta direcionada com semântica de ação. Princípio Resource vs Tool aplicado aqui em forma de caso-livro — assimetria com `semgrep-runner` (que não expõe resources) é o caso-teste do princípio.
 - **Tool authorization granular.** Classifier ganhou visibilidade ao resource `policy://vocabularies` sem ganhar acesso às tools — `mcp_servers` da AgentDefinition reflete somente o que o subagente precisa, princípio "only what they need". Matriz §5.7 de `architecture-overview.md` ganhou linha dedicada para resource compartilhado, distinta da linha de tools.
 - **Handshake protocol como pattern.** `policy://schema-version` evoluiu de handshake simples (estrutural via `compatible_schema_range`) para handshake duplo (estrutural + jurisdicional via `legal_framework`). Componente declara; consumidor (Matcher) decide. Validação de framework é responsabilidade do consumidor, não do componente — simétrica ao tratamento de `compatible_schema_range`. Padrão de design replicável para outros pontos de provenance multi-axial.
 
@@ -1516,7 +1509,6 @@ Conteúdo canônico das decisões em ADR-0005; aqui só o registro do processo d
 - Semântica de `schema_version` no header dos YAMLs de vocabulário — coerência com `policy_schema_version` do header global, regras de bump quando vocabulário evoluir.
 - Validação cruzada per-cliente (vocabulary × Semgrep metadata) quando materializar ADR de per-client rule set — `rule_id` que cita um valor de `operation` precisa que esse valor exista em `policy/vocabularies/<framework>/operation.yaml`.
 - Formalização em ADR retroativo da convenção "português para docs técnicos não-ADR" (specs, `architecture-overview`, `DESIGN.md`, `SCHEMA.md`). Atualmente convenção implícita herdada das sessões #04-#11.
-- Promoção do draft `_drafts/spec-authoring-principles.md` para `docs/` — sweep dos cross-doc links e atualização dos pointers nas specs.
 - ADR-0004 (uv + FastMCP 3.x) — número reservado desde sessão #14, decisão pendente. Inclui CVE 2.x check pendente desde #14 (confirmar contra NVD/GitHub Advisories).
 - `mime_type` micro-débito em resources — FastMCP 3.x default é `text/plain`, declarar `application/json` no loader real.
 

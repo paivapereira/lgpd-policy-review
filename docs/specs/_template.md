@@ -2,7 +2,7 @@
 
 **spec_version**: 0.1.0
 
-> Esqueleto canônico para specs de componentes do projeto, derivado da redação de `policy-reader.md` na sessão #05. Princípios de redação destilados durante o exercício estão documentados em formato compacto no `learning-log.md` e serão consolidados em `docs/spec-authoring-principles.md` após validação na redação do `semgrep-runner.md`.
+> Esqueleto canônico para specs de componentes do projeto, derivado da redação de `policy-reader.md` na sessão #05. Princípios de redação destilados durante o exercício estão documentados em formato compacto no `learning-log.md`.
 
 > Este template assume componente que expõe contrato MCP (resources e/ou tools). Para componentes do tipo subagente — Triager, Detector, Classifier, Matcher, Reporter, coordinator — derivar `_template-subagent.md` na primeira spec de subagente da semana 3 (mesmo método de destilação aplicado a este template).
 

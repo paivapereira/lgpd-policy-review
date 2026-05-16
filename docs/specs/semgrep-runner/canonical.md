@@ -71,9 +71,9 @@ A decisão é deliberada e simétrica ao tratamento de regras Semgrep como
 insumo interno do server, não como conteúdo navegável pelo caller. O
 Detector consome findings produzidos pela tool em §4; não enumera, lê, ou
 raciocina sobre o conteúdo das regras antes de invocar o scan. Princípio
-aplicado: `_drafts/spec-authoring-principles.md` § Resource vs Tool —
-discriminação pela leitura cognitiva. A assimetria em relação a
-`policy-reader` (que expõe ambos) é deliberada e caso-teste do princípio.
+aplicado: Resource vs Tool — discriminação pela leitura cognitiva. A
+assimetria em relação a `policy-reader` (que expõe ambos) é deliberada e
+caso-teste do princípio.
 
 ## 4. Tools expostas
 
@@ -337,8 +337,8 @@ deferimento registrado em ADR-0002.
 
 **Subset configurável de regras por chamada.** Tool não aceita `rule_set`
 como parâmetro. Set fixo curado pelo projeto. Para modos distintos de scan
-(ex: fast vs full), princípio aplicado: `_drafts/spec-authoring-principles.md`
-§ Split de tool, não parametrização condicional.
+(ex: fast vs full), princípio aplicado: split de tool, não parametrização
+condicional de `scan_diff`.
 
 **Rule set per-cliente.** MVP carrega rule set bundled no projeto com
 recognizers brasileiros como caso-piloto. Per-cliente — diretório

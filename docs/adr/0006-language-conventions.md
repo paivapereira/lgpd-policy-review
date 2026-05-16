@@ -35,7 +35,6 @@ The following document classes are authored in Portuguese:
 - `docs/session-handoff.md`
 - `docs/specs/<component>/canonical.md` and `compact.md`
 - `policy/SCHEMA.md`
-- `docs/_drafts/*` and any future operational drafts
 
 The list enumerates the technical-doc classes currently authored in Portuguese. New documents in the same operational category default to Portuguese without requiring an ADR amendment; the convention is descriptive of practice, not a gate.
 

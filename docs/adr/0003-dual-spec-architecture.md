@@ -46,7 +46,6 @@ Every spec carries §8.<final> with the "three beats" form prescribed by ADR-000
 
 - **Frame coherence.** Decisions 1 and 2 share a common subject — how specs are structured and audited — and a common consumer pair — Code at implementation time, human at review time. Consolidating them in one ADR keeps the meta-decision layer of spec authoring readable as a unit.
 - **Closing of the spec-design ADR cycle.** ADR-0001 fixed workflow conventions, ADR-0002 fixed MCP conventions and deferments, and ADR-0003 fixes the dual-spec architecture and its review-pass lifecycle. Anything not registered here that affects implementation is implementation-level decision (component-internal) and lives in code, tests, or follow-up ADRs after the implementation phase.
-- **Boundary with `_drafts/spec-authoring-principles.md`.** The principles draft is operational guidance — how to write a spec well. This ADR is structural decision — what specs are, and what their post-publication lifecycle is. Same boundary that ADR-0002 has with the 26 spec-authoring principles: ADR governs the shape; principles document the craft.
 
 ## Companion patches in this PR
 

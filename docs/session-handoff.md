@@ -113,7 +113,6 @@ Numeração T01-T10 abaixo é **indicativa** — autorada definitivamente em #18
 - ADR-0001 sync com `uv.lock` real (FastMCP 3.x — parte simbólica; ADR-0004 ainda pendente como decisão substantiva)
 - ADR-0001 D3/D4: drift `clause_id` "LGPD-Art-7-I" → `POL-NNN` (formato evoluiu; precisa amendment ou supersede)
 - Token `store` → `storage` em [`docs/specs/policy-reader/compact.md`](docs/specs/policy-reader/compact.md) §5.3 exemplo violation_candidate (drift análogo ao `collect`/`collection` consertado em PR #23, mas em outra cláusula do exemplo)
-- Promoção do draft `_drafts/spec-authoring-principles.md` para `docs/` (pendência herdada de #16)
 
 **Adiar para sessão #20+:**
 - Semântica de `last_revision` em `policy/policy.yaml`

@@ -173,7 +173,7 @@ tombstone:
   deprecation_reason: <texto curto>
 ```
 
-Estrutura interna dos campos governada por `policy/SCHEMA.md` (princípio aplicado: `_drafts/spec-authoring-principles.md` § Schema fora, comportamento dentro).
+Estrutura interna dos campos governada por `policy/SCHEMA.md` (princípio aplicado: schema fora, comportamento dentro).
 
 **Condições de erro específicas.**
 
@@ -619,7 +619,7 @@ Os comportamentos abaixo estão fora do escopo desta spec. Implementação do co
 
 - **Anotações declarativas de tratamento no código** (sugestão de reconhecimento de comentários ou decoradores indicando consentimento obtido, anonymização aplicada, etc.). Deferimento explícito como evolução pós-MVP. Registrado em ADR-0002.
 
-- **Mecanismo interno de avaliação do `check_applicability`**. Spec define contrato; mecanismo é decisão de implementação livre (princípio aplicado: `_drafts/spec-authoring-principles.md` § Spec descreve o quê, não como).
+- **Mecanismo interno de avaliação do `check_applicability`**. Spec define contrato; mecanismo é decisão de implementação livre (princípio aplicado: spec descreve o quê, não como).
 
 - **Múltiplas Políticas ou múltiplos frameworks jurisdicionais em uma única instância do componente**. Uma instância serve uma Política sob um framework, ambos imutáveis durante a sessão. Servir LGPD + GDPR simultaneamente exige duas instâncias do componente, distinguidas no Matcher via configuração de `mcp_servers` (uma entrada por instância). Hot-swap de Política ou de `legal_framework` durante a sessão é deferimento explícito — registrado em ADR-0002. Decisão arquitetural de servir-uma-Política-por-instância governada por ADR-0005 Decision 2.
 

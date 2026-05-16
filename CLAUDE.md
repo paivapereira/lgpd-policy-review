@@ -15,8 +15,9 @@ The repository is in early development. Most directories described in the long-t
 ## Stack (canonical)
 
 - **Language:** Python 3.12.7 (pinned via `.python-version`).
+- **Dependency manager:** uv (`uv.lock` versioned in repo, `uv_build` build backend, `uv sync` for setup). See ADR-0004.
 - **Agent runtime:** Claude Agent SDK (`claude-agent-sdk`), Claude Code CLI, Model Context Protocol (MCP).
-- **MCP framework:** FastMCP for any custom MCP server in this repo.
+- **MCP framework:** FastMCP 3.x (`>=3.2.0,<4.0`) for any custom MCP server in this repo. See ADR-0004.
 - **Static analysis:** Semgrep, invoked through the `semgrep-runner` MCP server.
 - **PII detection:** Microsoft Presidio with custom Brazilian recognizers (CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde).
 - **Schema validation:** Pydantic 2.5+.

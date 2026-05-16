@@ -1578,7 +1578,6 @@ Conteúdo canônico de cada decisão em ADR correspondente; aqui só registro do
 ### Pendências para sessão #18+
 
 - Discussão sobre Matcher como evaluator iterativo (Rajasekaran-pattern aplicado ao Matcher real da Fase 2): trade-off custo 2x tokens vs ganho em verdict accuracy.
-- ADR-0007 (MVP collection-only scope) — redação em sessão Chat dedicada com rationale do mapa de tagueamento como motivação primária.
 - `docs/tasks.md` (Commit 1.5.2 original do plano da Fase 1.5) — agora calibrada por ADR-0008 para 8-12 tasks médias com gate tripartite.
 
 ### Próximo passo

@@ -12,7 +12,7 @@
 
 Em main já — Fase 1 (PR #22 mergeado em sessão #16):
 - `docs/architecture-overview.md` v final pós-multi-cliente
-- `docs/adr/0001-bootstrap.md` (em débito: drift com FastMCP 3.x; ADR-0004 reservado)
+- `docs/adr/0001-bootstrap.md` (drift simbólico em §2: pyenv-win e FastMCP unpinned; substantive authority delegada a ADR-0004; editorial sync da prosa é opcional)
 - `docs/adr/0002-mcp-conventions-and-deferments.md`
 - `docs/adr/0003-dual-spec-architecture.md`
 - `docs/adr/0005-multi-client-policy-architecture.md`
@@ -111,7 +111,6 @@ Esboço produzido em discussão pré-#18 (mesma sessão da emenda ADR-0008). #18
 
 *Pendências bloqueantes antes do primeiro Code session* (resolver em Chat dedicado ou inline em #18):
 
-- **ADR-0004** (uv + FastMCP 3.x) — número reservado desde #14, decisão pendente. Bloqueia T01 sob auditoria SDD estrita.
 - **Decisão Semgrep-on-Windows** — onde Semgrep roda no ambiente Windows corporativo sem WSL (Docker / pip native / remote worker / CI-only). Bloqueia T04 — sem essa decisão, a forma do `loader` e do `scan_diff` muda radicalmente.
 - **POL-001 a POL-005** (estimado) — POL-001 já é pré-implementação confirmada (ordem: ADR-0007 antes, POL-001 depois). POL-002 a POL-005 são em aberto: T03 sobrevive com `not_applicable` always, mas o **gate milestone-level** (Inspector exercitando RF-004 e RF-005 com vereditos diversos) precisa de cláusulas substantivas que exercitem `compliant`/`violation_candidate`/`indeterminate`. Decisão pendente: autorar POL-001..POL-005 numa sessão Chat ou apenas POL-001 e diferir.
 
@@ -150,7 +149,7 @@ Numeração T01-T10 abaixo é **indicativa** — autorada definitivamente em #18
 **Sessão Code curta de cleanup editorial (oportunística, baixa prioridade):**
 - Drift "LGPD" → "Proteção de Dados" em `architecture-overview`, `proposta-tcc2`
 - Drift "trinque" → "trinca" cross-doc
-- ADR-0001 sync com `uv.lock` real (FastMCP 3.x — parte simbólica; ADR-0004 ainda pendente como decisão substantiva)
+- ADR-0001 §2 sync com estado real (pyenv-win → uv; FastMCP unpinned → 3.x). Apenas drift simbólico da prosa — substantive authority em ADR-0004; sweep editorial sem urgência.
 - ADR-0001 D3/D4: drift `clause_id` "LGPD-Art-7-I" → `POL-NNN` (formato evoluiu; precisa amendment ou supersede)
 - Token `store` → `storage` em [`docs/specs/policy-reader/compact.md`](docs/specs/policy-reader/compact.md) §5.3 exemplo violation_candidate (drift análogo ao `collect`/`collection` consertado em PR #23, mas em outra cláusula do exemplo)
 

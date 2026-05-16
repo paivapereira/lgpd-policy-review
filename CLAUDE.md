@@ -57,7 +57,7 @@ These rules express the core thesis of the project. Violating them in code, prom
 
 This project follows Spec-Driven Development. Implementation work proceeds against written specifications under `docs/specs/` and architectural decisions under `docs/adr/`. Architecture context lives in `docs/architecture-overview.md`. When asked to implement a component without a corresponding spec, confirm with the user that the spec is intentionally absent before writing code.
 
-Task decomposition and verification follow ADR-0008: medium-granularity tasks (1-3h each) with acceptance bound to REQUIREMENTS.md RFs/RNFs and a tripartite verification gate (automated tests, independent Chat review, manual exercise).
+Task decomposition and verification follow ADR-0008 (as amended 2026-05-16): medium-granularity tasks (1-3h each) grouped into milestones. Capability acceptance is bound to REQUIREMENTS.md RFs/RNFs at the milestone scope; tasks deliver coherent function within their milestone without individual RF binding. Verification operates at two scopes — task-level (function-specific pytest + independent Chat review) and milestone-level (manual exercise validating each declared RF acceptance criterion).
 
 ## Privacy and safety
 

@@ -3,7 +3,7 @@
 ## Handoff de fechamento da #17 (consolidado e final)
 
 **Sessão fechada:** #17 (Chat) — 2026-05-15
-**Próxima sessão:** #18 (Chat) — Authoring de `docs/tasks.md` sob ADR-0008 + sessão Chat pré-implementação de POL-001
+**Próxima sessão:** #18 (Chat) — Authoring de `docs/tasks.md` sob ADR-0008 (as amended 2026-05-16) + sessão Chat pré-implementação de POL-001
 **Estado do git:** main em `914b00f` (PR #24 mergeado, último). PR #23 e PR #24 ambos em main; branches `docs/adr-retroactive-conventions` e `docs/adr-0008-sdd-calibration` podem ser deletadas.
 
 ---
@@ -150,9 +150,9 @@ Vale registrar como padrão pra calibrar comportamento futuro:
 
 **Abertura da #18.** Quando você abrir, sugestão de prompt curto:
 
-> Session #18 - Authoring de tasks.md sob ADR-0008. Ver handoff #17. Foco: Milestone A detalhado (T01-T05 + POL-001 pré), Milestones B/C como placeholders. Gate tripartite por task amarrado a RFs.
+> Session #18 - Authoring de tasks.md sob ADR-0008 (as amended 2026-05-16). Ver handoff #17 + emenda registrada no learning-log #17 sub-seção "Refinamento intra-sessão". Foco: Milestone A detalhado (5 tasks + POL-001 pré), Milestones B/C como placeholders. Two-scope gate: task-level (function-specific pytest + Chat review) + milestone-level (manual exercise validando cada RF acceptance criterion declarada no milestone).
 
-Posso abrir com explicação do conceito gate tripartite se você quiser revisar antes de redigirmos, ou ir direto pra redação se já estiver internalizado.
+Posso abrir com explicação do two-scope gate emendado se você quiser revisar antes de redigirmos, ou ir direto pra redação se já estiver internalizado.
 
 ---
 

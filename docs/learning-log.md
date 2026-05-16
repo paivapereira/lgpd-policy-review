@@ -1602,3 +1602,84 @@ Discussão pré-#18 sobre cobertura RF-por-task no Milestone A revelou conflaç�
 **Justificativa de emenda in-place vs novo ADR-0009.** ADR-0008 fresco (24h); #18 (primeiro consumidor) ainda não rodou; greenfield sem deployment ou tasks.md autorada. ADR-0005 precedente usou refinement-via-novo-ADR mas operava sobre consumidor herdado (código semente da #14 + specs mergeadas). Aqui in-place preserva single-source-of-truth para Claude (consumidor primário de ADRs neste projeto) sem custo de migração; expectativa de imutabilidade não acionada porque nenhum artefato downstream foi autorado sob a versão original.
 
 **Conceito de prova exercitado lateralmente.** Conflação capability×function no scope errado é forma específica de **abstraction leak no boundary**: §2 do original misturava dois eixos de design (decomposition strategy + acceptance criteria scope) que deveriam ter ficado ortogonais. Decoupling reverte a leak. Padrão destilável: quando uma decisão arquitetural produz fricção sistemática em aplicação (per-task RF binding produziu friction em 3+ pontos da primeira proposta de tasks), a hipótese default é conflação no nível da decisão, não no nível das tasks.
+
+## 2026-05-16 — sessão #18 — ADR-0007 redigido, PR de access layer em ADRs, validação operacional do D4.6
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1.6 Task decomposition — scope discipline via flag-and-continue.** Code descobriu durante Task 5 do PR-30 que ADR-0001 carrega `## Pendências decorrentes` (linha 271, 4 bullets) estruturalmente paralela à `Follow-up patches` removida do ADR-0002 no mesmo PR. Padrão aplicado: surfaced o achado, não agiu, deixou decisão para o autor. Conscientemente classificada como out-of-scope do PR editorial; migrada para `session-handoff.md` como pendência operacional para sessão futura. Contraste explícito com session #17 (Code expandiu escopo silenciosamente gerando ADR-0006/0007 não solicitados). ADR-0008 amended formaliza isso como pattern de pause-and-ask.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **D3 `.claude/rules/` vs `.claude/skills/` vs `.claude/commands/`.** Discussão extensa sobre o primitivo correto para automação de geração de ADR/handoff/learning-log. Conclusão: rules path-scoped para convenções aplicáveis automaticamente quando Code toca o path (`docs/adr/**`, `docs/learning-log.md`); skills para procedimentos pesados com `context: fork`; commands para invocação explícita. Decisão deliberada: camada mecânica vai para rules; camada deliberativa permanece em Chat. Anti-padrão identificado: skill que "gera ADR completo" reintroduziria o problema de ADR-0007 (Code racionalizando rationale).
+- **D3 Plan mode vs direct execution.** Prompt do PR-30 desenhado como direct execution (não plan mode) por critério explícito: trabalho mecânico, sem multiple valid approaches a deliberar, com pausas pré-identificadas para input humano. Heurística destilada: plan mode para *o que fazer*; direct execution para *como aplicar exatamente isso*.
+- **D3 CLAUDE.md ↔ ADR drift surface.** Code identificou no relatório de simulação que CLAUDE.md duplica trechos de ADRs (escopo MVP, language conventions), criando surface de drift. Decisão registrada como tópico para sessão Chat dedicada (não cleanup mecânico): trade-off entre CLAUDE.md sempre carregado (precisa ser self-sufficient) vs single-source-of-truth nos ADRs.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4.6 Multi-instance review como gate operacional — escala documentada.** Session #17 reportou *uma* validação empírica deste padrão. Esta sessão adiciona **seis em um único PR**, cada uma com classe distinta. Material para defesa de TCC: D4.6 deixa de ser prescrição teórica para ter evidência operacional concreta de defeitos materiais capturados antes do merge.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 Lost-in-the-middle empiricamente endereçado.** Simulação de one-shot pelo Code reportou ADR-0005 (350 linhas, 8 Decisions) como "denso e útil para defesa de TCC; para Code, sinal baixo após o primeiro parse." Intervenção: "Decisions at a glance" index no topo (após Context, antes de Decision). Move informação do meio para o início sem alterar conteúdo. Aplicado a ADR-0001, ADR-0002, ADR-0005 — os três acima do threshold de >3 Decisions.
+- **D5 Front-load routing, defer content.** Padrão `DESIGN.md` validado empiricamente (Code: "o melhor sinal/ruído de tudo"). Mesmo padrão aplicado intra-ADR via Decision index, e intra-MCP via `policy://catalog` vs `get_clause`.
+- **D5 Provenance integrity via verbatim labels.** Cinco rounds de drift por reformulação pelo Chat (ADR-0005 rows 3/5; ADR-0002 rows 2/7; ADR-0001 ordering). Padrão destilado: Decision labels em índice são metadado *sobre* decisão deliberada, não interpretação *da* decisão; reformulação criativa pelo Chat — mesmo bem-intencionada — quebra essa fronteira. Falha sistemática quando Chat opera por reconstrução a partir de `project_knowledge_search` em vez de leitura direta.
+- **D5 State-of-world maintenance em Consequences blocks.** Code identificou que remoção de `## Follow-up patches` do ADR-0002 deixou dangling reference + claim factual obsoleto em Decision 2 Consequences. Distinção destilada: Decision blocks são imutáveis sob editorial rules (mudar exige supersedes); Consequences blocks são descritivos de estado e merecem update quando estado muda. Regra editorial preservada.
+
+### Decisões substantivas
+
+Conteúdo canônico em ADR correspondente ou em commits de PR-30; aqui só registro do processo.
+
+- **ADR-0007 (MVP collection-only scope) redigido em sessão dedicada Chat.** Rationale primário substituído: motivação real é "sistema é instrumentação para mapa de tagueamento de coleta de eventos de captura; coleta é o objeto natural do recorte porque é o que o sistema lê". Argumento "signal density 200 snippets / 22 operações" do draft original do Code descartado conscientemente como racionalização post-hoc. Decision 2 (Política mantém cláusulas non-collection) e Decision 3 (`check_applicability` retorna `not_applicable` com structured reason) preservadas com calibrações: removido lock-in literal da reason string; suavizado o "additive" de Decision 3 para "expansão é mechanism-side, não interface-side".
+- **Pattern "Decisions at a glance" estabelecido para ADRs >3 Decisions.** Tabela de 3 colunas (#, Decision, Read when) inserida após `## Context` e antes de `## Decision`. Critério de inclusão de ADR: estritamente Decisions > 3. ADR-0003 (2 Decisions), ADR-0006 (3 Decisions, com tabela Scope summary já in-band), ADR-0007 (3 Decisions), ADR-0008 (amendment block já front-loaded) conscientemente fora de escopo. Decisão deliberada de **não aplicar uniforme**.
+- **Pattern "ADRs não carregam todo-list operacional" emergente.** `## Follow-up patches` do ADR-0002 removida (todos 4 patches verificados aplicados). `## Pendências decorrentes` do ADR-0001 flagged para auditoria em sessão futura. Pendências operacionais vivem em `session-handoff.md`, não em ADR. Codificável em `.claude/rules/adr.md`.
+- **Pattern "Decision labels verbatim-from-heading".** Estabelecido após 5 rounds de drift. Operacionalmente: índices são gerados pelo Code lendo o ADR diretamente; Chat propõe template e regras de origem, não escreve as labels.
+- **Decisão de tooling preservada: rationale de `uv`** validado contra recuperação de sessão #14. Lockfile como artefato de provenance, gerenciamento de Python sem dependência de PATH, portabilidade via `pyproject.toml` PEP 621.
+
+### Validações empíricas
+
+- **Defense-in-depth em PR-30 capturou 6 defeitos antes do merge.** Pattern: Chat propõe → prompt instrui verificação verbatim → Code pausa em divergência → autor sanciona. Sem essa estrutura, 6 defeitos teriam mergeado, dois dos quais criariam contradição interna no projeto (`transient` vs `system` em ADR-0002 row 3; `schema` vs `spec` versioning em ADR-0002 row 6, este último colidindo com Immutable Rule 3 do ADR-0001).
+- **D4.6 multi-instance review validado em escala operacional.** Seis catches distribuídos em quatro classes:
+  - *Drift de reformulação* (5 casos): ADR-0005 row 3 (content drop), ADR-0005 row 5 (mechanism vs principle), ADR-0002 row 2 (content drop), ADR-0002 row 7 (general reduced to example), ADR-0001 expected ordering shift.
+  - *Erro factual* (1 caso): ADR-0002 row 3, `transient` por `system`.
+  - *Terminologia load-bearing* (1 caso): ADR-0002 row 6, `schema` por `spec` versioning.
+  - *Drift de estado-do-mundo* (1 caso): ADR-0002 Decision 2 Consequences, claim factual obsoleto + dangling cross-reference.
+  - *Descoberta fora de escopo* (1 caso): ADR-0001 `## Pendências decorrentes` paralelo ao Follow-up patches removido.
+- **ADR-0003 (dual canonical+compact com escalation pointers) validado empiricamente.** Relatório de simulação one-shot do Code: "Não precisei [da canonical]. Compact teve densidade suficiente." Padrão prescrito → padrão exercitado em uso real → padrão confirmado.
+- **ADR-0008 §3 (manual exercise gate) freou one-shot disguised.** Relatório de simulação: "isso me freou de assumir one-shot sem alertar você." Decisão burocrática na #17 evitou drift na #18.
+- **DESIGN.md como entrypoint pattern validado.** Code: "o melhor sinal/ruído de tudo." Cinquenta linhas que orquestram a leitura dos outros docs.
+- **ADR-0006 Decision 2 (English snake_case tokens em vocabulários) validada como anti-drift mechanism.** Investigação dos Follow-up patches do ADR-0002 confirmou que specs hoje citam "registrada em ADR-0002 §1" / "ADR-0002 §6" — referências resolvidas substituindo os forward-references originais. Padrão "specs citam ADR por ID, não duplicam" funcionou.
+- **Pause-and-ask pelo Code cumprido em todas as 5 pauses do prompt PR-30.** Disciplina mecânica preservada; contraste com session anterior (sessão pré-#17) onde Code expandiu escopo silenciosamente.
+
+### Artefatos produzidos
+
+- **ADR-0007** (`docs/adr/0007-mvp-collection-only-scope.md`) redigido em sessão Chat dedicada com rationale autêntico do mapa de tagueamento. Status: Accepted (session #18, deferred from session #17 after PR-23 cleanup).
+- **PR #30** (`docs/adr-access-layer`) com 3 commits:
+  - `4840935` — ADR-0005 Decisions at a glance index (8 rows).
+  - `cd348b5` — ADR-0002 Decisions at a glance index (Part 1, 7 rows) + remoção da seção `## Follow-up patches` + reescrita do parágrafo Consequences de Decision 2 para refletir estado-do-mundo atual.
+  - `dc914cf` — ADR-0001 Decisions at a glance index (6 rows) + entry em `session-handoff.md` flagging `## Pendências decorrentes` como pendência para auditoria.
+- **`session-handoff.md`** atualizado com entrada "Auditoria de seções todo-list em ADRs antigos" cobrindo os 4 bullets do ADR-0001 `## Pendências decorrentes`.
+
+### Pendências para sessão #19+
+
+- **`docs/tasks.md`** — em andamento na sessão #19. Governança: ADR-0008 (as amended 2026-05-16). Estrutura: Milestones A/B/C; Milestone A detalhado com ~5 tasks médias amarradas a RFs no scope milestone-level + gate tripartite. Pré-implementação POL-001 deve aparecer no plano da sessão.
+- **`.claude/rules/adr.md`** — priorizada após acumulação de 5 regras emergentes nesta sessão:
+  1. ADRs com >3 Decisions levam Decisions at a glance index após Context.
+  2. Decision labels em índices são verbatim-from-heading; reformulação criativa pelo Chat é proibida.
+  3. Decision indexes são gerados pelo Code lendo o ADR diretamente; Chat propõe template e regras de origem, não escreve labels.
+  4. Decision blocks imutáveis sob editorial rules (mudar exige supersedes); Consequences blocks atualizáveis quando estado-do-mundo muda.
+  5. ADRs não carregam seções de pendências operacionais (`Follow-up patches`, `Pendências decorrentes`, análogos). Pendências vivem em `session-handoff.md`.
+- **Auditoria de `ADR-0001 ## Pendências decorrentes`** — 4 bullets (.python-version, branch protection, ~/.claude/CLAUDE.md user-scope, advisor outreach UTFPR). Alguns mecanicamente verificáveis, outros (advisor outreach) exigem confirmação manual. Decisão por bullet: remover se aplicado, migrar se ainda em aberto.
+- **Análogas `.claude/rules/learning-log.md` e `.claude/rules/handoff.md`** — pendentes, derivam o mesmo padrão.
+- **CLAUDE.md ↔ ADR drift surface** — discussão arquitetural sobre single-source-of-truth vs sempre-carregado. Sessão Chat dedicada, não cleanup mecânico.
+- **Branch local cleanup** — `git push origin --delete docs/adr-access-layer` + `git branch -d docs/adr-access-layer` após merge do PR-30.
+
+### Próximo passo
+
+Sessão #19 (em andamento): autoring de `docs/tasks.md` v1.0 sob governança de ADR-0008 amended. Continuação direta do escopo prometido para #18/#19 no handoff. Os ADRs agora carregam access layer no formato estabelecido; o `tasks.md` consume essa infraestrutura ao referenciar ADRs por Decision number, que agora resolvem para uma row do índice antes do conteúdo.
+
+### Nota de calibração metodológica
+
+O fluxo desta sessão (Chat-delibera / prompt-com-pausas-explícitas / Code-executa-com-verificação / autor-sanciona) operou em escala documentada (5 pausas, 6 catches) sem nenhum defeito mergeado. Contraste empírico com sessão pré-#17 (Code expandindo escopo silenciosamente). A diferença operacional é a *estrutura do prompt*, não a capacidade do modelo: pausas pré-identificadas, verificações obrigatórias, pedido explícito de leitura direta em vez de inferência. Vale carregar "o prompt do PR-30" como referência operacional para futuros prompts de Code que tocarão artefatos sensíveis — candidato a exemplo no arquivo `.claude/rules/adr.md` quando aquela rule for redigida, ou a slash command em `.claude/commands/`.

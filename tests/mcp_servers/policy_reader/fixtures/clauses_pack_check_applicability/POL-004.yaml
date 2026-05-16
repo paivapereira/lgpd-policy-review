@@ -1,0 +1,29 @@
+clause_id: POL-004
+title: "Coleta de documentos oficiais brasileiros exige consentimento"
+clause_type: substantive
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: LGPD
+    artigo: 7
+    inciso: 1
+
+applies_to:
+  personal_data_categories:
+    - dados_de_documentos_oficiais
+  operation:
+    - collection
+
+control: consent_required
+
+requirements:
+  - id: R1
+    text: >
+      A coleta de documentos oficiais brasileiros (POL-000 §2.2, incluindo
+      CPF, RG, CNH e equivalentes) exige declaração de consentimento como
+      base legal — valor canônico `consent` do vocabulário `lawful_basis` da
+      Política. Coleta com `legal_basis` ausente ou com valor diferente de
+      `consent` configura tratamento sem base legal aplicável.
+
+exceptions: []

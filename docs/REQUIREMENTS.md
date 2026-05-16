@@ -53,18 +53,18 @@
 
 ### RF-004 — Avaliação de conformidade contra a Política (escopo MVP restrito a coleta)
 
-**Descrição.** Sistema avalia candidatos com `operation_type: collection` (token canônico do vocabulário `policy/vocabularies/<framework>/operation.yaml`, exposto via `policy://vocabularies`) contra cláusulas aplicáveis da Política e emite veredito no conjunto `{compliant, violation_candidate, indeterminate, not_applicable}`. Candidatos com outras operações (`use`, `transfer`, `storage`, etc.) retornam `verdict: not_applicable` com razão explícita de escopo MVP — comportamento que preserva a arquitetura para expansão futura sem refatoração. Cláusulas que governam operações fora de `collection` permanecem na Política como audit trail e provenance histórica, mas não disparam matching no MVP v0.1.0.
+**Descrição.** Sistema avalia candidatos com `operation_type: collection` (token canônico do vocabulário `policy/vocabularies/<framework>/operation.yaml`, exposto via `policy://vocabularies`) contra cláusulas aplicáveis da Política e emite veredito no conjunto `{compliant, violation_candidate, indeterminate, not_applicable}`. Candidatos com qualquer das outras 21 operações do vocabulário (`use`, `storage`, `disclosure_by_transmission`, `erasure`, `international_transfer`, etc.) retornam `verdict: not_applicable` com razão explícita de escopo MVP — comportamento que preserva a arquitetura para expansão futura sem refatoração. Cláusulas que governam operações fora de `collection` permanecem na Política como audit trail e provenance histórica, mas não disparam matching no MVP v0.1.0.
 
 **Critério.**
 - **Dado** candidato com `operation_type: collection` e Política contendo cláusula aplicável,
 - **quando** o Matcher avalia,
 - **então** o finding contém `clause_id` da cláusula aplicada e `verdict` em `{compliant, violation_candidate, indeterminate, not_applicable}`.
 
-- **Dado** candidato com `operation_type` em qualquer valor do vocabulário diferente de `collection` (e.g., `use`, `transfer`, `storage`, `deletion`),
+- **Dado** candidato com `operation_type` em qualquer valor do vocabulário diferente de `collection` (e.g., `use`, `storage`, `disclosure_by_transmission`, `erasure`),
 - **quando** o Matcher avalia,
 - **então** `verdict: not_applicable` com `reason: "operation outside MVP scope (v0.1.0): only 'collection' is evaluated"`, sem invocar matching de cláusulas.
 
-**Refs.** `architecture-overview.md` §5.5; `docs/specs/policy-reader/canonical.md` §4; ADR retroativo sobre escopo de operações na v0.1.0 (a redigir, registrado em `session-handoff.md`).
+**Refs.** `architecture-overview.md` §5.5; `docs/specs/policy-reader/canonical.md` §4; ADR-0007 (escopo de operações MVP v0.1.0); ADR-0006 (convenção de tokens em inglês para o vocabulário `operation`).
 
 ---
 

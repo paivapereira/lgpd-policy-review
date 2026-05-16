@@ -112,7 +112,7 @@ Esboço produzido em discussão pré-#18 (mesma sessão da emenda ADR-0008). #18
 *Pendências bloqueantes antes do primeiro Code session* (resolver em Chat dedicado ou inline em #18):
 
 - **Decisão Semgrep-on-Windows** — onde Semgrep roda no ambiente Windows corporativo sem WSL (Docker / pip native / remote worker / CI-only). Bloqueia T04 — sem essa decisão, a forma do `loader` e do `scan_diff` muda radicalmente.
-- **POL-001 a POL-005** (estimado) — POL-001 já é pré-implementação confirmada (ordem: ADR-0007 antes, POL-001 depois). POL-002 a POL-005 são em aberto: T03 sobrevive com `not_applicable` always, mas o **gate milestone-level** (Inspector exercitando RF-004 e RF-005 com vereditos diversos) precisa de cláusulas substantivas que exercitem `compliant`/`violation_candidate`/`indeterminate`. Decisão pendente: autorar POL-001..POL-005 numa sessão Chat ou apenas POL-001 e diferir.
+- **POL-001 a POL-005** (estimado) — POL-001 já é pré-implementação confirmada (ADR-0007 mergeado em #18 fixa o escopo `collection`; POL-001 redige a cláusula sob esse escopo). POL-002 a POL-005 são em aberto: T03 sobrevive com `not_applicable` always, mas o **gate milestone-level** (Inspector exercitando RF-004 e RF-005 com vereditos diversos) precisa de cláusulas substantivas que exercitem `compliant`/`violation_candidate`/`indeterminate`. Decisão pendente: autorar POL-001..POL-005 numa sessão Chat ou apenas POL-001 e diferir.
 
 *Gate milestone-level proposto* (roteiro Inspector cross-tool):
 - RF-001: `scan_diff` em diff com chamada de função suspeita → finding emitido com `rule_id`.
@@ -123,13 +123,9 @@ Esboço produzido em discussão pré-#18 (mesma sessão da emenda ADR-0008). #18
 
 *Estimativa por task:* T01 1-2h · T02 2-3h · T03 2-3h · T04 2-3h · T05 2-3h. Total **9-14h, 3-5 sessões Code**.
 
-**Sessões Chat dedicadas (antes de Fase 2 começar — ordem importa):**
+**Sessões Chat dedicadas (antes de Fase 2 começar):**
 
-1. **ADR-0007** (escopo MVP collection-only) com rationale real do mapa de tagueamento como motivação primária. Argumentos secundários (foundational data-flow position, signal density, compliance-domain breadth) podem complementar, não substituir. Estimativa: 45-90 min.
-
-2. **POL-001** — cláusula sobre consentimento na coleta de dados pessoais. Critério: conteúdo suficiente para exercitar os quatro vereditos de `check_applicability` (compliant, violation_candidate, indeterminate, not_applicable) nos testes de T03. Trabalho jurídico-textual, não de Code. Estimativa: 1 sessão.
-
-   Ordem deliberada: ADR-0007 antes de POL-001. ADR-0007 fixa que T03 só avalia `collection` — isso enquadra o escopo da cláusula que POL-001 vai precisar cobrir, evitando reautoria depois.
+1. **POL-001** — cláusula sobre consentimento na coleta de dados pessoais. Critério: conteúdo suficiente para exercitar os quatro vereditos de `check_applicability` (compliant, violation_candidate, indeterminate, not_applicable) nos testes de T03. Trabalho jurídico-textual, não de Code. Estimativa: 1 sessão. ADR-0007 (mergeado em #18) fixa que T03 só avalia `collection` — isso enquadra o escopo da cláusula que POL-001 vai precisar cobrir.
 
 **Etapa 2 (Chat, após Milestone A completo):**
 - Specs leves dos 5 subagentes (`docs/specs/subagents/<nome>.md`). Formato mais leve que canonical+compact dos MCPs — contrato comportamental + esboço de AgentDefinition (`mcp_servers`, `allowed-tools`) + decisões de prompt principais. 1-2 páginas por subagente.

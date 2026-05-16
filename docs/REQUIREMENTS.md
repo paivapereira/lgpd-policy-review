@@ -64,7 +64,7 @@
 - **quando** o Matcher avalia,
 - **então** `verdict: not_applicable` com `reason: "operation outside MVP scope (v0.1.0): only 'collection' is evaluated"`, sem invocar matching de cláusulas.
 
-**Refs.** `architecture-overview.md` §5.5; `docs/specs/policy-reader/canonical.md` §4; ADR-0007 (escopo de operações MVP v0.1.0 — a redigir em sessão Chat dedicada); ADR-0006 (convenção de tokens em inglês para o vocabulário `operation`).
+**Refs.** `architecture-overview.md` §5.5; `docs/specs/policy-reader/canonical.md` §4; ADR-0007 (escopo de operações MVP v0.1.0); ADR-0006 (convenção de tokens em inglês para o vocabulário `operation`).
 
 ---
 

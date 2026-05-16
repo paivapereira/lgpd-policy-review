@@ -1,208 +1,107 @@
 # Session handoff
 
-## Handoff de fechamento da #17 (consolidado e final)
+**Última sessão fechada:** #18 (Chat) — 2026-05-16
+**Próxima sessão:** #19 (Code) — implementação de T01 de Milestone A
+**Branch ativa atual:** `docs/tasks-and-fixtures` (PR em main, em mergeação)
+**Branch nova a abrir para #19:** `feat/policy-reader-implementation` (ramificar de main pós-merge)
 
-**Sessão fechada:** #17 (Chat) — 2026-05-15
-**Próxima sessão:** #18 (Chat) — Authoring de `docs/tasks.md` sob ADR-0008 (as amended 2026-05-16) + sessão Chat pré-implementação de POL-001
-**Estado do git:** main em `914b00f` (PR #24 mergeado, último). PR #23 e PR #24 ambos em main; branches `docs/adr-retroactive-conventions` e `docs/adr-0008-sdd-calibration` podem ser deletadas.
+## Estado atual
 
----
+Fase 1.5 fechada. `docs/REQUIREMENTS.md` (9 RFs + 2 RNFs), `docs/adr/0004-uv-fastmcp-3x.md`, `docs/adr/0007-mvp-collection-only-scope.md`, `docs/adr/0008-task-decomposition-and-verification.md` (amended 2026-05-16) e `docs/tasks.md` v1.1 estão em main ou na PR em mergeação. Pacote POL-001..POL-004 está em `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/` como fixture isolada de teste — sem rationale, sem bump de `policy_version`, sem estabilização de SCHEMA §6. Implementação real (Fase 2) começa em Milestone A: cinco tasks (T01-T04 + T02b) para o `policy-reader` standalone, validáveis via MCP Inspector cross-tool, ancoradas em `docs/specs/policy-reader/canonical.md`.
 
-### Estado consolidado dos artefatos pós-#17
+Quatro débitos cross-doc no canonical.md estão anotados em `docs/tasks.md` §Companion edits para PR separada em sessão Chat dedicada: nome do campo `statutory_reference`, naming dos campos do `structured_context` no inputSchema de `check_applicability`, payload `reason` (vs `evidence`) em `not_applicable` conforme ADR-0007 Decision 3, e versão de FastMCP (canonical 2.x → real 3.x conforme ADR-0004). Estes débitos não bloqueiam Code de Milestone A — implementação adota o lado dos artefatos reais (já pinned em `tasks.md`), canonical alinha depois.
 
-Em main já — Fase 1 (PR #22 mergeado em sessão #16):
-- `docs/architecture-overview.md` v final pós-multi-cliente
-- `docs/adr/0001-bootstrap.md` (drift simbólico em §2: pyenv-win e FastMCP unpinned; substantive authority delegada a ADR-0004; editorial sync da prosa é opcional)
-- `docs/adr/0002-mcp-conventions-and-deferments.md`
-- `docs/adr/0003-dual-spec-architecture.md`
-- `docs/adr/0005-multi-client-policy-architecture.md`
-- `docs/specs/policy-reader/canonical.md` + `compact.md`
-- `docs/specs/semgrep-runner/canonical.md` + `compact.md`
-- `policy/SCHEMA.md` (camada estrutural + jurisdicional)
-- `policy/clauses/POL-000.yaml` + `policy/rationale/POL-000.md`
-- `policy/vocabularies/LGPD/{operation,lawful_basis,control,out_of_scope}.yaml`
-- `docs/DESIGN.md`
+## Onde encontrar detalhes do que a Fase 1.5 cristalizou
 
-Em main já — pós-#17 (PR #23 mergeado como `f63ddf7`):
-- `docs/REQUIREMENTS.md` v1.0 — 9 RFs + 2 RNFs, source-of-truth de capacidades observáveis
-- `docs/adr/0006-language-conventions.md` — PT em docs técnicos + EN em vocabulários jurisdicionais
-- Patches em specs do `policy-reader` (`collect` → `collection`)
-- (ADR-0007 foi adicionado e revertido dentro do PR — não consta em main; squash message inclui o título por ter agregado todos os commits do branch)
+- **Plano executável de Fase 2:** `docs/tasks.md` (Milestone A com cinco tasks; B/C/D referenciados, autoria deferida pós-gate milestone-level de A).
+- **Contrato de aceitação global:** `docs/REQUIREMENTS.md` (RFs/RNFs com critério Dado/Quando/Então).
+- **Governance de task decomposition e verificação:** `docs/adr/0008-task-decomposition-and-verification.md` (amended) — granularidade 8-12 tasks de 1-3h, gate task-level (function tests + Chat review independente) + gate milestone-level (manual exercise contra RFs).
+- **Escopo MVP operacional:** `docs/adr/0007-mvp-collection-only-scope.md` (apenas `operation: collection` invoca matching no MVP v0.1.0; outras 21 operações do vocabulário retornam `not_applicable` com `reason` MVP-scope).
+- **Stack management:** `docs/adr/0004-uv-fastmcp-3x.md` (uv como gerenciador, FastMCP 3.x).
+- **Pack teste de check_applicability:** `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/README.md` (AS coverage por arquivo, pattern de fixture root assembly, ressalvas).
+- **Processo de cristalização da sessão #18:** `docs/learning-log.md` (entry 2026-05-16).
 
-Em main já — pós-#17 (PR #24 mergeado como `914b00f`):
-- `docs/adr/0008-task-decomposition-and-verification.md` — calibração SDD para Opus 4.7
-- Pointer em `CLAUDE.md`
-- §7 + §11 atualizados em `docs/proposta-tcc2.md` (Rajasekaran 2026 + Building Effective Agents 2025)
+## Pre-flight pins para a sessão #19 (Code, T01)
 
----
+Cinco decisões pre-flight identificadas pela terceira passada Code de auditoria de `tasks.md` v1.1. Não vão para `tasks.md` (que é estável); vão para a descrição da PR de Milestone A ou para o prompt de abertura da sessão Code.
 
-### Hashes da #17 (audit trail interno)
+1. **Payload de `get_clause` (T02a) usa `statutory_reference`**, não `article_source`. Nome do campo segue o artefato real (`policy/SCHEMA.md` §5.1, `policy/clauses/POL-000.yaml`); canonical.md alinha em PR separada (Companion edit #1).
+2. **Mecanismo de reasoning de `check_applicability` (T03) é regra programática determinística para Milestone A**. ADR-0005 Decision 7 dá liberdade entre regra/LLM/híbrido; tensão com pytest é estrutural — single LLM call vira teste flaky, AS-1..AS-5 de T03 assumem determinismo `(clause_id, structured_context) → veredito` idempotente. LLM-call fica para evolução pós-MVP quando regime de testes for ajustado.
+3. **Validação de vocabulário runtime via `model_validator` ou validator function**, não `Literal[...]` dinâmico. `INVALID_OPERATION` e `INVALID_DATA_CATEGORY` (T03 AS-8) exigem validar `structured_context` contra vocabulários carregados em startup. Pydantic 2 `Literal` é estático em definition time — caminho correto: `inputSchema` declara `operation: str`, função body consulta estado carregado.
+4. **`ReadResourceResult` shape validado empiricamente com MCP Inspector** na primeira hora de T01. Skeleton retorna `dict[str, Any]`; FastMCP 3.x auto-wrappa em `ReadResourceResult` com `contents: [TextResourceContents]`, mas o tipo concreto pós-wrap e o `mimeType` default precisam confirmação contra T01 AS-7 e T04 AS-4.
+5. **`compatible_schema_range` em formato packaging-compatible**. Recomendação: trocar `policy/policy.yaml` para `compatible_schema_range: ">=0.1.0,<0.2.0"` (parseado nativamente por `packaging.specifiers.SpecifierSet`) em vez de manter `"0.1.x"` (que exige parser regex custom). Edit pequeno em `policy.yaml`, na mesma branch de implementação de T01.
 
-Sobrevive a squash-merge — após merge dos PRs, hashes individuais somem do main, mas ficam registrados aqui.
+## Pendências cross-sessão (organizado por horizonte de resolução)
 
-**PR #23** (`docs/adr-retroactive-conventions`) — squash em main como `f63ddf7`:
-- `4953a9b` — docs(specs): fix collect → collection token in policy-reader example
-- `9d0d38a` — docs(adr): add ADR-0006 — language conventions
-- `1a5bed5` — docs(adr): add ADR-0007 — MVP collection-only scope (revertido)
-- `09d4914` — docs: scope PR-23 cleanup — revert ADR-0007, calibrate ADR-0006
+**Resolver antes da #19 começar:**
 
-**PR #24** (`docs/adr-0008-sdd-calibration`) — squash em main como `914b00f`:
-- `2ece0f3` — docs: add ADR-0008 calibrating SDD task decomposition for Opus 4.7
+- Merge da PR de `tasks.md` + pack POL-001..004 + handoff sync. Sem isso, branch de Code parte de main stale.
 
-(Hash do próprio handoff omitido — só conhecido pós-`git commit`.)
+**Resolver em sessão Chat paralela (não bloqueia Milestone A):**
 
----
+- PR de canonical.md sync (4 débitos listados em `docs/tasks.md` §Companion edits).
+- Decisão Semgrep-on-Windows (Docker, pip native, remote worker, CI-only) — afeta forma de T05 em Milestone B, irrelevante para Milestone A.
 
-### Defaults arquiteturais consolidados (intactos pós-#17)
+**Resolver na #19 (Code, T01):**
 
-Estado **realizado** (não plano em progresso). Referência canônica em ADR-0005, herdado da Fase 1.
+- Edit em `policy/policy.yaml` para `compatible_schema_range: ">=0.1.0,<0.2.0"` (pre-flight pin #5).
+- Validação empírica do `ReadResourceResult` shape (pre-flight pin #4).
 
-- Camada 1 (Política) é per-cliente; substituível por cliente sem alteração de código (ADR-0005 Decision 1).
-- `legal_framework` é campo top-level único do header da Política, imutável durante sessão do server (ADR-0005 Decision 2).
-- `accepted_law_identifiers` é lista de leis citáveis intra-jurisdição (e.g., `[LGPD, Marco_Civil]` numa Política brasileira).
-- POL-000 é vocabulário universal (semântico, não estatutário); vive em `policy/clauses/`, estrutura governada por `policy/SCHEMA.md` §5 (ADR-0005 Decision 3).
+**Resolver em #20+ ou ADR futuro:**
+
+- Decomposição formal de Milestone B (semgrep-runner) em sessão Chat dedicada, após gate milestone-level de A completar. Decisão Semgrep-on-Windows precede.
+- Decomposição formal de Milestone C (pipeline multi-agente) e Milestone D (CI/CD + validação empírica) em sessões Chat dedicadas, sequencialmente.
+- Semântica de `last_revision` em `policy/policy.yaml` — formal vs informativo, atualização manual vs automática.
+- Validação cruzada per-cliente (vocabulary × Semgrep metadata) quando materializar ADR de per-client rule set.
+- ADR retroativo formalizando convenção "português para docs técnicos não-ADR".
+- Promoção do draft `_drafts/spec-authoring-principles.md` para `docs/`.
+
+## Defaults arquiteturais consolidados (pós-Fase 1.5)
+
+Estado **realizado** (não plano em progresso). Referência canônica de cada item em ADR citado.
+
+**Da Fase 1 (ADR-0005 — multi-client architecture):**
+
+- Camada 1 (Política) é per-cliente; substituível por cliente sem alteração de código.
+- `legal_framework` é campo top-level único do header, imutável durante sessão do server.
+- POL-000 é vocabulário universal (semântico, não estatutário); vive em `policy/clauses/`, estrutura governada por `policy/SCHEMA.md` §5.
 - Quatro vocabulários jurisdicionais (`operation`, `lawful_basis`, `control`, `out_of_scope`) vivem em `policy/vocabularies/<framework>/*.yaml`.
 - `policy-reader` expõe três resources (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`) e três tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`).
-- `policy://vocabularies` é compartilhado Matcher+Classifier (read-only resource); tools do `policy-reader` continuam exclusivas Matcher (ADR-0005 Decision 4).
-- `check_applicability` retorna trinque de provenance `(policy_schema_version, policy_version, legal_framework)` em todo sucesso (ADR-0005 Decision 5).
-- Sucessão de cláusulas é intra-Política (intra-`legal_framework`), via `successors` no bloco `tombstone` (ADR-0005 Decision 6).
-- Mecanismo interno de reasoning de `check_applicability` é deferido para Fase 2 (ADR-0005 Decision 7).
-- `semgrep-runner` rule set é bundled no projeto no MVP; per-cliente é deferimento explícito (ADR-0005 Decision 8).
+- `policy://vocabularies` é compartilhado Matcher+Classifier (read-only resource).
+- `check_applicability` retorna trinca de provenance `(policy_schema_version, policy_version, legal_framework)` em todo sucesso.
+- Sucessão de cláusulas é intra-Política, via `successors` no bloco `tombstone`.
+- Mecanismo interno de reasoning de `check_applicability` é deferido (regra/LLM/híbrido livre para Code).
+- `semgrep-runner` rule set é bundled no projeto no MVP.
 
----
+**Da Fase 1.5 (ADR-0004 + ADR-0007 + ADR-0008 amended):**
 
-### Pendências organizadas por horizonte
+- Stack management via `uv` + lockfile `uv.lock` versionado (ADR-0004).
+- FastMCP 3.x como runtime MCP, Pydantic 2.13.x para validação (ADR-0004).
+- Escopo MVP v0.1.0 de `check_applicability` é exclusivamente `operation: collection`. Outras 21 operações do vocabulário retornam `verdict: not_applicable` com `reason` MVP-scope, sem invocar matching (ADR-0007).
+- Granularidade de Fase 2: 8-12 tasks de 1-3h agrupadas em milestones; cada milestone entrega capability declarada em REQUIREMENTS.md, cada task entrega função coerente (ADR-0008 amended §1).
+- RFs/RNFs binding é milestone-level, não task-level (ADR-0008 amended §2).
+- Gate de verificação em dois scopes: task-level (function tests + Chat review independente) e milestone-level (manual exercise contra RFs) (ADR-0008 amended §3).
+- Bibliografia metodológica de referência: Rajasekaran (2026) "Harness design for long-running application development", Anthropic Engineering; Anthropic (2025) "Building Effective Agents" (ADR-0008 §4).
 
-**Imediato (operacional seu):**
-- Deletar branches mergeadas: `git push origin --delete docs/adr-retroactive-conventions docs/adr-0008-sdd-calibration` (e `git branch -d` no local).
+## Plano de ação Fase 2 — Code (sessões #19+)
 
-**Sessão #18 (Chat) — agenda:**
-- Authoring de `docs/tasks.md` v1.0 sob governança de ADR-0008 (as amended 2026-05-16). Conteúdo:
-  - Estrutura por Milestones (A, B, C)
-  - Milestone A detalhado: ~5 tasks + pré-implementação POL-001
-  - Milestones B e C como placeholders ("specs a redigir, tasks a decompor após A")
-  - Cada **milestone** carrega: RFs/RNFs cobertos + Dado/Quando/Então herdados de REQUIREMENTS.md + gate milestone-level (manual exercise via MCP Inspector validando cada acceptance criterion)
-  - Cada **task** dentro de milestone carrega: nome, dependências, files previstos, função entregue (sem RF binding individual — ADR-0008 §2 amended), gate task-level (function-specific pytest + independent Chat review)
-- Estimativa: 2-3 horas. PR dedicado de redação.
+**Input para Code.** `docs/tasks.md` v1.1 é o source-of-truth da Fase 2. Code consome task a task em ordem topológica (T01 → T02a → T02b → T03 → T04 para Milestone A; ordem subsequente conforme autoria dos próximos milestones), validando gate task-level conforme ADR-0008 §3 antes de marcar como done.
 
-**Proposta Milestone A para #18 (insumo, não decisão).**
+**Prompt de abertura da sessão #19 (Code, T01):**
 
-Esboço produzido em discussão pré-#18 (mesma sessão da emenda ADR-0008). #18 pode reformular livremente; objetivo é evitar re-derivação cold da estrutura.
+> Implementar T01 de docs/tasks.md (loader + handshake policy://schema-version) para o policy-reader. Validar AS-1 a AS-8 em pytest sob uv run pytest antes de fechar. Ler antes: docs/tasks.md T01 inteira (Função, Dependências, Files, AS, Gate), docs/specs/policy-reader/canonical.md §3.2, policy/SCHEMA.md §3.1 + §4.5 + §6. Pre-flight pins do session-handoff aplicam — em particular: ReadResourceResult validado com Inspector (pin 4), compatible_schema_range trocado para ">=0.1.0,<0.2.0" no policy.yaml (pin 5), modelos Pydantic com model_validator runtime (pin 3). Após implementação, abrir sessão Chat separada para gate review do diff. Pausar e perguntar se algo na task estiver ambíguo.
 
-*RFs/RNFs cobertos pelo Milestone A* (acceptance via Dado/Quando/Então das RFs em `docs/REQUIREMENTS.md`):
-- **RF-001** (detecção de coleta) — `semgrep-runner`
-- **RF-002** (6 BR identifiers: CPF/CNPJ/CNH/NIS-PIS/título/CNS) — `semgrep-runner` rule content
-- **RF-004** (avaliação de conformidade, escopo `collection`) — `policy-reader.check_applicability`
-- **RF-005** (veredito `indeterminate` honesto) — `policy-reader.check_applicability`
-- **RF-009** (provenance trinque) — `policy-reader` handshake + `check_applicability`
-- **RNF-001** parcial — stack/reprodutibilidade observável no startup loader
-- **RF-007** e **RF-008** *mechanism-only* — validação de `accepted_law_identifiers` + `legal_framework` reportado em handshake e trinque. E2E delivery dessas duas fica para Milestones B/C (exige pipeline E2E + GDPR fixture).
+**Estado de partida.** PR da Fase 1.5 (tasks.md + pack + handoff) mergeada em main. Code começa nova branch `feat/policy-reader-implementation` ramificando de main.
 
-*Fora de Milestone A* (depende de Milestones B/C, sem design fechado ainda):
-- RF-003 (Classifier), RF-006 (Report JSON via Reporter), RF-007 E2E (cliente A vs B), RF-008 E2E (LGPD→GDPR rerun), RNF-002 (GitHub Action informativo).
+**Custo estimado.** Com cinco tasks de 1-3h cada, Milestone A é 8-12h de implementação cobrindo as cinco com gate task-level (pytest + Chat review por task). Gate milestone-level (manual exercise contra RFs 004-parcial, 005, 007-parcial, 008-parcial, 009) é sessão Chat dedicada de ~1-2h adicional, executada após T01-T04 fecharem. Total Milestone A: 10-14h, distribuídas em 4-6 sessões de Code de 2-3h cada.
 
-*Tasks propostas (5, ordem topológica):*
+## Hashes da Fase 1.5 (audit trail interno)
 
-1. **T01 — policy-reader bootstrap.** Loader (`policy.yaml` + `clauses/*.yaml` + `vocabularies/<framework>/*.yaml`) + resource `policy://schema-version` (trinque handshake) + abort-on-failure de startup. Função: server inicia limpo ou falha cedo; consumidor lê trinque antes de invocar tools.
-2. **T02 — policy-reader retrieval.** Resource `policy://catalog` + tools `get_clause` e `find_clauses_by_law_article` (matching hierárquico `article_source`, validação de `lei` contra `accepted_law_identifiers`). Função: consumidor descobre cláusulas por ID ou por artigo de lei.
-3. **T03 — policy-reader evaluation.** Resource `policy://vocabularies` + tool `check_applicability` (4 vereditos enumerados; MVP retorna `not_applicable` always até cláusulas substantivas existirem, com trinque de provenance em sucesso). Função: emitir veredito estruturado para um par (clause, structured_context).
-4. **T04 — semgrep-runner core.** Loader (binary discovery, version check, `rules_version` via hash do rule set) + tool `scan_diff` (git ref resolve, subprocess + parse JSON, all-or-nothing timeout). Rule set bundled com 1-2 regras canário. Função: scan diff-aware retorna findings estruturados ou erro tipado.
-5. **T05 — Brazilian recognizers.** 6 regras Semgrep (CPF/CNPJ/CNH/NIS-PIS/título de eleitor/CNS) substituem o rule set canário do T04 + fixtures de detecção positiva e negativa por identifier. Função: rule set bundled cobre os 6 identifiers com `data_categories` correto em cada finding.
+Branch `docs/tasks-and-fixtures` em PR. Hashes sobrevivem a squash-merge — após merge do PR, hashes individuais somem do main, mas ficam registrados aqui:
 
-*Pendências bloqueantes antes do primeiro Code session* (resolver em Chat dedicado ou inline em #18):
+- `<TBD>` — docs(tasks): add tasks.md v1.1 for Milestone A implementation
+- `<TBD>` — test(policy-reader): add POL-001..004 fixture pack for check_applicability
+- `<TBD>` — docs: sync session-handoff.md to Milestone A/B split + Fase 1.5 close
+- `<TBD>` — docs(log): close session #18 — tasks.md authoring + POL fixture pack
 
-- **Decisão Semgrep-on-Windows** — onde Semgrep roda no ambiente Windows corporativo sem WSL (Docker / pip native / remote worker / CI-only). Bloqueia T04 — sem essa decisão, a forma do `loader` e do `scan_diff` muda radicalmente.
-- **POL-001 a POL-005** (estimado) — POL-001 já é pré-implementação confirmada (ADR-0007 mergeado em #18 fixa o escopo `collection`; POL-001 redige a cláusula sob esse escopo). POL-002 a POL-005 são em aberto: T03 sobrevive com `not_applicable` always, mas o **gate milestone-level** (Inspector exercitando RF-004 e RF-005 com vereditos diversos) precisa de cláusulas substantivas que exercitem `compliant`/`violation_candidate`/`indeterminate`. Decisão pendente: autorar POL-001..POL-005 numa sessão Chat ou apenas POL-001 e diferir.
-
-*Gate milestone-level proposto* (roteiro Inspector cross-tool):
-- RF-001: `scan_diff` em diff com chamada de função suspeita → finding emitido com `rule_id`.
-- RF-002: `scan_diff` em diff cobrindo cada um dos 6 BR identifiers → 6 findings com `data_categories` correto.
-- RF-004/-005: `check_applicability` sobre fixtures cobrindo os 4 vereditos (depende de POL-001..POL-005).
-- RF-009: cada retorno de `check_applicability` + handshake carregam trinque `(policy_schema_version, policy_version, legal_framework)`.
-- RF-007/-008 mechanism: `find_clauses_by_law_article` com `lei` fora de `accepted_law_identifiers` retorna `INVALID_LAW_IDENTIFIER`; handshake reporta `legal_framework` correto.
-
-*Estimativa por task:* T01 1-2h · T02 2-3h · T03 2-3h · T04 2-3h · T05 2-3h. Total **9-14h, 3-5 sessões Code**.
-
-**Sessões Chat dedicadas (antes de Fase 2 começar):**
-
-1. **POL-001** — cláusula sobre consentimento na coleta de dados pessoais. Critério: conteúdo suficiente para exercitar os quatro vereditos de `check_applicability` (compliant, violation_candidate, indeterminate, not_applicable) nos testes de T03. Trabalho jurídico-textual, não de Code. Estimativa: 1 sessão. ADR-0007 (mergeado em #18) fixa que T03 só avalia `collection` — isso enquadra o escopo da cláusula que POL-001 vai precisar cobrir.
-
-**Etapa 2 (Chat, após Milestone A completo):**
-- Specs leves dos 5 subagentes (`docs/specs/subagents/<nome>.md`). Formato mais leve que canonical+compact dos MCPs — contrato comportamental + esboço de AgentDefinition (`mcp_servers`, `allowed-tools`) + decisões de prompt principais. 1-2 páginas por subagente.
-- Discussão Matcher como evaluator iterativo (Rajasekaran-pattern). Decisão informada pelo aprendizado empírico de Milestone A. Possível materialização em ADR-0009 (a reservar) se a decisão for substantiva. Estimativa: 1-2 sessões Chat para o pacote completo.
-
-**Etapa 4 (Chat, após Milestone B completo):**
-- Spec leve do CI/CD (workflow YAML + posting via API) e do Reporter (`emit_report`). Pode ser meia-sessão. Documento único provável.
-
-**Fase 2 Code (consumindo tasks.md):**
-
-Numeração T01-T10 abaixo é **indicativa** — autorada definitivamente em #18 sob restrição de 8-12 tasks total da ADR-0008. Ranges podem deslocar conforme decomposição real.
-
-- Milestone A — MCPs standalone validados (T01-T05, estimativa 4-5 sessões Code de 2-4h)
-- Milestone B — multi-agente operacional (T06-T08, estimativa 3-4 sessões)
-- Milestone C — CI/CD + benchmark + validação (T09-T10, estimativa 2-3 sessões)
-
-**Sessão Code curta de cleanup editorial (oportunística, baixa prioridade):**
-- Drift "LGPD" → "Proteção de Dados" em `architecture-overview`, `proposta-tcc2`
-- Drift "trinque" → "trinca" cross-doc
-- ADR-0001 §2 sync com estado real (pyenv-win → uv; FastMCP unpinned → 3.x). Apenas drift simbólico da prosa — substantive authority em ADR-0004; sweep editorial sem urgência.
-- ADR-0001 D3/D4: drift `clause_id` "LGPD-Art-7-I" → `POL-NNN` (formato evoluiu; precisa amendment ou supersede)
-- Token `store` → `storage` em [`docs/specs/policy-reader/compact.md`](docs/specs/policy-reader/compact.md) §5.3 exemplo violation_candidate (drift análogo ao `collect`/`collection` consertado em PR #23, mas em outra cláusula do exemplo)
-
-**Sessão Chat curta de auditoria de ADRs (baixa prioridade):**
-
-Code review do PR adr-access-layer (session #18) identificou que ADR-0001 carrega `## Pendências decorrentes (operational, not part of this decision)` na linha 271 — quatro bullets estruturalmente paralelos à seção `## Follow-up patches` removida do ADR-0002 neste PR. Mesmo anti-padrão (ADR-as-todo-list) identificado por Code no relatório de simulação de one-shot.
-
-Os quatro bullets do ADR-0001:
-- `.python-version` no repo root
-- Branch protection em main via GitHub web UI
-- `~/.claude/CLAUDE.md` user-scope
-- Advisor outreach UTFPR (deadline crítico ~14 dias do bootstrap)
-
-Pendência: sessão Chat curta para verificar estado atual de cada um (alguns são mecanicamente verificáveis, outros — advisor outreach — exigem confirmação manual). Decisão por bullet: remover se aplicado, migrar para esta pendência se ainda em aberto, manter no ADR apenas se justificado por motivo distinto do "ADR-as-todo-list".
-
-Pattern para futuro: novos ADRs não levam seções `## Pendências decorrentes` ou `## Follow-up patches`. Pendências operacionais nascem em session-handoff.md, não em ADR. Vale codificar isso em `.claude/rules/adr.md` quando aquela rule for redigida.
-
-**Adiar para sessão #20+:**
-- Semântica de `last_revision` em `policy/policy.yaml`
-- Semântica de `schema_version` no header dos YAMLs de vocabulário
-- Validação cruzada per-cliente (vocabulary × Semgrep metadata) — só quando ADR de per-client rule set materializar
-- Decisão sobre rule set per-cliente do `semgrep-runner`
-- `mime_type` declaration em resources
-
----
-
-### Decisões metodológicas calibradas nesta sessão
-
-- **Granularidade de tasks calibrada para Opus 4.7** sob ADR-0008: 8-12 tasks médias (1-3h) em vez de 15-25 finas (30-60min), com referência empírica explícita a Rajasekaran 2026.
-- **Estrutura por Milestones interna**: A (MCPs standalone), B (multi-agente), C (CI/CD + validação). Não recorte de entrega — Milestones são checkpoints empíricos dentro do escopo declarado em `proposta-tcc2 §3, §6`.
-- **Calibração proporcional de Specify**: specs canonical+compact denso para MCP servers (decididas em sessões #07-#13); specs leves para subagentes (a redigir após Milestone A); spec curta para CI/CD (a redigir após Milestone B). Defensável academicamente como adaptação de SDD ao objeto.
-- **Authoring de cláusulas emerge sob demanda**: POL-001 quando T03 pedir; POL-002+ quando task futura pedir. Pattern "cláusula nasce quando teste pede".
-- **Authoring de cláusula é trabalho Chat, não Code**: provenance jurídico-textual, formação do autor.
-- **Authoring de `tasks.md` também é Chat, não Code**: preserva independência do gate tripartite (ADR-0008 D3) — Code que consome tasks não pode ter sido o mesmo agente que as escreveu, sob risco de quebrar a separação no nível do plano.
-- **Discussão Matcher-evaluator adiada**: decisão arquitetural amadurece com base empírica de Milestone A, não com especulação prévia.
-
----
-
-### Sintomas operacionais observados nesta sessão (meta-aprendizado)
-
-Vale registrar como padrão pra calibrar comportamento futuro:
-
-- **Generator (Chat sem filesystem) introduz drift factual** que Code (com filesystem) pega: token `collection`/`coleta`, exemplos errados em RF-004, self-contradiction T05/T07 vs ADR-0008 D3, path errado de ADR-0003 no draft do handoff. Padrão recorrente; reforça empiricamente o D3 de ADR-0008 (revisão multi-instância) com evidência da própria sessão de calibração — o ADR previu o sintoma e o sintoma se manifestou na mesma sessão.
-- **Disciplina de scope** retomada nesta sessão (cleanup do PR-23, pause-and-ask do PR-24) contrasta com sessão anterior onde Code expandiu scope silenciosamente.
-- **Pause-and-ask funcionando** como gate de qualidade: 3 pauses nesta sessão (leftover POL-000 em ADR-0006; conflict de branch base em PR-24; race-condition de push do handoff vs merge dos PRs no GitHub UI). Todas resolveram bem com input curto seu.
-- **Race-condition push vs merge:** durante o commit do próprio handoff, PR #23 e PR #24 foram mergeados via GitHub UI em paralelo. Push rejeitado, rebase com conflito, resolvido sobrescrevendo com versão atualizada que reflete merged-state. Padrão a antecipar: handoff que registra PRs pendentes pode ficar stale entre commit e push se o usuário operar em paralelo. Mitigação prática: redigir handoff como descrição de estado pós-merge, não pre-merge.
-
----
-
-### Próximo passo recomendado
-
-**Abertura da #18.** Quando você abrir, sugestão de prompt curto:
-
-> Session #18 - Authoring de tasks.md sob ADR-0008 (as amended 2026-05-16). Ver handoff #17 + emenda registrada no learning-log #17 sub-seção "Refinamento intra-sessão". Foco: Milestone A detalhado (5 tasks + POL-001 pré), Milestones B/C como placeholders. Two-scope gate: task-level (function-specific pytest + Chat review) + milestone-level (manual exercise validando cada RF acceptance criterion declarada no milestone).
-
-Posso abrir com explicação do two-scope gate emendado se você quiser revisar antes de redigirmos, ou ir direto pra redação se já estiver internalizado.
-
----
-
-Sessão #17 produtiva e densa. Você sai com REQUIREMENTS estabelecido, duas convenções formalizadas em ADRs (linguagem + decomposição), provenance arquitetural intacta, e Code desbloqueado assim que tasks.md materializar na #18. Boa sessão.
+(Hashes preenchidos após `git log` da branch antes do merge.)

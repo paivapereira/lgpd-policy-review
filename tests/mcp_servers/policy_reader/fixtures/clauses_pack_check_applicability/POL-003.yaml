@@ -1,0 +1,37 @@
+clause_id: POL-003
+title: "Coleta de documentos oficiais brasileiros exige consentimento (deprecated)"
+clause_type: substantive
+status: deprecated
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: LGPD
+    artigo: 7
+    inciso: 1
+
+applies_to:
+  personal_data_categories:
+    - dados_de_documentos_oficiais
+  operation:
+    - collection
+
+control: consent_required
+
+requirements:
+  - id: R1
+    text: >
+      Coleta de documentos oficiais (POL-000 §2.2) exige consentimento como
+      base legal.
+
+exceptions: []
+
+tombstone:
+  successors:
+    - POL-004
+  effective_until: "2026-04-01"
+  deprecation_reason: >
+    Redação original tratava o escopo de "documentos oficiais" de forma
+    genérica e não explicitava o vocabulário canônico de base legal. POL-004
+    refinou a redação para listar identificadores típicos cobertos (CPF, RG,
+    CNH) e alinhou a terminologia ao token canônico `consent` do vocabulário
+    `lawful_basis`.

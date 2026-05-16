@@ -1,0 +1,29 @@
+clause_id: POL-001
+title: "Coleta de dados de contato exige consentimento como base legal"
+clause_type: substantive
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: LGPD
+    artigo: 7
+    inciso: 1
+
+applies_to:
+  personal_data_categories:
+    - dados_de_contato
+  operation:
+    - collection
+
+control: consent_required
+
+requirements:
+  - id: R1
+    text: >
+      A coleta de dados de contato (POL-000 §2.3, incluindo email, telefone,
+      endereço postal e equivalentes) exige declaração de consentimento como
+      base legal — valor canônico `consent` do vocabulário `lawful_basis` da
+      Política. Coleta com `legal_basis` ausente ou com valor diferente de
+      `consent` configura tratamento sem base legal aplicável.
+
+exceptions: []

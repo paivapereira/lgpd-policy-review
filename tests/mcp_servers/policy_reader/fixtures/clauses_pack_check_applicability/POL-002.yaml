@@ -1,0 +1,31 @@
+clause_id: POL-002
+title: "Coleta de dados de perfil comportamental exige anonimização prévia"
+clause_type: substantive
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: LGPD
+    artigo: 12
+    paragrafo: 2
+
+applies_to:
+  personal_data_categories:
+    - dados_de_perfil_comportamental
+  operation:
+    - collection
+
+control: anonymization_required
+
+requirements:
+  - id: R1
+    text: >
+      A coleta de dados de perfil comportamental (POL-000 §2.9, incluindo
+      perfis de navegação, inferências comportamentais e dados de
+      personalização) para fins de formação de perfil deve ser precedida de
+      anonimização efetiva, conforme Art. 12 §2º LGPD. Anonimização efetiva é
+      transformação upstream cuja verificação excede análise estática local de
+      pull request — sistema deve sinalizar dimensão fora do escopo de
+      análise estática.
+
+exceptions: []

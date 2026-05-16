@@ -149,6 +149,20 @@ Numeração T01-T10 abaixo é **indicativa** — autorada definitivamente em #18
 - ADR-0001 D3/D4: drift `clause_id` "LGPD-Art-7-I" → `POL-NNN` (formato evoluiu; precisa amendment ou supersede)
 - Token `store` → `storage` em [`docs/specs/policy-reader/compact.md`](docs/specs/policy-reader/compact.md) §5.3 exemplo violation_candidate (drift análogo ao `collect`/`collection` consertado em PR #23, mas em outra cláusula do exemplo)
 
+**Sessão Chat curta de auditoria de ADRs (baixa prioridade):**
+
+Code review do PR adr-access-layer (session #18) identificou que ADR-0001 carrega `## Pendências decorrentes (operational, not part of this decision)` na linha 271 — quatro bullets estruturalmente paralelos à seção `## Follow-up patches` removida do ADR-0002 neste PR. Mesmo anti-padrão (ADR-as-todo-list) identificado por Code no relatório de simulação de one-shot.
+
+Os quatro bullets do ADR-0001:
+- `.python-version` no repo root
+- Branch protection em main via GitHub web UI
+- `~/.claude/CLAUDE.md` user-scope
+- Advisor outreach UTFPR (deadline crítico ~14 dias do bootstrap)
+
+Pendência: sessão Chat curta para verificar estado atual de cada um (alguns são mecanicamente verificáveis, outros — advisor outreach — exigem confirmação manual). Decisão por bullet: remover se aplicado, migrar para esta pendência se ainda em aberto, manter no ADR apenas se justificado por motivo distinto do "ADR-as-todo-list".
+
+Pattern para futuro: novos ADRs não levam seções `## Pendências decorrentes` ou `## Follow-up patches`. Pendências operacionais nascem em session-handoff.md, não em ADR. Vale codificar isso em `.claude/rules/adr.md` quando aquela rule for redigida.
+
 **Adiar para sessão #20+:**
 - Semântica de `last_revision` em `policy/policy.yaml`
 - Semântica de `schema_version` no header dos YAMLs de vocabulário

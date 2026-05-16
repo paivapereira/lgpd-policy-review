@@ -74,6 +74,8 @@ Os artefatos produzidos por fase incluem: documentos de arquitetura e Architectu
 
 A pilha tecnológica adotada é Python 3.12 como linguagem principal, FastMCP 2.x para implementação dos servidores MCP, Pydantic 2.5 para validação de esquemas, Semgrep como motor de detecção sintática, GitHub Actions para integração CI/CD, e Inspect AI como framework de avaliação. O versionamento é em Git com convenção *Conventional Commits*. A abordagem de detecção é híbrida em duas etapas — Semgrep determinístico para detecção estável de candidatos, agentes baseados em modelos de linguagem para classificação contextual e avaliação de conformidade contra a Política.
 
+Calibração de granularidade da fase Plan. A literatura recente da Anthropic (RAJASEKARAN, 2026) documentou empiricamente que decomposição fina prescrita por frameworks como GitHub Spec Kit, originalmente motivada por limitações de coerência em contexto longo de modelos como Claude Sonnet 4.5, perdeu valor com modelos mais capazes da família Opus 4.6+. Este trabalho, executado com Claude Opus 4.7, adota SDD com calibração explícita: decomposição em 8-12 tasks de granularidade média (1-3 horas), com critério de aceitação amarrado aos requisitos funcionais consolidados em `docs/REQUIREMENTS.md` e gate de verificação tripartite (testes automatizados, revisão independente por instância separada de Claude conforme padrão multi-instance review do Domínio 4 do Claude Certified Architect Foundations exam guide, e exercício manual operado pelo autor). A escolha materializa o princípio "find the simplest solution possible, and only increase complexity when needed" (ANTHROPIC, 2025) e é formalizada em ADR-0008.
+
 ## 8. Escopo e fronteiras
 
 **Dentro do escopo do MVP:** Política versionada com esquema 0.1.0; servidores MCP `policy-reader` e `semgrep-runner`; cinco subagentes operacionais; *recognizers* para os seis identificadores brasileiros listados; GitHub Action funcional; benchmark sintético de validação; relatório técnico de TCC2.
@@ -107,6 +109,8 @@ O trabalho será documentado segundo o modelo institucional de **Relatório Téc
 
 ANTHROPIC. **Best practices for agentic coding**. Anthropic Engineering, 2025. Disponível em: https://www.anthropic.com/engineering.
 
+ANTHROPIC. **Building Effective Agents**. Anthropic Research, 2025. Disponível em: <https://www.anthropic.com/research/building-effective-agents>.
+
 ANTHROPIC. **Model Context Protocol Specification**. 2024. Disponível em: https://modelcontextprotocol.io.
 
 BÖCKELER, Birgitta. **Understanding Spec-Driven Development**. martinfowler.com, 2025.
@@ -120,6 +124,8 @@ NYGARD, Michael T. **Documenting Architecture Decisions**. 2011. Disponível em:
 OPEN POLICY AGENT. **Policy as Code with Rego**. Disponível em: https://www.openpolicyagent.org.
 
 PRIVADO.AI. **Static analysis for data privacy**. Disponível em: https://www.privado.ai.
+
+RAJASEKARAN, P. **Harness design for long-running application development**. Anthropic Engineering, 24 mar. 2026. Disponível em: <https://www.anthropic.com/engineering/harness-design-long-running-apps>.
 
 SEMGREP. **Semgrep — Lightweight static analysis for many languages**. Disponível em: https://semgrep.dev.
 

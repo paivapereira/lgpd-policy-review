@@ -1538,3 +1538,57 @@ Branch `arch/multi-client-policy-rewrite` com 6 commits aplicados + 2 a aplicar 
 Fase 1.5 (Chat) — `docs/requirements.md` e `docs/tasks.md` em branch nova `docs/requirements-and-tasks` ramificando de main após PR da Fase 1 mergeado. Custo estimado 10-16h, uma ou duas sessões de Chat. Detalhamento em `session-handoff.md` (a reescrever no Commit 7).
 
 Fase 2 (Code) começa depois, consumindo `tasks.md` task-a-task em ordem topológica. Estimativa 4-6 sessões de Code para policy-reader + semgrep-runner + integração CI/CD.
+
+---
+
+## 2026-05-15 — sessão #17 — REQUIREMENTS.md, calibração SDD via Rajasekaran 2026
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1.6 Task decomposition — limites de utilidade documentados.** Discussão sobre quando decomposition prescrita por framework deixa de agregar valor. Rajasekaran 2026 demonstrou empiricamente que sprint construct e fine-grained decomposition de Spec Kit-style frameworks viraram dead weight com Opus 4.6+. Lição aplicada: tasks.md migra de 15-25 fine para 8-12 médias, formalizado em ADR-0008.
+- **D1.7 Session management — close limpo > resume com contexto sujo.** Decisão consciente de fechar #17 antes de discutir Matcher, em vez de empurrar Matcher pra dentro de sessão já longa com risco de degradar. Aplicação prática de "starting a new session with structured summary is more reliable than resuming with stale tool results".
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4.6 Multi-instance review.** ADR-0008 Decision 3 formaliza independent review pass por Chat separada como gate de verificação. Padrão prescrito pelo exam guide, validado empiricamente por Rajasekaran 2026 no contexto adversarial generator-evaluator.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 Provenance via citation chain.** REQUIREMENTS.md → tasks.md → commit. ADR-0008 Decision 2 preserva essa chain ao amarrar acceptance de task ao RF/RNF upstream, evitando drift entre requirement e task statements.
+- **D5 Context anxiety.** Conceito novo emergente em Rajasekaran 2026 — modelo encerrando trabalho prematuramente perto do que acredita ser limite de contexto. Vale internalizar como vocabulário de prova.
+
+### Decisões substantivas
+
+Conteúdo canônico de cada decisão em ADR correspondente; aqui só registro do processo.
+
+- **REQUIREMENTS.md mergeado em PR #23 com 9 RFs + 2 RNFs.** Restrição MVP a operation_type: collection materializada em RF-004. Refs a ADR-0007 mantida como deferred citation matching pattern de ADR-0004 em RNF-001.
+- **ADR-0006 (language conventions) aceito após calibração.** Closed-list em Decision 1 softened; POL-000 reframed em Decision 2 como camada arquitetural separada (não exceção); contagens de vocabulário corrigidas contra realidade dos YAMLs; leftover bullet de Aggregated > Negative reescrito.
+- **ADR-0007 (MVP collection-only scope) deferido conscientemente.** Rationale do Code original ("research signal density") identificado como racionalização post-hoc; rationale real (sistema como ferramenta acessória a mapa de tagueamento de coleta) não foi capturado. Redação fica para sessão Chat dedicada antes de Fase 2.
+- **ADR-0008 (task decomposition and verification) materializado nesta sessão.** SDD calibrado para Opus 4.7+: tasks médias amarradas a RFs, gate tripartite. Referência primária a Rajasekaran 2026.
+
+### Validações empíricas
+
+- **Independent review pass por Chat funcionou em PR #23.** Auditoria do João pegou drift que minha geração (Chat com contexto curto) introduziu — exemplos errados de operation tokens (`use, transfer, storage, deletion`) que não existiam no vocabulário canônico. Padrão D4.6 validado em prática real do projeto antes mesmo de ser formalizado.
+- **Pause-and-ask pelo Code disciplinou expansão de escopo.** Sessão de cleanup do PR-23 manteve disciplina (descobertas que mereciam decisão consultaram, descobertas fora de escopo foram apenas flagged), contrastando com sessão anterior onde Code expandiu escopo silenciosamente gerando ADR-0006 e ADR-0007 não solicitados.
+
+### Artefatos produzidos
+
+- PR #23 (`docs/requirements-and-tasks`) mergeado em main, contendo:
+  - `docs/REQUIREMENTS.md` v1.0 (9 RFs + 2 RNFs).
+  - `docs/adr/0006-language-conventions.md` (Portuguese non-ADR docs convention + English jurisdictional vocab tokens).
+  - Patches em `docs/specs/policy-reader/canonical.md` e `compact.md` (collect → collection).
+- ADR-0008 a materializar em PR dedicado nesta sessão de fechamento.
+- Atualização de `docs/proposta-tcc2.md` §7 com calibração SDD e §11 com duas novas referências.
+- Atualização de `CLAUDE.md` com pointer a ADR-0008.
+
+### Pendências para sessão #18+
+
+- Discussão sobre Matcher como evaluator iterativo (Rajasekaran-pattern aplicado ao Matcher real da Fase 2): trade-off custo 2x tokens vs ganho em verdict accuracy.
+- ADR-0007 (MVP collection-only scope) — redação em sessão Chat dedicada com rationale do mapa de tagueamento como motivação primária.
+- `docs/tasks.md` (Commit 1.5.2 original do plano da Fase 1.5) — agora calibrada por ADR-0008 para 8-12 tasks médias com gate tripartite.
+
+### Próximo passo
+
+Sessão #18 abre com agenda dupla: (a) discussão sobre Matcher como evaluator iterativo (decisão arquitetural significativa de Fase 2); (b) preparação para sessão dedicada de ADR-0007. tasks.md fica para sessão #19 ou intercalado conforme disponibilidade.

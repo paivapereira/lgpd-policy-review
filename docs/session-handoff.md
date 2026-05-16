@@ -1,7 +1,7 @@
 # Session handoff
 
-**Última sessão fechada:** #16 (Code) — 2026-05-14
-**Próxima sessão:** #16.5 (Chat) — Fase 1.5: requirements + tasks
+**Última sessão fechada:** #17 (Chat) — 2026-05-15
+**Próxima sessão:** #18 (Chat) — Matcher como evaluator iterativo + preparação ADR-0007
 **Branch ativa atual:** `arch/multi-client-policy-rewrite` (8 commits incluindo este handoff, aguardando push e PR)
 **Branch nova a abrir para #16.5:** `docs/requirements-and-tasks` (ramificar de main após PR da Fase 1 mergeado)
 
@@ -30,6 +30,7 @@ Push da branch + abertura do PR em main são ação manual pós-Commit 7 (`git p
 
 - ADR-0004 (uv + FastMCP 3.x) — número reservado desde sessão #14; inclui CVE 2.x check.
 - ADR-0007 (escopo de operações MVP v0.1.0 — only `collection` evaluated against clauses) — número reservado em PR #23; redação diferida para sessão Chat dedicada. Rationale primária a registrar: sistema é ferramenta acessória a mapa de tagueamento de coleta de dados, não a política inteira de proteção de dados da empresa. Argumentos secundários (foundational data-flow position, signal density, compliance-domain breadth) podem complementar mas não substituir a motivação primária. Citado por REQUIREMENTS.md RF-004 e por docs/adr/0006 (referência cruzada).
+- ADR-0008 (task decomposition granularity and verification gate) — materializado nesta sessão como governance da forma do `docs/tasks.md`. Não-bloqueante para implementação se `tasks.md` for redigido sob suas decisões.
 - `mime_type` micro-débito em resources (declarar `application/json` no loader real).
 
 **Adiar para sessão #18+:**
@@ -163,7 +164,7 @@ gh pr create --base main --head docs/requirements-and-tasks `
 
 ## Plano de ação Fase 2 — Code (sessão #17 ou posterior)
 
-**Input para Code.** `docs/tasks.md` é o source-of-truth da Fase 2. Code consome task a task em ordem topológica, validando critério de aceitação de cada antes de marcar como done. Prompt da sessão: *"Executar T001 do tasks.md. Validar critério de aceitação antes de fechar. Pausar e perguntar se algo na task estiver ambíguo."*
+**Input para Code.** `docs/tasks.md` é o source-of-truth da Fase 2 sob governança de ADR-0008 (granularidade 8-12 tasks médias, acceptance amarrada a REQUIREMENTS.md RFs/RNFs, gate tripartite por task). Code consome task a task em ordem topológica, validando os três mecanismos do gate antes de marcar como done.
 
 Decisão one-shot vs tasks granulares — deferida da #14 — fica resolvida automaticamente: tasks já são granulares por design da Fase 1.5. Cada task é one-shot dentro de si.
 

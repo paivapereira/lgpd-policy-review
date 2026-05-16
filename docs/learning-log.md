@@ -1584,3 +1584,20 @@ Conteúdo canônico de cada decisão em ADR correspondente; aqui só registro do
 ### Próximo passo
 
 Sessão #18 abre com agenda dupla: (a) discussão sobre Matcher como evaluator iterativo (decisão arquitetural significativa de Fase 2); (b) preparação para sessão dedicada de ADR-0007. tasks.md fica para sessão #19 ou intercalado conforme disponibilidade.
+
+### Refinamento intra-sessão (continuação 2026-05-16)
+
+Discussão pré-#18 sobre cobertura RF-por-task no Milestone A revelou conflação no ADR-0008 §2-§3 original: capability (externamente observável, RF-shaped, milestone-scope em prática) e function (output de unit de trabalho, test-shaped, task-scope) ambas amarradas ao task-level. Tasks internas (loader, AgentDefinition, scaffolding) sem correspondência 1:1 com capability eram forçadas a (a) inventar partial RF coverage ou (b) operar sem acceptance. Sintoma já visível na primeira proposta de Milestone A: 3 das 5 tasks (T01 loader, T02 retrieval tools, T04 resources) ficaram sem RF citado, e T07 (emit_report) cobria RF-006 sem declarar.
+
+**Emenda aplicada in-place no mesmo dia.** Decisões 1-3 refinadas:
+
+- §1: capability vive no milestone; task entrega função coerente dentro de seu milestone (loader, resource, tool, recognizer set, integration step).
+- §2: RF binding migra para milestone scope. Tasks não bindam RFs individualmente.
+- §3: gate split em **task-level** (function-specific pytest + independent Chat review) e **milestone-level** (manual exercise validando cada Dado/Quando/Então das RFs declaradas em §2). Tripartite per-task original colapsa em duas mecânicas no scope correto.
+- Header do ADR ganha bloco "Amendment scope (2026-05-16)" registrando rationale, perímetro e justificativa.
+
+**Companion edits aplicadas na mesma transação:** `CLAUDE.md` §"Working methodology" reescrito; `docs/session-handoff.md` (pendência #18 e prompt de abertura) atualizados; este registro.
+
+**Justificativa de emenda in-place vs novo ADR-0009.** ADR-0008 fresco (24h); #18 (primeiro consumidor) ainda não rodou; greenfield sem deployment ou tasks.md autorada. ADR-0005 precedente usou refinement-via-novo-ADR mas operava sobre consumidor herdado (código semente da #14 + specs mergeadas). Aqui in-place preserva single-source-of-truth para Claude (consumidor primário de ADRs neste projeto) sem custo de migração; expectativa de imutabilidade não acionada porque nenhum artefato downstream foi autorado sob a versão original.
+
+**Conceito de prova exercitado lateralmente.** Conflação capability×function no scope errado é forma específica de **abstraction leak no boundary**: §2 do original misturava dois eixos de design (decomposition strategy + acceptance criteria scope) que deveriam ter ficado ortogonais. Decoupling reverte a leak. Padrão destilável: quando uma decisão arquitetural produz fricção sistemática em aplicação (per-task RF binding produziu friction em 3+ pontos da primeira proposta de tasks), a hipótese default é conflação no nível da decisão, não no nível das tasks.

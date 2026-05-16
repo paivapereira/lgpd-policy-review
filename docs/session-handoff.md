@@ -77,12 +77,52 @@ Estado **realizado** (não plano em progresso). Referência canônica em ADR-000
 - Deletar branches mergeadas: `git push origin --delete docs/adr-retroactive-conventions docs/adr-0008-sdd-calibration` (e `git branch -d` no local).
 
 **Sessão #18 (Chat) — agenda:**
-- Authoring de `docs/tasks.md` v1.0 sob governança de ADR-0008. Conteúdo:
+- Authoring de `docs/tasks.md` v1.0 sob governança de ADR-0008 (as amended 2026-05-16). Conteúdo:
   - Estrutura por Milestones (A, B, C)
-  - Milestone A detalhado: T01-T05 + pré-implementação POL-001
+  - Milestone A detalhado: ~5 tasks + pré-implementação POL-001
   - Milestones B e C como placeholders ("specs a redigir, tasks a decompor após A")
-  - Cada task carrega: nome, dependências, files previstos, RFs/RNFs cobertos, gate tripartite (testes automatizados + revisão independente Chat + exercício manual via Inspector)
+  - Cada **milestone** carrega: RFs/RNFs cobertos + Dado/Quando/Então herdados de REQUIREMENTS.md + gate milestone-level (manual exercise via MCP Inspector validando cada acceptance criterion)
+  - Cada **task** dentro de milestone carrega: nome, dependências, files previstos, função entregue (sem RF binding individual — ADR-0008 §2 amended), gate task-level (function-specific pytest + independent Chat review)
 - Estimativa: 2-3 horas. PR dedicado de redação.
+
+**Proposta Milestone A para #18 (insumo, não decisão).**
+
+Esboço produzido em discussão pré-#18 (mesma sessão da emenda ADR-0008). #18 pode reformular livremente; objetivo é evitar re-derivação cold da estrutura.
+
+*RFs/RNFs cobertos pelo Milestone A* (acceptance via Dado/Quando/Então das RFs em `docs/REQUIREMENTS.md`):
+- **RF-001** (detecção de coleta) — `semgrep-runner`
+- **RF-002** (6 BR identifiers: CPF/CNPJ/CNH/NIS-PIS/título/CNS) — `semgrep-runner` rule content
+- **RF-004** (avaliação de conformidade, escopo `collection`) — `policy-reader.check_applicability`
+- **RF-005** (veredito `indeterminate` honesto) — `policy-reader.check_applicability`
+- **RF-009** (provenance trinque) — `policy-reader` handshake + `check_applicability`
+- **RNF-001** parcial — stack/reprodutibilidade observável no startup loader
+- **RF-007** e **RF-008** *mechanism-only* — validação de `accepted_law_identifiers` + `legal_framework` reportado em handshake e trinque. E2E delivery dessas duas fica para Milestones B/C (exige pipeline E2E + GDPR fixture).
+
+*Fora de Milestone A* (depende de Milestones B/C, sem design fechado ainda):
+- RF-003 (Classifier), RF-006 (Report JSON via Reporter), RF-007 E2E (cliente A vs B), RF-008 E2E (LGPD→GDPR rerun), RNF-002 (GitHub Action informativo).
+
+*Tasks propostas (5, ordem topológica):*
+
+1. **T01 — policy-reader bootstrap.** Loader (`policy.yaml` + `clauses/*.yaml` + `vocabularies/<framework>/*.yaml`) + resource `policy://schema-version` (trinque handshake) + abort-on-failure de startup. Função: server inicia limpo ou falha cedo; consumidor lê trinque antes de invocar tools.
+2. **T02 — policy-reader retrieval.** Resource `policy://catalog` + tools `get_clause` e `find_clauses_by_law_article` (matching hierárquico `article_source`, validação de `lei` contra `accepted_law_identifiers`). Função: consumidor descobre cláusulas por ID ou por artigo de lei.
+3. **T03 — policy-reader evaluation.** Resource `policy://vocabularies` + tool `check_applicability` (4 vereditos enumerados; MVP retorna `not_applicable` always até cláusulas substantivas existirem, com trinque de provenance em sucesso). Função: emitir veredito estruturado para um par (clause, structured_context).
+4. **T04 — semgrep-runner core.** Loader (binary discovery, version check, `rules_version` via hash do rule set) + tool `scan_diff` (git ref resolve, subprocess + parse JSON, all-or-nothing timeout). Rule set bundled com 1-2 regras canário. Função: scan diff-aware retorna findings estruturados ou erro tipado.
+5. **T05 — Brazilian recognizers.** 6 regras Semgrep (CPF/CNPJ/CNH/NIS-PIS/título de eleitor/CNS) substituem o rule set canário do T04 + fixtures de detecção positiva e negativa por identifier. Função: rule set bundled cobre os 6 identifiers com `data_categories` correto em cada finding.
+
+*Pendências bloqueantes antes do primeiro Code session* (resolver em Chat dedicado ou inline em #18):
+
+- **ADR-0004** (uv + FastMCP 3.x) — número reservado desde #14, decisão pendente. Bloqueia T01 sob auditoria SDD estrita.
+- **Decisão Semgrep-on-Windows** — onde Semgrep roda no ambiente Windows corporativo sem WSL (Docker / pip native / remote worker / CI-only). Bloqueia T04 — sem essa decisão, a forma do `loader` e do `scan_diff` muda radicalmente.
+- **POL-001 a POL-005** (estimado) — POL-001 já é pré-implementação confirmada (ordem: ADR-0007 antes, POL-001 depois). POL-002 a POL-005 são em aberto: T03 sobrevive com `not_applicable` always, mas o **gate milestone-level** (Inspector exercitando RF-004 e RF-005 com vereditos diversos) precisa de cláusulas substantivas que exercitem `compliant`/`violation_candidate`/`indeterminate`. Decisão pendente: autorar POL-001..POL-005 numa sessão Chat ou apenas POL-001 e diferir.
+
+*Gate milestone-level proposto* (roteiro Inspector cross-tool):
+- RF-001: `scan_diff` em diff com chamada de função suspeita → finding emitido com `rule_id`.
+- RF-002: `scan_diff` em diff cobrindo cada um dos 6 BR identifiers → 6 findings com `data_categories` correto.
+- RF-004/-005: `check_applicability` sobre fixtures cobrindo os 4 vereditos (depende de POL-001..POL-005).
+- RF-009: cada retorno de `check_applicability` + handshake carregam trinque `(policy_schema_version, policy_version, legal_framework)`.
+- RF-007/-008 mechanism: `find_clauses_by_law_article` com `lei` fora de `accepted_law_identifiers` retorna `INVALID_LAW_IDENTIFIER`; handshake reporta `legal_framework` correto.
+
+*Estimativa por task:* T01 1-2h · T02 2-3h · T03 2-3h · T04 2-3h · T05 2-3h. Total **9-14h, 3-5 sessões Code**.
 
 **Sessões Chat dedicadas (antes de Fase 2 começar — ordem importa):**
 

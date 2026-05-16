@@ -53,16 +53,16 @@
 
 ### RF-004 — Avaliação de conformidade contra a Política (escopo MVP restrito a coleta)
 
-**Descrição.** Sistema avalia candidatos com `operation_type: coleta` contra cláusulas aplicáveis da Política e emite veredito no conjunto `{compliant, violation_candidate, indeterminate, not_applicable}`. Candidatos com outras operações (`uso`, `transferencia`, `armazenamento`, etc.) retornam `verdict: not_applicable` com razão explícita de escopo MVP — comportamento que preserva a arquitetura para expansão futura sem refatoração. Cláusulas que governam operações fora de `coleta` permanecem na Política como audit trail e provenance histórica, mas não disparam matching no MVP v0.1.0.
+**Descrição.** Sistema avalia candidatos com `operation_type: collection` (token canônico do vocabulário `policy/vocabularies/<framework>/operation.yaml`, exposto via `policy://vocabularies`) contra cláusulas aplicáveis da Política e emite veredito no conjunto `{compliant, violation_candidate, indeterminate, not_applicable}`. Candidatos com outras operações (`use`, `transfer`, `storage`, etc.) retornam `verdict: not_applicable` com razão explícita de escopo MVP — comportamento que preserva a arquitetura para expansão futura sem refatoração. Cláusulas que governam operações fora de `collection` permanecem na Política como audit trail e provenance histórica, mas não disparam matching no MVP v0.1.0.
 
 **Critério.**
-- **Dado** candidato com `operation_type: coleta` e Política contendo cláusula aplicável,
+- **Dado** candidato com `operation_type: collection` e Política contendo cláusula aplicável,
 - **quando** o Matcher avalia,
 - **então** o finding contém `clause_id` da cláusula aplicada e `verdict` em `{compliant, violation_candidate, indeterminate, not_applicable}`.
 
-- **Dado** candidato com `operation_type ∈ {uso, transferencia, armazenamento, eliminacao, ...}`,
+- **Dado** candidato com `operation_type` em qualquer valor do vocabulário diferente de `collection` (e.g., `use`, `transfer`, `storage`, `deletion`),
 - **quando** o Matcher avalia,
-- **então** `verdict: not_applicable` com `reason: "operation outside MVP scope (v0.1.0)"`, sem invocar matching de cláusulas.
+- **então** `verdict: not_applicable` com `reason: "operation outside MVP scope (v0.1.0): only 'collection' is evaluated"`, sem invocar matching de cláusulas.
 
 **Refs.** `architecture-overview.md` §5.5; `docs/specs/policy-reader/canonical.md` §4; ADR retroativo sobre escopo de operações na v0.1.0 (a redigir, registrado em `session-handoff.md`).
 
@@ -83,7 +83,7 @@
 
 ### RF-006 — Report agregado em JSON estruturado
 
-**Descrição.** Sistema consolida todos os vereditos do PR em um Report JSON único, auditável, emitido via tool customizada `emit_report` exclusiva do subagente Reporter. Cada finding do Report contém minimamente: localização (`file`, `line`), `rule_id`, `data_categories`, `operation_type`, `clause_id` quando aplicável, `verdict`, `evidence` ou `verification_scope` conforme o veredito, e a trinca de provenance da Política (ver RF-009). O Report é o único output observável externamente — todos os demais artefatos são internos ao pipeline.
+**Descrição.** Sistema consolida todos os vereditos do PR em um Report JSON único, auditável, emitido via tool customizada `emit_report` exclusiva do subagente Reporter. Cada finding do Report contém minimamente: localização (`file`, `line`), `rule_id`, `data_categories`, `operation_type`, `verdict`, e `clause_id` quando `verdict ∈ {compliant, violation_candidate, indeterminate}` (omitido em `not_applicable`), além de `evidence` ou `verification_scope` conforme o veredito, e a trinca de provenance da Política (ver RF-009). O Report é o único output observável externamente — todos os demais artefatos são internos ao pipeline.
 
 **Critério.**
 - **Dado** PR processado até a etapa do Reporter sem falha terminal,

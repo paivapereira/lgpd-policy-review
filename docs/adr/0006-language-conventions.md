@@ -37,7 +37,7 @@ The following document classes are authored in Portuguese:
 - `policy/SCHEMA.md`
 - `docs/_drafts/*` and any future operational drafts
 
-The list is closed. Adding a new technical-doc class with a different language requires an addendum to this ADR.
+The list enumerates the technical-doc classes currently authored in Portuguese. New documents in the same operational category default to Portuguese without requiring an ADR amendment; the convention is descriptive of practice, not a gate.
 
 Within these documents, citations of technical identifiers remain in their canonical form regardless of the surrounding prose language: `clause_id`, `policy_schema_version`, `legal_framework`, vocabulary tokens (`collection`, `consent_required`), error codes, and analogous machine-readable strings are quoted verbatim.
 
@@ -50,13 +50,13 @@ Within these documents, citations of technical identifiers remain in their canon
 Token values declared via the `name:` field in the four jurisdictional vocabulary YAMLs under `policy/vocabularies/<framework>/` are English snake_case. The convention applies to:
 
 - `operation.yaml` — 22 values in the LGPD vocabulary, all English (`collection`, `recording`, `storage`, `use`, `disclosure_by_transmission`, `erasure`, `international_transfer`, etc.).
-- `lawful_basis.yaml` — 17 values across personal-data and sensitive-data categories, all English (`consent`, `legitimate_interests`, `contract_performance`, `explicit_consent`, etc.).
+- `lawful_basis.yaml` — 18 values across personal-data and sensitive-data categories, all English (`consent`, `legitimate_interests`, `contract_performance`, `explicit_consent`, etc.).
 - `control.yaml` — 2 MVP values, all English (`consent_required`, `anonymization_required`).
 - `out_of_scope.yaml` — 7 values, all English (`unmodeled_special_category`, `not_personal_data_per_definition`, etc.).
 
 The Portuguese human-readable label of each token lives in the `description:` field of the same entry. Reports and PR comments rendering tokens to end users translate through `description`, never by aliasing the key.
 
-The convention does **not** apply to the POL-000 data category vocabulary (`dados_de_identificacao`, `dados_de_contato`, `dados_sensiveis`, etc.). POL-000 is the universal semantic catalog of personal-data categories (ADR-0005 Decision 3): statute-informed but not statute-bound, framework-independent, and authored in Portuguese for legal fidelity to LGPD Art. 5º. Mapping `dados_de_identificacao` to `identification_data` would lose the LGPD-specific semantic boundary that the Portuguese term preserves. POL-000 tokens remain Portuguese.
+The convention scope is restricted to the four jurisdictional vocabulary files under `policy/vocabularies/<framework>/`. POL-000 lives in a separate architectural layer — it is a `definitional` clause under `policy/clauses/`, not a vocabulary file, per ADR-0005 Decision 3. POL-000 token form (`dados_de_identificacao`, `dados_de_contato`, etc.) follows the Portuguese convention that governs Policy clause content under ADR-0001 (legal fidelity to LGPD Art. 5º). The two surfaces are governed by different rules because they belong to different architectural layers, not because POL-000 is an exception to the present rule.
 
 **Rationale.** The "code in English" principle of ADR-0001 applies to anything the Matcher, Classifier, or `policy-reader` compare with `==` or `in`. Jurisdictional-vocabulary tokens are compared in code paths (`if candidate.operation_type == "collection": ...`) and indexed across multilingual frameworks: a future `policy/vocabularies/GDPR/operation.yaml` must share token shape with the LGPD file, not vary by language. POL-000, by contrast, is referenced from clauses that themselves describe Brazilian-specific categorizations, is not cross-framework, and is authored under the same legal-fidelity rule that governs Policy clause text.
 
@@ -91,7 +91,7 @@ Quick reference. Updates to the table require ADR amendment.
 **Negative.**
 
 - Anglophone reviewers cannot read specs and architecture docs directly. Mitigated by ADRs being English (the externally-citable decision layer) and by reports/outputs being Portuguese (the consumer-facing layer) — together, the English ADR set plus machine translation of the Portuguese specs is sufficient for external review of architectural soundness.
-- The POL-000 exemption from convention 2 is judgemental rather than mechanical. Documented as an exemption rationale rather than an absolute rule; if a future framework expansion surfaces an edge case where the boundary is ambiguous, this ADR is the place to amend.
+- The boundary between the four jurisdictional vocabulary files (governed by convention 2) and Policy clause content (governed by ADR-0001 legal-fidelity rule) is judgemental rather than mechanical. POL-000 is the current example of clause-as-vocabulary: a definitional clause that functions as a closed vocabulary of personal-data categories. Future definitional clauses or jurisdictional vocabularies may surface edge cases where the architectural layer is not obvious. Documented as a layer-allocation rationale rather than an absolute rule; if a future framework expansion surfaces such an edge case, this ADR is the place to amend.
 
 **Migration path.** Not applicable. The conventions are descriptive of current state across the codebase post-PR #22. The companion patches in this PR are the only operational changes associated with the ADR; future drift is prevented by the rule existing in citable form.
 
@@ -99,4 +99,3 @@ Quick reference. Updates to the table require ADR amendment.
 
 - **`docs/specs/policy-reader/canonical.md` and `compact.md`** — `"operation": "collect"` → `"operation": "collection"` in the `check_applicability` `compliant` example payload. Internal spec inconsistency: the vocabulary declares `collection`, the example used `collect`. Resolved before this ADR was authored (companion to the convention being documented, not derived from it).
 - **`docs/REQUIREMENTS.md`** — RF-004 example tokens corrected from `use`, `transfer`, `storage`, `deletion` (where `transfer` and `deletion` are not canonical tokens in `operation.yaml`) to `use`, `storage`, `disclosure_by_transmission`, `erasure` (all canonical). RF-004 description rephrased identically. The change is editorial alignment with the operational vocabulary now governed by this ADR.
-- ADR-0007 (companion ADR in the same PR) cites this ADR for the token-language convention applied to its MVP scope examples.

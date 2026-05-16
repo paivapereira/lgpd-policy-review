@@ -29,6 +29,7 @@ Push da branch + abertura do PR em main são ação manual pós-Commit 7 (`git p
 **Resolver na Fase 2 (#17+ — Code, antes do primeiro código rodar):**
 
 - ADR-0004 (uv + FastMCP 3.x) — número reservado desde sessão #14; inclui CVE 2.x check.
+- ADR-0007 (escopo de operações MVP v0.1.0 — only `collection` evaluated against clauses) — número reservado em PR #23; redação diferida para sessão Chat dedicada. Rationale primária a registrar: sistema é ferramenta acessória a mapa de tagueamento de coleta de dados, não a política inteira de proteção de dados da empresa. Argumentos secundários (foundational data-flow position, signal density, compliance-domain breadth) podem complementar mas não substituir a motivação primária. Citado por REQUIREMENTS.md RF-004 e por docs/adr/0006 (referência cruzada).
 - `mime_type` micro-débito em resources (declarar `application/json` no loader real).
 
 **Adiar para sessão #18+:**

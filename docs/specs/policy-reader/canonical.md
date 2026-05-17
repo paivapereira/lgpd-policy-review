@@ -12,7 +12,7 @@
 
 **Consumidores autorizados.** Tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`) são acessadas exclusivamente pelo subagente Matcher. Resources (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`) são consumidos pelo Matcher e, no caso específico de `policy://vocabularies`, também pelo Classifier (read-only, sem acesso às tools). Restrição materializada via configuração de `mcp_servers` no AgentDefinition de cada subagente (`architecture-overview.md` §5.7). Outros subagentes (Triager, Detector, Reporter) não têm este servidor em seu inventário.
 
-**Stack e governança.** Implementação em FastMCP 2.x conforme ADR-0001. Decisões de design deste componente são governadas pelo ADR-0002, incluindo deferimentos registrados explicitamente.
+**Stack e governança.** Implementação em FastMCP 3.x conforme ADR-0004. Decisões de design deste componente são governadas pelo ADR-0002, incluindo deferimentos registrados explicitamente.
 
 ## 2. Contrato com o artefato servido
 
@@ -713,7 +713,7 @@ A implementação do `policy-reader` está completa quando todos os critérios a
 
 ### 8.7 Implementação
 
-- [ ] Stack conforme ADR-0001 (FastMCP 2.x, Python 3.12.7).
+- [ ] Stack conforme ADR-0001 (FastMCP 3.x, Python 3.12.7).
 - [ ] Política carregada no startup; restart necessário para reload.
 - [ ] Vocabulário POL-000 (classes de dados) lido de `policy/SCHEMA.md`; vocabulários jurisdicionais (`operation`, `lawful_basis`, `control`, `out_of_scope`) lidos de `policy/vocabularies/<framework>/*.yaml` no startup, governados por `legal_framework` do header da Política (nenhum vocabulário hardcoded no componente).
 - [ ] Troca de `legal_framework` da Política não exige alteração de código: instanciar Política nova/clonada sob nova jurisdição, popular `policy/vocabularies/<new_framework>/`, atualizar header, restart. Verificável por exercício de clone sob framework alternativo.

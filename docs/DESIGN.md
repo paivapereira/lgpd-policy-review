@@ -37,9 +37,10 @@ O sistema opera em três planos epistêmicos disjuntos: o Detector raciocina no 
 
 ## Decisões arquiteturais críticas
 
-- **ADR-0001** — Stack: FastMCP 2.x, Python 3.12.7, uv.
+- **ADR-0001** — Stack: Python 3.12.7, uv.
 - **ADR-0002** — MCP conventions: hybrid placement, custom URI schemes (`policy://`), três classes de erro.
 - **ADR-0003** — Spec architecture: dual canonical+compact com escalation pointers; paridade restrita a contract surfaces.
+- **ADR-0004** — FastMCP 3.x.
 - **ADR-0005** — Multi-cliente: vocabulários jurisdicionais como dados em `policy/vocabularies/<framework>/`, expostos via resource `policy://vocabularies`.
 
 ## Validação global

@@ -155,3 +155,31 @@ class LoadedPolicy(BaseModel):
     header: PolicyHeader
     clauses: dict[str, Clause]
     vocabularies: dict[str, Vocabulary]
+
+
+class ErrorEnvelope(BaseModel):
+    """Canonical error envelope shape for tool returns (canonical §5.1).
+
+    Field names are camelCase deliberately — they are JSON keys consumed by
+    downstream agents and must match the contract in canonical §5.1 / §5.4
+    verbatim. The Python attribute names follow the same casing because
+    `model_dump()` is used directly on the wire (no alias indirection).
+
+    Wire-shape convention adopted by this project (Option B from T02a):
+    the envelope is serialised into `structuredContent` of the wire
+    `CallToolResult`; `content[0].text` reproduces `message` as a human
+    fallback; wire `isError` stays `False` and is reserved for protocol-level
+    failures (input schema rejection, tool-not-found). Consumers discriminate
+    success vs domain error by the presence of `errorCode` in
+    `structuredContent`. Canonical §5.1 prescribes `isError: True` for domain
+    failures, but FastMCP 3.2.4 has no public path that simultaneously emits
+    `isError: True` and a structured payload — pinned as cross-doc debt
+    (DD-6 in T02a session notes).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    errorCode: str = Field(min_length=1)
+    message: str = Field(min_length=1)
+    isRetryable: bool
+    details: dict[str, Any] = Field(default_factory=dict)

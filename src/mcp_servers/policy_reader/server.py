@@ -8,10 +8,13 @@ for the contract.
 T01 wires the Policy loader to the bootstrap path and replaces the
 `policy://schema-version` resource handler with one that returns the real
 handshake payload (`policy_schema_version`, `policy_version`,
-`legal_framework`, `compatible_schema_range`). The remaining resource
-(`policy://catalog`) and the three tools (`get_clause`,
-`find_clauses_by_law_article`, `check_applicability`) remain as skeleton
-stubs until T02a/T02b/T03/T04 land.
+`legal_framework`, `compatible_schema_range`).
+
+T02a migrates `get_clause` from an inline skeleton into a thin wrapper that
+delegates to `tools.get_clause` (pure function in `tools.py`). The remaining
+resource (`policy://catalog`) and two tools
+(`find_clauses_by_law_article`, `check_applicability`) remain as skeleton
+stubs until T02b / T03 / T04 land.
 """
 from __future__ import annotations
 
@@ -21,7 +24,9 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
+from fastmcp.tools.base import ToolResult
 
+from . import tools
 from .loader import COMPATIBLE_SCHEMA_RANGE, load_policy, resolve_policy_root
 from .models import LoadedPolicy
 
@@ -101,25 +106,36 @@ def get_schema_version() -> dict[str, Any]:
 # =============================================================================
 
 @mcp.tool
-def get_clause(clause_id: str) -> dict[str, Any]:
-    """Retrieve a single clause by its identifier.
+def get_clause(clause_id: str) -> ToolResult:
+    """Retrieve a single Policy clause by its stable `clause_id`.
 
-    Use this when you have a clause_id (e.g. POL-000) and need the full clause
-    structure: statutory_reference, requirements, exceptions, status, and
-    tombstone if deprecated. For deprecated clauses, the returned object
-    includes a tombstone field with successors, effective_until, and
-    deprecation_reason — retrieval is legitimate (historical audit).
+    Use this when the caller already knows the exact identifier (e.g. from
+    `policy://catalog`, from a previous `find_clauses_by_law_article` call,
+    or from the `successors` field of a `CLAUSE_DEPRECATED` error returned
+    by `check_applicability`). Do not use this to search clauses by law
+    article — use `find_clauses_by_law_article`. Do not use this to evaluate
+    whether a clause governs a code-handling context — use
+    `check_applicability`.
 
-    Do not use this for searching by law article — use
-    `find_clauses_by_law_article` instead. Do not use this for compliance
-    evaluation — use `check_applicability` instead.
+    Returns the clause object as stored, polymorphic by `clause_type`:
+    `definitional` clauses (POL-000 is the MVP instance) carry `defines`
+    and `out_of_scope`; `substantive` clauses carry `applies_to`, `control`,
+    `requirements`, and `exceptions`. Every clause carries `clause_id`,
+    `title`, `clause_type`, `status`, `policy_schema_version`, and
+    `statutory_reference`. Deprecated clauses additionally carry a
+    `tombstone` block with `successors`, `effective_until`, and
+    `deprecation_reason` — deprecated clauses are not errors here, since
+    historical retrieval is a legitimate use case.
 
-    [SKELETON STUB — echoes input; real implementation lands in T02a.]
+    Errors are returned as an envelope `{errorCode, message, isRetryable,
+    details}` in `structuredContent`; `content[0].text` reproduces
+    `message`. Domain errors: `INVALID_CLAUSE_ID_FORMAT` when `clause_id`
+    does not match `^POL-\\d{3}$`; `CLAUSE_NOT_FOUND` when the format is
+    valid but no clause with that identifier exists in the current Policy.
+    Both are non-retryable.
     """
-    return {
-        "_stub": "policy-reader skeleton — get_clause not yet implemented",
-        "clause_id_received": clause_id,
-    }
+    assert _STATE is not None, "policy-reader bootstrap did not run"
+    return tools.get_clause(clause_id, _STATE)
 
 
 @mcp.tool

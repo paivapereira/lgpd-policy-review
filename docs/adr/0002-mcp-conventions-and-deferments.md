@@ -187,7 +187,12 @@ validation prioritizing one channel over the other) and
 by tool ignored when `structuredContent` validation runs first
 and rejects empty schema). Similar reports appear in other SDK
 implementations. The pattern repeats across SDKs and gateways,
-not only FastMCP.
+not only FastMCP. Both referenced issues are CLOSED in their
+respective issue trackers as of 2026-05; the structural tension
+between schema validation and isError inspection, however,
+remains intrinsic to any SDK that validates outputSchema before
+inspecting the wire flag, regardless of whether specific bugs
+were patched downstream.
 
 The amendment adopts the following convention. For errors of domain
 classes (validation, business, system per the original Decision 3),

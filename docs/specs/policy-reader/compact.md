@@ -21,7 +21,7 @@ For domain errors (validation, business, system — see §3), the envelope `{err
 
 ## 3. Error contract
 
-Three error classes (see ADR-0002 §3 for class semantics). Empty result and `indeterminate` verdict are **not errors** — they return `isError: false`.
+Three error classes (see ADR-0002 §3 for class semantics). Empty result and `indeterminate` verdict are **not errors** — they carry no `errorCode` field in `structuredContent`. Wire convention in §2.
 
 | `errorCode` | Class | Retryable | Emitting tools | Condition | `details` shape |
 |---|---|---|---|---|---|

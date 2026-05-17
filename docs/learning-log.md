@@ -1788,3 +1788,173 @@ Branch `docs/tasks-and-fixtures` em PR. Hashes sobrevivem a squash-merge — ap�
 ### Nota de calibração metodológica
 
 O fluxo desta sessão (Chat-delibera / prompt-com-pausas-explícitas / Code-executa-com-verificação / autor-sanciona) operou em escala documentada (5 pausas, 6 catches) sem nenhum defeito mergeado. Contraste empírico com sessão pré-#17 (Code expandindo escopo silenciosamente). A diferença operacional é a *estrutura do prompt*, não a capacidade do modelo: pausas pré-identificadas, verificações obrigatórias, pedido explícito de leitura direta em vez de inferência. Vale carregar "o prompt do PR-30" como referência operacional para futuros prompts de Code que tocarão artefatos sensíveis — candidato a exemplo no arquivo `.claude/rules/adr.md` quando aquela rule for redigida, ou a slash command em `.claude/commands/`.
+
+## 2026-05-16 — sessão #19 — T01 (Loader + handshake policy://schema-version) + 
+PR cleanup cross-doc
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1.6 Task decomposition — calibração via Rajasekaran 2026 contestada e 
+  defendida.** Sessão abriu com pergunta sobre "task por task vs Milestone 
+  inteira" referenciando o paper "Harness design for long-running application 
+  development". Confirmado via leitura direta do paper: V1 → V2 (Opus 4.5 → 
+  4.6) removeu *sprints internos* mantendo planner+evaluator. ADR-0008 não 
+  conflita — o "Chat review independente" é human-in-the-loop deliberado, 
+  ancorado em audit trail acadêmico, não scaffold para impedir o Code de 
+  perder coerência. Padrão generator/evaluator do paper *valida* a separação 
+  Code/Chat de ADR-0008 §3.
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2 Resource vs Tool em handler concreto.** `policy://schema-version` 
+  implementado como resource (idempotente, sem args, reflete estado). 
+  Descoberta empírica do Code: `mcp.read_resource(uri)` em FastMCP 3.2.4 
+  retorna tipo interno do framework (`ResourceResult.content` / 
+  `.mime_type`); `.to_mcp_result(uri)` produz tipo canônico MCP 
+  (`ReadResourceResult.contents: [TextResourceContents]` com `.text` / 
+  `.mimeType`). AS-7 referenciava wire-shape MCP literalmente — sem essa 
+  distinção, teste verde teria mascarado incompatibilidade com qualquer 
+  outro cliente MCP. Anchor test `test_documents_fastmcp_read_resource_shape` 
+  permanece na suíte como detector de breaking change futuro.
+- **D2 Custom URI scheme (`policy://`).** Materialização do princípio 
+  registrado em ADR-0002 §7 — scheme custom, três resources sob ele, 
+  semântica idempotente.
+- **D2 isError flag e classes de erro (preparação para T02a-T03).** Não 
+  exercitado diretamente em T01 (resources não usam isError; tools sim), 
+  mas o `PolicyLoadError` único em T01 dá precedente para a categoria 
+  system que T03 vai precisar mapear via errorCode.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **D3 Plan mode em ação.** Prompt v4 de T01 estruturado em duas fases com 
+  gate de OK entre elas (Plano → autor sanciona → Implementação). Cinco DDs 
+  identificadas na Fase 1, todas decisões substantivas que mereceram 
+  deliberação Chat antes de Code implementar. Padrão "plan mode para *o que 
+  fazer*; direct execution para *como aplicar exatamente isso*" (destilado 
+  na #17) operou como prescrito.
+- **D3 CLAUDE.md como prescritivo vivo.** PR de cleanup pré-T01 atualizou 
+  CLAUDE.md §Immutable rule 2 substituindo `article_source` por 
+  `statutory_reference`. Regra imutável carregando nome de campo errado 
+  era exatamente o tipo de drift que vira contaminação sistêmica.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4.6 Multi-instance review como gate operacional — três rounds.** 
+  (a) Gate Chat review da PR de cleanup capturou o argumento "ampliar escopo 
+  porque a forma editorial ficou mais limpa" e o recusou — separação entre 
+  correção editorial e governance de escopo de PR. (b) Gate Chat review do 
+  plano de T01 capturou cinco DDs antes do diff. (c) Gate Chat review do 
+  diff de T01 confirmou aplicação das DDs e validou achado empírico do 
+  wire-shape MCP. Três rounds, três classes distintas de catches.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 Front-load routing, defer content — falha capturada empiricamente.** 
+  Prompt v1 de T01 ignorou DESIGN.md como entrypoint, copiando reading list 
+  literal do handoff. Autor pegou a falha questionando. v2 reorganizada em 
+  torno do DESIGN.md como mapa. Lição: front-load routing só funciona se 
+  invocado nos prompts; senão entrypoint vira documento órfão.
+- **D5 Provenance via PRs sequenciais.** Cleanup cross-doc → main → T01 → 
+  main. PRs encadeadas (alternativa rejeitada) confundiriam audit trail 
+  para banca. Decisão favoreceu trilha linear auditável.
+- **D5 Anchor test para detectar breaking change.** Padrão "build the canary 
+  that screams first" aplicado a wire-shape FastMCP. Asserts mínimos sobre 
+  dois tipos de retorno — falha primeiro se release futura mudar wrap.
+
+### Conceitos fora do escopo da prova
+
+- **PR encadeadas vs sequenciais (git workflow).** Discussão sobre ramificar 
+  T01 da branch de cleanup antes do merge vs esperar merge e ramificar de 
+  main. Resolvida em favor de sequencial por audit trail; PR encadeada 
+  funciona tecnicamente mas exige reasoning sobre estado intermediário.
+- **`git stash -u` para preservar untracked.** Detalhe operacional do 
+  workflow para recuperar T01 quando branch de cleanup virou zumbi.
+
+### Decisões tomadas
+
+- **Pin 5 do session-handoff (`compatible_schema_range` em `policy.yaml`) 
+  descartado por achado empírico.** Sessão Chat capturou que o campo *não 
+  existe* no `policy.yaml` real — é constante do componente, não da 
+  Política. Recomendação do pin originada por confusão entre exemplo de 
+  resource e fonte do valor. Substituído por diretiva técnica dentro do 
+  prompt: `COMPATIBLE_SCHEMA_RANGE = SpecifierSet(">=0.1.0,<0.2.0")` 
+  module-level em `loader.py`.
+- **Pin 3 (model_validator runtime) cortado do prompt por redundância.** 
+  Restrição já está em tasks.md T01 §Gate task-level Chat review 
+  praticamente verbatim. Repetir no prompt era duplicação.
+- **Pin 4 (validação empírica do shape FastMCP) mantido com método 
+  refinado.** Inspector manual substituído por unit test exploratório via 
+  `mcp.read_resource(...)` dentro do loop pytest. Achado empírico do Code 
+  validou o método: distinguir tipo interno do FastMCP vs wire-shape MCP 
+  canônico.
+- **PR cleanup cross-doc escopo: incluir CLAUDE.md + REQUIREMENTS.md; 
+  excluir canonical/compact (pinned), semgrep-runner canonical (silêncio 
+  em tasks.md não autoriza), proposta-tcc2 (artefato histórico), 
+  metadocs (tasks.md, handoff, ADRs, learning-log).**
+- **Forma editorial da substituição FastMCP: "FastMCP 2.x conforme 
+  ADR-0001" → "FastMCP 3.x conforme ADR-0004".** Sugestão do autor; 
+  superou as três opções (a/b/c) do Code por preservar citation accuracy 
+  (cada ADR citada para a decisão que efetivamente tomou).
+- **Cinco DDs de T01 aprovadas:** (1) `SubstantiveClause` flexível 
+  com `extra="allow"`; (2) AS-5 valida lei em todos os 
+  `statutory_reference` aninhados; (3) `packaging>=24` declarado 
+  explícito em deps; (4) `_STATE` module-level + `_bootstrap()` em vez 
+  de factory; (5) `pytest-asyncio>=0.24` + `asyncio_mode = "auto"`.
+
+### Artefatos produzidos
+
+- **PR cleanup-stale-references** (mergeada em main). Dois commits 
+  separados: `chore(docs): rename article_source to statutory_reference 
+  per SCHEMA.md` + `chore(docs): update FastMCP version references to 
+  3.x per ADR-0004`. Cinco arquivos tocados: `DESIGN.md`, 
+  `architecture-overview.md`, `CLAUDE.md`, `REQUIREMENTS.md`.
+- **PR T01** (mergeada em main). Branch `feat/policy-reader-implementation`. 
+  Implementação: `loader.py` (novo), `models.py` (novo), `errors.py` (novo), 
+  `server.py` (modificado), `tests/.../conftest.py` (novo), 
+  `tests/.../test_bootstrap.py` (novo, 11 testes), `pyproject.toml` 
+  (adições: packaging, pytest-asyncio, types-PyYAML, 
+  `asyncio_mode = "auto"`).
+
+### Validações empíricas
+
+- **Gate task-level ADR-0008 §3 cumprido em escala documentada.** 
+  Pytest verde (11/11), ruff verde, mypy verde, Chat review independente 
+  realizado em sessão separada da que codou (esta Chat = Chat review; 
+  Code session = implementação).
+- **Wire-shape FastMCP 3.2.4 empiricamente capturado.** Anchor test 
+  permanece na suíte como sinal de alerta para release futura.
+- **Pattern "consertar na fonte" em vez de "workaround no prompt" 
+  validado.** Autor recusou múltiplas tentativas (minhas) de adicionar 
+  notas no prompt cobrindo débitos conhecidos. Cleanup cross-doc em PR 
+  separada antes de T01 produziu prompt v3 mais limpo. Caveat: nem todo 
+  débito é consertável na fonte (canonical/compact ficaram pinned), e v4 
+  do prompt acabou ganhando uma nota curta sobre o débito residual em 
+  compact.md. Pattern funciona quando o conserto na fonte é viável; 
+  caso contrário, nota explícita curta é o segundo-melhor.
+
+### Pendências para sessão #20+ ou ADR futuro
+
+- **T02a (get_clause).** Próxima task topológica de Milestone A.
+- **PR Chat dedicada de canonical sync.** Quatro débitos de tasks.md 
+  §Companion edits cross-doc + um quinto descoberto pelo Code 
+  (`tasks.md` l.229 cita canonical §8.7 que aparentemente não existe 
+  na numeração atual). Janela ótima: entre T03 e T04, ou após T04 mas 
+  antes do gate milestone-level.
+- **Decomposição formal de Milestone B em sessão Chat dedicada.** Após 
+  gate milestone-level de A. Decisão Semgrep-on-Windows precede.
+
+### Nota de calibração metodológica
+
+Sessão #19 operou em três turnos distintos com gates intermediários: 
+preparação (definir prompt T01 com cinco rounds de pushback do autor sobre 
+escopo, leitura obrigatória, pre-flight pins), execução Code (T01 
+implementada), gate Chat review (esta sessão). A estrutura "prompt forte 
+com pause-and-ask + Code executa Fase 1 → autor valida DDs → Code executa 
+Fase 2 → Chat review independente" exercitou o que ADR-0008 §3 prescreve 
+em forma operacional, materializando padrão do paper Rajasekaran 
+(generator + evaluator separados) com customização para human-in-the-loop 
+acadêmico. Defense candidate strong: contrastar com fluxo pré-#17 (Code 
+expandindo escopo silenciosamente) — diferença operacional é a 
+*estrutura do prompt*, não a capacidade do modelo.

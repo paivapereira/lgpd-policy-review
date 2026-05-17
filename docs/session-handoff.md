@@ -1,220 +1,247 @@
 # Session handoff
 
-**Última sessão fechada:** #19 (Chat review + Code execution) — 2026-05-16
-**Próxima sessão:** #20 (Code) — implementação de T02a (`get_clause`)
-**Branch ativa atual:** `main` (PR T01 mergeada)
-**Branch nova a abrir para #20:** `feat/policy-reader-get-clause` 
-(ramificar de `main` atualizada)
+**Última sessão fechada:** #20 (T02a + canonical-sync-A + canonical-sync-A.2)
+— 2026-05-17
+**Próxima sessão:** #21 (Chat) — prep de canonical-sync-B do policy-reader
+(decisão de design antes de T02b)
+**Branch ativa atual:** `main` (três PRs da #20 mergeadas)
+**Branch nova a abrir para #21:** não-aplicável (sessão Chat de prep)
+**Branch nova a abrir pós-#21:** `feat/canonical-sync-B` (Code aplicará
+edições decididas em #21)
 
 ## Estado atual
 
-Milestone A em progresso. T01 (Loader + handshake `policy://schema-version`) 
-fechada com gate task-level ADR-0008 §3 cumprido: pytest 11/11 verde, ruff 
-verde, mypy verde, Chat review independente aprovou diff. Implementação em 
-`src/mcp_servers/policy_reader/` cobrindo loader.py, models.py, errors.py, 
-server.py (modificado, com `_STATE` module-level e `_bootstrap()`), mais 
-suíte de testes em `tests/mcp_servers/policy_reader/test_bootstrap.py`.
+Milestone A em progresso. T02a (`get_clause` + migração `server.py` inline
+→ `tools.py`) fechada com gate task-level ADR-0008 §3 cumprido: pytest
+20/20 verde, ruff verde, mypy verde, Chat review independente aprovou
+diff. Três PRs mergeadas em main durante #20:
 
-PR cleanup cross-doc (`docs/cleanup-stale-references`) também mergeada em 
-main antes de T01. Fechou dois dos quatro débitos listados em tasks.md 
-§Companion edits cross-doc (article_source → statutory_reference em quatro 
-docs prescritivos; FastMCP 2.x → 3.x em dois docs). Os outros dois débitos 
-(canonical/compact) seguem pinned para PR Chat dedicada de canonical sync, 
-prevista para janela entre T03 e T04 ou pós-T04 pré-gate-milestone-level.
+- **PR T02a** (`feat/policy-reader-get-clause`). Implementação de
+  `get_clause` em `tools.py` (novo módulo, função pure), wrapper
+  `@mcp.tool` em `server.py` delegando, `ErrorEnvelope` em `models.py`,
+  9 testes em `test_get_clause.py` cobrindo anchor wire-shape + AS-1.a
+  (POL-000 definitional) + AS-1.b (POL-001 substantive) + AS-2 (POL-003
+  deprecated) + AS-3 parametrizado (4 IDs inválidos) + AS-4 (not found).
+- **PR canonical-sync-A** (`feat/canonical-sync-A`, três commits
+  separados). Fechou três débitos cross-doc do policy-reader:
+  `article_source` → `statutory_reference` em canonical+compact (16
+  ocorrências); `FastMCP 2.x` → `FastMCP 3.x` em canonical (2
+  ocorrências, com discriminação gramatical §1 vs §8.7); quotes ISO 8601
+  em `policy.yaml` `effective_date`/`last_revision` (2 ocorrências).
+- **PR canonical-sync-A.2** (`feat/canonical-sync-A.2-semgrep-runner`,
+  um commit). Fechou débito análogo descoberto durante execução de A:
+  `FastMCP 2.x` → `FastMCP 3.x` em
+  `docs/specs/semgrep-runner/canonical.md` (2 ocorrências).
 
-## Onde encontrar detalhes do que T01 cristalizou
+Débitos cross-doc remanescentes: dois (policy-reader) + possível um
+(semgrep-runner a confirmar). Vão para canonical-sync-B em #21+ (decisão
+de design, não mecânica).
 
-- **Implementação:** `src/mcp_servers/policy_reader/` 
-  (loader, models, errors, server).
-- **Suíte de testes:** `tests/mcp_servers/policy_reader/test_bootstrap.py` 
-  (11 testes cobrindo AS-1..AS-8) + `conftest.py` (fixture 
-  `valid_policy_root` clona policy/ real para tmp_path).
-- **Anchor de wire-shape FastMCP:** 
-  `test_documents_fastmcp_read_resource_shape` em test_bootstrap.py — 
-  asserts mínimos sobre tipo de retorno; falha primeiro se release 
-  futura de FastMCP mudar o wrap.
-- **Deps adicionadas:** `packaging>=24` (deps), `pytest-asyncio>=0.24` 
-  + `types-PyYAML>=6.0` (dev deps), `asyncio_mode = "auto"` em 
-  `[tool.pytest.ini_options]`. Em `pyproject.toml`.
-- **Constante module-level:** `COMPATIBLE_SCHEMA_RANGE = 
-  SpecifierSet(">=0.1.0,<0.2.0")` em loader.py. Constante do componente, 
-  não da Política — formato packaging-compatível, parseável nativamente.
-- **Processo de cristalização da sessão #19:** `docs/learning-log.md` 
-  (entry 2026-05-16).
+## Onde encontrar detalhes do que #20 cristalizou
 
-## Pre-flight pins para a sessão #20 (Code, T02a)
+- **T02a implementação:** `src/mcp_servers/policy_reader/tools.py` (novo,
+  `get_clause` pure function + helpers privados `_invalid_clause_id_format`,
+  `_clause_not_found`, `_envelope_tool_result`, `_success_tool_result`,
+  `_format_first_stat_ref`, `_render_clause_text`), `models.py`
+  (modificado com `ErrorEnvelope` Pydantic), `server.py` (thin wrapper
+  `@mcp.tool def get_clause(clause_id) -> ToolResult` chamando
+  `tools.get_clause(clause_id, _STATE)`).
+- **T02a testes:** `tests/mcp_servers/policy_reader/test_get_clause.py`
+  (9 testes) + `conftest.py` (fixture `policy_root_with_pack_clauses`
+  estendendo `valid_policy_root` com POL-001 e POL-003 do pack).
+- **Anchor de wire-shape FastMCP para tool calls:**
+  `test_documents_fastmcp_tool_call_shape` em `test_get_clause.py` —
+  asserts mínimos sobre estrutura `CallToolResult` em sucesso e em
+  domain error; falha primeiro se release futura de FastMCP mudar wrap.
+  Família completa: anchor de resource (T01, `test_bootstrap.py`) + anchor
+  de tool (T02a, `test_get_clause.py`).
+- **Convenção Option B (envelope em `structuredContent`, wire `isError`
+  reservado para protocol-level):** `ErrorEnvelope.__doc__` em
+  `models.py` + asserções concretas no anchor test + relatório de gate
+  de T02a. Pendente: documentação formal em canonical §5.1/§5.2 +
+  amendment ADR-0002 (canonical-sync-B).
+- **Processo de cristalização da sessão #20:** `docs/learning-log.md`
+  (entry 2026-05-17).
 
-Cinco aprendizados de T01 que migram como pre-flight para T02a:
+## Pre-flight pins para a sessão #21 (Chat — prep canonical-sync-B)
 
-1. **`statutory_reference` é o nome do campo, não `article_source`**, 
-   conforme aplicado em T01 e cleanup. Models de T02a referenciam 
-   `statutory_reference` direto. `compact.md` ainda diz `article_source` 
-   (Companion edit #1 pinned) — Code aplica artefato real conforme 
-   tasks.md linha 7, anota no relatório.
+Seis itens load-bearing para deliberação de design.
 
-2. **`_STATE` module-level já está bootstrapped em server.py após T01.** 
-   T02a não precisa redesenhar bootstrap; reutiliza `_STATE.clauses[clause_id]` 
-   para a implementação de `get_clause`.
+1. **`applicability_scope` → `applies_to`: cobertura polimórfica é
+   obrigatória.** T02a cristalizou que `get_clause` retorna polimórfico
+   (`DefinitionalClause` carrega `defines`/`out_of_scope`;
+   `SubstantiveClause` carrega `applies_to`/`control`/`requirements`/
+   `exceptions`). Canonical §4.1 atual descreve apenas
+   `applicability_scope` (flat list) — não cobre o caso definitional,
+   não cobre os sub-campos `personal_data_categories`/`operation`.
+   Redação nova precisa ser polimórfica.
 
-3. **`compatible_schema_range` é constante do componente, não da Política.** 
-   T02a não interage com isso, mas se precisar referenciar versionamento, 
-   o padrão já está estabelecido.
+2. **Granularidade da exposição de `applies_to`.** Decisão a tomar em
+   #21: expor sub-campos `personal_data_categories` e `operation`
+   literalmente no canonical (acoplamento com SCHEMA §6 — mudar SCHEMA
+   exige sync), ou abstrair como "scope filters" (flexibilidade mas
+   perde precisão para o Matcher). Inclinação prévia: literal — canonical
+   é contrato da tool, não da arquitetura geral.
 
-4. **Wire-shape MCP via `.to_mcp_result(uri)`, não retorno direto do 
-   handler interno.** T02a vai retornar tool output (`CallToolResult` 
-   per canonical §2), não resource (`ReadResourceResult`). Wire-shape 
-   esperada está em compact §5/§6 — Code valida empiricamente o shape 
-   de retorno de tool em FastMCP 3.2.4 na primeira hora de T02a (mesmo 
-   padrão do anchor test de T01).
+3. **Paralelismo `applies_to` ↔ `check_applicability.structured_context`.**
+   O `inputSchema` de `check_applicability` consome `data_categories` +
+   `operation`. Há paralelismo direto com `applies_to.personal_data_
+   categories` + `applies_to.operation` da cláusula. Vale o canonical
+   explicitar esse paralelismo em §4.1 (`get_clause`) e §4.3
+   (`check_applicability`).
 
-5. **PR contra main, branch `feat/policy-reader-get-clause` ramificada 
-   de main atualizada.** Não encadear PRs.
+4. **`isError`-semantics: como descrever o constraint FastMCP 3.2.4.**
+   Documentar convenção Option B sem mencionar o constraint (canonical
+   fica "limpo" mas perde rastreabilidade), ou explicitar ("convenção
+   adotada porque caminho ideal não é expressível em framework atual;
+   revisar se framework evoluir")? Inclinação prévia: segundo caminho —
+   canonical vira documento honest sobre por que existe a convenção que
+   existe.
+
+5. **Discriminador formal: declarar onde?** "Sucesso vs erro" passa a
+   ser "presença do campo `errorCode` no `structuredContent`". §5.1
+   (com estrutura do envelope), §2 (wire format geral), ou ambos com
+   cross-reference? §2 é mais correto arquiteturalmente (convenção do
+   componente inteiro); §5.1 é onde o leitor procura primeiro. Cross-
+   reference em ambos provavelmente.
+
+6. **Amendment ADR-0002 vs ADR novo.** ADR-0002 governa MCP conventions
+   (em particular Decision 1 sobre hybrid placement `structuredContent`
+   + `content`). Amendment preserva contexto histórico (porquê original
+   + porquê da adaptação no mesmo doc, padrão estabelecido em
+   ADR-0008 amended 2026-05-16). ADR novo é mais limpo se a divergência
+   for grande. Para Option B, amendment parece certo.
 
 ## Pendências cross-sessão (organizado por horizonte de resolução)
 
-**Resolver na #20 (Code, T02a):**
+**Resolver na #21 (Chat — prep canonical-sync-B):**
 
-- Validação empírica do shape de retorno de tool em FastMCP 3.2.4 
-  (análogo ao anchor de T01 para resource).
+- Seis itens de design listados nos pre-flight pins acima.
+- Rascunho de redação de canonical §4.1 (polimorfismo +
+  `applicability_scope` → `applies_to`), §5.1, §5.2 (isError-semantics
+  Option B), e amendment ADR-0002.
 
-**Resolver em sessão Chat paralela (não bloqueia T02a):**
+**Resolver em sessão Code #22 (canonical-sync-B aplicação):**
 
-- PR de canonical sync (4 débitos listados em `docs/tasks.md` §Companion 
-  edits + 1 descoberto pelo Code na sessão #19: `tasks.md` l.229 cita 
-  canonical §8.7 que aparentemente não existe na numeração atual; 
-  verificar se é referência stale ou seção renomeada).
-- Decisão Semgrep-on-Windows (Docker, pip native, remote worker, CI-only) 
-  — afeta forma de T05 em Milestone B, irrelevante para Milestone A.
+- Aplicar redações decididas em #21 em
+  `docs/specs/policy-reader/canonical.md`,
+  `docs/specs/policy-reader/compact.md`, `docs/adr/0002-mcp-conventions-
+  and-deferments.md`. Edits sob decisão prévia, Code não decide nada
+  novo durante implementação.
 
-**Resolver em #21+ ou ADR futuro:**
+**Resolver em #23+ (T02b):**
 
-- Decomposição formal de Milestone B (semgrep-runner) em sessão Chat 
-  dedicada, após gate milestone-level de A completar. Decisão 
-  Semgrep-on-Windows precede.
-- Decomposição formal de Milestone C (pipeline multi-agente) e Milestone 
-  D (CI/CD + validação empírica) em sessões Chat dedicadas, 
-  sequencialmente.
-- Semântica de `last_revision` em `policy/policy.yaml` — formal vs 
+- `find_clauses_by_law_article`. Próxima task topológica de Milestone A.
+  Pré-leitura consome canonical já limpo pós-canonical-sync-B.
+
+**Resolver em janela futura sem urgência:**
+
+- **DX:** linters (ruff, mypy) como dev deps oficiais em `pyproject.toml`.
+  Workaround atual via `uvx ruff` e `uv run --with mypy mypy` funciona,
+  mas dev deps reduzem fricção. Sessão Code curta (~15min).
+- **Decisão Semgrep-on-Windows** (Docker, pip native, remote worker,
+  CI-only) — afeta forma de Milestone B; antecede decomposição formal.
+- **Limpeza dos bullets fechados em `tasks.md` §Companion edits
+  cross-doc** após canonical-sync-B completar (article_source, FastMCP
+  2.x em policy-reader e semgrep-runner, applicability_scope,
+  isError-semantics). Sessão Chat de housekeeping.
+
+**Resolver pós-T03 ou em janela específica:**
+
+- **Possível canonical-sync-B do semgrep-runner.** Deliberar na prep de
+  Milestone B. Code de A.2 leu §1 e §8.6 do canonical do semgrep-runner
+  e não encontrou análogos aos achados de policy-reader, mas varredura
+  completa só na prep de Milestone B.
+- **Dois itens deferidos T03** (já listados em `tasks.md` §Companion
+  edits cross-doc): `operation`/`legal_basis` vs `operation_type`/
+  `declared_legal_basis` (canonical §4.3 vs REQUIREMENTS RF-003);
+  `evidence` vs `reason` em `not_applicable` (canonical §4.3 vs ADR-0007
+  Decision 3). Resolver pós-T03 quando spec for empiricamente validado.
+- **Validação cruzada per-cliente** (vocabulary × Semgrep metadata)
+  quando materializar ADR de per-client rule set.
+- **Promoção do draft `_drafts/spec-authoring-principles.md`** para
+  `docs/`.
+- **ADR retroativo formalizando convenção "português para docs técnicos
+  não-ADR".**
+- **Semântica de `last_revision` em `policy.yaml`** — formal vs
   informativo, atualização manual vs automática.
-- `effective_date` e `last_revision` no policy.yaml estão sem quotes 
-  (YAML interpreta como `date` nativo); SCHEMA §3.1 prescreve "string 
-  ISO 8601". Pequeno débito, pode entrar na PR Chat de canonical sync.
-- Validação cruzada per-cliente (vocabulary × Semgrep metadata) quando 
-  materializar ADR de per-client rule set.
-- ADR retroativo formalizando convenção "português para docs técnicos 
-  não-ADR".
-- Promoção do draft `_drafts/spec-authoring-principles.md` para `docs/`.
+- **Decomposição formal de Milestone B + Milestone C + Milestone D em
+  sessões Chat dedicadas, sequencialmente.** Após gate milestone-level
+  de A.
 
-## Defaults arquiteturais consolidados (pós-T01)
+## Defaults arquiteturais consolidados (pós-T02a)
 
-Estado **realizado** (não plano em progresso). Referência canônica de 
-cada item em ADR/spec/código.
+Estado realizado, não plano em progresso.
 
-**Da Fase 1 (ADR-0005 — multi-client architecture):**
+**Sobre tools MCP do policy-reader:**
 
-- Camada 1 (Política) é per-cliente; substituível por cliente sem 
-  alteração de código.
-- `legal_framework` é campo top-level único do header, imutável durante 
-  sessão do server.
-- POL-000 é vocabulário universal (semântico, não estatutário); vive em 
-  `policy/clauses/`, estrutura governada por `policy/SCHEMA.md` §5.
-- Quatro vocabulários jurisdicionais (`operation`, `lawful_basis`, 
-  `control`, `out_of_scope`) vivem em 
-  `policy/vocabularies/<framework>/*.yaml`.
-- `policy-reader` expõe três resources (`policy://catalog`, 
-  `policy://schema-version`, `policy://vocabularies`) e três tools 
-  (`get_clause`, `find_clauses_by_law_article`, `check_applicability`).
-- `policy://vocabularies` é compartilhado Matcher+Classifier (read-only 
-  resource).
-- `check_applicability` retorna trinca de provenance 
-  `(policy_schema_version, policy_version, legal_framework)` em todo 
-  sucesso.
-- Sucessão de cláusulas é intra-Política, via `successors` no bloco 
-  `tombstone`.
-- Mecanismo interno de reasoning de `check_applicability` é deferido 
-  (regra/LLM/híbrido livre para Code).
-- `semgrep-runner` rule set é bundled no projeto no MVP.
+- Função pública pura por tool em `src/mcp_servers/policy_reader/tools.py`,
+  recebendo `state: LoadedPolicy` explicitamente (testabilidade).
+- Thin wrapper `@mcp.tool` em `server.py` importando e delegando, com
+  guard `assert _STATE is not None` antes da delegação (consistência com
+  `server.py:90` de T01).
+- Output em sucesso preserva forma como armazenada:
+  `clause.model_dump(mode="json", exclude_none=True)` direto sobre
+  instância carregada; polimorfismo `DefinitionalClause | SubstantiveClause`
+  visível no payload.
+- `ErrorEnvelope` Pydantic estruturado em `structuredContent` +
+  `content[0].text == message`; wire `isError` reservado para
+  protocol-level (convenção Option B). Discriminador implícito por
+  presença de campo `errorCode`.
+- Helpers privados por errorCode em `tools.py` durante T02a; promoção
+  para módulo compartilhado quando segundo consumidor (T02b/T03)
+  demonstrar reuso real.
 
-**Da Fase 1.5 (ADR-0004 + ADR-0007 + ADR-0008 amended):**
+**Sobre fixtures de teste:**
 
-- Stack management via `uv` + lockfile `uv.lock` versionado (ADR-0004).
-- FastMCP 3.x como runtime MCP, Pydantic 2.13.x para validação 
-  (ADR-0004). **Verificado empiricamente em T01:** FastMCP 3.2.4.
-- Escopo MVP v0.1.0 de `check_applicability` é exclusivamente 
-  `operation: collection`. Outras 21 operações do vocabulário retornam 
-  `verdict: not_applicable` com `reason` MVP-scope, sem invocar 
-  matching (ADR-0007).
-- Granularidade de Fase 2: 8-12 tasks de 1-3h agrupadas em milestones; 
-  cada milestone entrega capability declarada em REQUIREMENTS.md, cada 
-  task entrega função coerente (ADR-0008 amended §1).
-- RFs/RNFs binding é milestone-level, não task-level (ADR-0008 amended §2).
-- Gate de verificação em dois scopes: task-level (function tests + Chat 
-  review independente) e milestone-level (manual exercise contra RFs) 
-  (ADR-0008 amended §3).
-- Bibliografia metodológica de referência: Rajasekaran (2026) "Harness 
-  design for long-running application development", Anthropic 
-  Engineering; Anthropic (2025) "Building Effective Agents" 
-  (ADR-0008 §4).
+- Pack POL-001..004 em
+  `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/`
+  é referência autorizada para consumo direto, não apenas inspiração
+  estrutural.
+- Fixture root estendida via `tmp_path`: `valid_policy_root` (real
+  `policy/` deep-copy) + cláusulas do pack copiadas seletivamente para
+  `clauses/`. POL-000 vem do real, sem cópia.
+- Fixture `reset_server_state` em `conftest.py` é o teardown padrão entre
+  testes que invocam `_bootstrap`. Chama
+  `server._reset_state_for_tests()` internamente.
 
-**De T01 (sessão #19):**
+**Sobre wire-shape FastMCP 3.2.4:**
 
-- `_STATE: LoadedPolicy | None` module-level em `server.py`; populado 
-  por `_bootstrap(root: Path | None = None)`; resetável em teste via 
-  `_reset_state_for_tests()`. Padrão a seguir em T02a/T02b/T03/T04.
-- `COMPATIBLE_SCHEMA_RANGE = SpecifierSet(">=0.1.0,<0.2.0")` 
-  module-level em `loader.py`. Constante do componente. Formato 
-  packaging-compatível.
-- `PolicyLoadError` exceção única para falhas de carregamento (categoria 
-  system implícita, abortando antes de `mcp.run()`).
-- Wire-shape MCP canônico via `.to_mcp_result(uri)`, não retorno direto 
-  do handler. Anchor test 
-  `test_documents_fastmcp_read_resource_shape` em test_bootstrap.py.
+- Tools retornam dict; FastMCP wrappa em `CallToolResult` com
+  `structuredContent` populado e wire `isError=False`.
+- `raise ToolError` gera wire `isError=True` + `content[0].text=message`,
+  mas `structuredContent=None` (perda do envelope estruturado).
+- Convenção do projeto: tools nunca raise `ToolError` para erros de
+  domínio (validation/business per canonical §5.2); sempre retornam dict
+  com envelope estruturado (Option B). `raise ToolError` reservado para
+  erros sistêmicos legítimos onde wire `isError` carrega informação útil
+  e perder envelope estruturado é aceitável (caso ainda hipotético em
+  policy-reader; possível em Milestone B se semgrep-runner tiver system
+  errors runtime transientes).
+- Anchor tests `test_documents_fastmcp_read_resource_shape` (T01) +
+  `test_documents_fastmcp_tool_call_shape` (T02a) permanecem como sinal
+  de regressão se release futura de FastMCP mudar wrap.
 
-## Plano de ação Fase 2 — Code (sessões #20+)
+**Sobre tooling — uv runtime patterns:**
 
-**Input para Code.** `docs/tasks.md` v1.1 segue como source-of-truth de 
-Fase 2. Code consome task a task em ordem topológica: T01 ✓ → T02a → 
-T02b → T03 → T04. Gate task-level ADR-0008 §3 entre cada uma.
+- `uvx <tool>`: download isolado para tools stand-alone (linters como
+  ruff). Funciona quando tool não precisa do venv do projeto.
+- `uv run --with <tool> <tool> ...`: injeta tool no venv do projeto na
+  invocação. Necessário para tools que precisam enxergar packages
+  instalados (mypy strict precisa enxergar pydantic, fastmcp etc).
+- `uv run <tool>`: funciona apenas se tool está em dev-deps via
+  `uv sync`. Atualmente NÃO funciona para ruff/mypy (não estão em
+  dev-deps oficiais — débito DX residual).
 
-**Prompt de abertura da sessão #20 (Code, T02a).**
+**Sobre PRs mecânicas (canonical-sync pattern):**
 
-A redigir em sessão Chat de preparação curta (análoga à preparação de 
-#19 que ocupou parte desta sessão), revisitando o template estrutural 
-v4 do prompt de T01:
-
-- Entrypoint DESIGN.md.
-- Pré-leitura universal: architecture-overview §4.1–§4.4 e §5.7; 
-  SCHEMA §2.1 e §3.
-- Spec normativa: compact.md de policy-reader (canonical apenas em 
-  ambiguidade).
-- Sprint contract: tasks.md §T02a.
-- Específico aos AS de T02a (definir na sessão de preparação após 
-  releitura de §T02a).
-- Estado real: arquivos da implementação T01 + 
-  `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/` 
-  (pack POL-001..004 já está em main desde Fase 1.5).
-- Débito cross-doc residual: `article_source` em compact.md (mesma 
-  forma de T01).
-- Pre-flight pins: cinco itens listados na seção anterior deste handoff.
-- Estrutura duas fases com gate de OK entre Plano e Implementação.
-- Guard-rails: escopo estrito T02a, ambiguidade já conhecida vs nova, 
-  AS não-executável, edits restritos a 
-  `src/mcp_servers/policy_reader/` + `tests/mcp_servers/policy_reader/` 
-  + pyproject.toml para deps decorrentes de DDs aprovadas.
-
-**Custo estimado.** T02a estimada em 1-3h conforme tasks.md. Com Chat 
-review independente: sessão Chat de preparação (~30min) + sessão Code 
-(2-3h) + sessão Chat review (~30min) = ~3-4h total por task.
-
-## Hashes da sessão #19 (audit trail interno)
-
-PRs mergeadas em main durante a sessão:
-
-- `<hash>` — chore(docs): rename article_source to statutory_reference 
-  per SCHEMA.md
-- `<hash>` — chore(docs): update FastMCP version references to 3.x per 
-  ADR-0004
-- `<hash>` — feat(policy-reader): T01 — loader + 
-  policy://schema-version handshake
-
-(Hashes preenchidos pelo autor após `git log` em main.)
+- Escopo único por PR; varias PRs pequenas vs uma PR grande mista.
+- Verificação empírica primeiro (`grep` contagens) antes de aplicar
+  substituição; contagens validam que estado real bate com expectativa.
+- Discriminação gramatical onde citações compostas exigem (e.g.
+  "FastMCP 2.x conforme ADR-0001" vs "Stack conforme ADR-0001 (FastMCP
+  2.x, ...)" exigem tratamento distinto).
+- Explicit non-finding documentado quando verificação produz zero edit
+  legítimo (e.g. compact.md do semgrep-runner sem débito FastMCP).
+- Code não cria branch, não commita, não abre PR. Gate task-level Chat
+  review independente é obrigatório mesmo para PRs mecânicas.

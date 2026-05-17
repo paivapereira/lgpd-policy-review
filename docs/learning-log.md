@@ -1958,3 +1958,326 @@ em forma operacional, materializando padrão do paper Rajasekaran
 acadêmico. Defense candidate strong: contrastar com fluxo pré-#17 (Code 
 expandindo escopo silenciosamente) — diferença operacional é a 
 *estrutura do prompt*, não a capacidade do modelo.
+
+---
+
+## 2026-05-17 — sessão #20 — T02a + canonical-sync-A + canonical-sync-A.2
+
+**Foco.** Implementação de T02a (`get_clause` + migração `server.py` inline →
+`tools.py`); descoberta de AS não-executável durante validação empírica de
+wire-shape (FastMCP 3.2.4 sem caminho público para `isError: true` +
+`structuredContent` simultâneo); adaptação Option B; duas PRs mecânicas de
+sync cross-doc (`canonical-sync-A` em policy-reader spec; `canonical-sync-A.2`
+em semgrep-runner spec).
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1 multi-agent coordinator-subagent com human-in-the-loop.** Padrão de
+  T01 escalou para três rounds de prep (v1 Chat → integração com sugestão
+  Code → v2 → três correções factuais do autor → v3 final). Cada round
+  reduziu superfície de erro do prompt; v3 capturou três erros factuais que
+  v2 carregava (PR cleanup pré-T01 tocou cinco docs, não dois ou quatro;
+  helper de teardown tem dois nomes diferentes em server.py vs conftest.py;
+  débito FastMCP em canonical ainda existe).
+- **D1 escalation pattern materializado em escala documentada.** Code de
+  T02a Fase 2 detectou AS não-executável no primeiro ato exploratório
+  (validação empírica de wire-shape de tool em FastMCP 3.2.4 via in-memory
+  Client). Parou antes de implementar errado, propôs três opções de
+  adaptação com recomendação. Chat validou externamente via web search
+  (issue #4202 do IBM mcp-context-forge confirmou prática estabelecida no
+  ecossistema). Autor ratificou Option B. Código prosseguiu. Defense
+  candidate forte para Capítulo 4 do TCC.
+- **D1 task decomposition + scope discipline.** Três PRs distintas em uma
+  sessão (T02a feature; canonical-sync-A mecânica três commits;
+  canonical-sync-A.2 mecânica um commit). Cada uma com escopo único e diff
+  visual auditável. Anti-pattern "PR mista" evitado por scope discipline
+  explícita no prompt.
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2 tool description anatomy.** Prosa inline com when-to-use,
+  do-not-use, formato de output, condições de erro — sem seções nomeadas
+  obrigatórias. Convenção canonical §4.1 aplicada em `get_clause`.
+- **D2 output polimórfico via Pydantic discriminated union.**
+  `DefinitionalClause | SubstantiveClause` carregado em T01 projetado
+  direto via `clause.model_dump(mode="json", exclude_none=True)` para
+  `structuredContent`. POL-000 (definitional) carrega `defines`/
+  `out_of_scope`; POL-001 (substantive) carrega `applies_to`/`control`/
+  `requirements`/`exceptions`; POL-003 (deprecated) adiciona `tombstone`.
+  Polimorfismo visível no payload sem código de adaptação.
+- **D2 error envelope estruturado + discriminador implícito.**
+  `ErrorEnvelope` Pydantic com `{errorCode, message, isRetryable, details}`
+  per canonical §5.1. Discriminador entre sucesso e erro: presença do
+  campo `errorCode` no `structuredContent`. Documentado em
+  `ErrorEnvelope.__doc__` e em anchor test.
+- **D2 isError flag — gap entre MCP spec teórica e FastMCP 3.2.4 wire
+  real.** MCP spec permite `isError: true` + `structuredContent` simultâneo;
+  FastMCP 3.2.4 expõe dois caminhos públicos mutuamente exclusivos
+  (`return dict` → `isError=False` + `structuredContent` populado; `raise
+  ToolError` → `isError=True` + `content[0].text` apenas). Convenção
+  Option B adotada: envelope sempre em `structuredContent`; wire `isError`
+  reservado para protocol-level failures.
+- **D2 built-in tools.** Code usou Read/Write/Edit/Grep/Bash em todas as
+  três sub-sessões. Catch específico em canonical-sync-A: três passadas de
+  `Edit replace_all` com delimitadores diferentes (backtick, JSON key,
+  YAML key) em vez de `replace_all` global ingênuo, para preservar
+  `article_sources_summary` (campo composto plural cuja forma exata é
+  diferida em T04).
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **D3 plan mode pattern materializado em todas as três sub-sessões.**
+  "Plan → gate de OK → Implementation" em T02a; "verify state → mechanical
+  edit → gate" em canonical-sync-A; idem em A.2. Plan mode em commits
+  substantivos; direct execution em commits mecânicos (heurística
+  destilada na #12 reaplicada).
+- **D3 `uvx tool` vs `uv run --with tool`.** Code de canonical-sync-A
+  descobriu que `uv run ruff` e `uv run mypy` retornam "program not found"
+  porque ferramentas não estão em dev-deps via `uv sync`. Workaround
+  adotado: `uvx ruff` (download isolado, para tools que rodam stand-alone
+  como linters) e `uv run --with mypy mypy` (injeta no venv do projeto,
+  necessário para mypy enxergar packages instalados). Distinção
+  load-bearing para CI/CD scenarios.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4 JSON schema mínimo + validação canônica.** `inputSchema` MCP de
+  `get_clause` carrega apenas `clause_id: str` (sem `pattern` constraint
+  no schema). Validação de `^POL-\d{3}$` dentro da função, emitindo
+  errorCode canônico `INVALID_CLAUSE_ID_FORMAT` com `details: {provided,
+  expected_format}` per canonical §5.4. Decisão consciente: schema
+  validation pelo framework rejeitaria com errorCode genérico, perdendo
+  contrato.
+- **D4 Pydantic discriminated union sobrevivente cross-task.** Modelo de
+  T01 (`Clause = DefinitionalClause | SubstantiveClause` discriminado por
+  `clause_type`) reutilizado direto em T02a sem refactor.
+- **D4 `model_dump(mode="json", exclude_none=True)`.** Projeção limpa de
+  Pydantic para JSON wire format; `exclude_none=True` remove
+  `tombstone: None` de cláusulas active. Trade-off: remove TODO campo
+  None, não só tombstone — vale auditar em T04 quando catalog expor mais
+  campos nullable com semântica.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 error propagation com payload estruturado.** Discriminador implícito
+  por presença de campo (`'errorCode' in structuredContent`) em vez de
+  flag explícito do wire — padrão alinhado com escalation que a prova
+  cobra como cenário.
+- **D5 scope discipline em PRs.** Três PRs mecânicas separadas
+  (`canonical-sync-A` em três commits, `canonical-sync-A.2` em um commit)
+  vs uma PR mista — Pareto front review-ability vs blast radius. A.2 foi
+  descoberta DURANTE execução de A (Code flagou outro débito FastMCP
+  análogo em semgrep-runner spec), validando que PRs mecânicas pequenas
+  descobrem débitos análogos durante execução, padrão superior a sweep
+  única tentativa de capturar tudo upfront.
+- **D5 anchor test como regressão de wire-shape.**
+  `test_documents_fastmcp_tool_call_shape` em `test_get_clause.py`
+  complementa `test_documents_fastmcp_read_resource_shape` de T01. Família
+  cobre os dois shapes de retorno do componente (resource via
+  `read_resource`, tool via `call_tool`). Documenta convenção Option B
+  como regressão executável: se framework expor caminho que preserve
+  `isError` + envelope estruturado simultâneo, anchor falha primeiro.
+
+### Decisões fechadas
+
+**T02a — seis DDs.**
+
+- **DD-1.** Payload de retorno em sucesso via `clause.model_dump(mode=
+  "json", exclude_none=True)` direto sobre instância carregada por T01.
+  Polimorfismo visível.
+- **DD-2.** `ErrorEnvelope` com `details: dict[str, Any]` aberto, não
+  union discriminada. Helpers funcionais por errorCode em `tools.py`
+  privados a T02a; promoção para módulo compartilhado quando segundo
+  consumidor (T02b/T03) demonstrar reuso real.
+- **DD-3.** Validação `^POL-\d{3}$` dentro da função (não em
+  `inputSchema` MCP); emite `INVALID_CLAUSE_ID_FORMAT` estruturado.
+- **DD-4.** `content[0].text` com templates inline pequenos por caso
+  (active substantive, active definitional, deprecated, erro); sem helper
+  genérico compartilhado. Renderização literal de inciso (`"inciso 1"`,
+  não `"inciso I"`) — romano fica para Reporter pós-Milestone C.
+- **DD-5.** `tools.py` com uma função pública (`get_clause`); thin
+  wrapper `@mcp.tool` em `server.py` chamando `tools.get_clause(clause_id,
+  _STATE)`. `find_clauses_by_law_article` e `check_applicability`
+  permanecem stubs inline em `server.py` até T02b/T03 migrarem cada um na
+  sua sessão.
+- **DD-6 (dois itens cross-doc descobertos).**
+  - (a) `applicability_scope` (flat list em canonical §4.1) vs
+    `applies_to` (dict polimórfico em SCHEMA §6 + T01 model + fixtures).
+    T02a adota `applies_to`; diferença anotada como débito cross-doc
+    novo.
+  - (b) `isError`-semantics em canonical §5.1 não realizável em FastMCP
+    3.2.4 via API pública. Convenção Option B adotada: envelope em
+    `structuredContent`; wire `isError` reservado para protocol-level.
+    Validação externa via issue #4202 do IBM mcp-context-forge.
+    Discriminador implícito por presença de `errorCode`.
+
+**canonical-sync-A.**
+
+- Três commits separados em uma PR — escopo semanticamente disjunto
+  justifica split. (Opção A vs commit único Opção B; Opção A escolhida
+  por scope discipline.)
+- Forma editorial FastMCP consolidada de #19 aplicada com discriminação
+  gramatical: §1 (citação modifica versão diretamente) → substituição
+  inteira `"FastMCP 2.x conforme ADR-0001"` → `"FastMCP 3.x conforme
+  ADR-0004"`; §8.7 (citação modifica Stack, versão em parêntese) → troca
+  apenas versão, preserva ADR-0001.
+- `article_sources_summary` preservado em ambos os docs (composto plural,
+  forma exata diferida em T04).
+- `effective_date` e `last_revision` em `policy.yaml` quoted como strings
+  ISO 8601 per SCHEMA §3.1.
+
+**canonical-sync-A.2.**
+
+- Mesma forma editorial mecânica aplicada a
+  `docs/specs/semgrep-runner/canonical.md`. Duas substituições (L22 regra
+  #1, L415 regra #2). `compact.md` do semgrep-runner não tem débito
+  FastMCP — explicit non-finding documentado no relatório.
+
+### Artefatos produzidos
+
+- **PR T02a** (branch `feat/policy-reader-get-clause`, mergeada em main).
+  Implementação: `src/mcp_servers/policy_reader/tools.py` (novo,
+  `get_clause` pure function + helpers privados), `models.py` (modificado
+  com `ErrorEnvelope`), `server.py` (thin wrapper `@mcp.tool` delegando
+  para `tools.get_clause`). Testes:
+  `tests/mcp_servers/policy_reader/test_get_clause.py` (novo, 9 testes:
+  anchor wire-shape + AS-1.a POL-000 definitional + AS-1.b POL-001
+  substantive + AS-2 POL-003 deprecated + AS-3 parametrizado 4 IDs
+  inválidos + AS-4 not found); `conftest.py` (fixture
+  `policy_root_with_pack_clauses`). Gate: pytest 20/20, ruff clean,
+  mypy clean.
+- **PR canonical-sync-A** (branch `feat/canonical-sync-A`, três commits
+  separados, mergeada em main). 3 arquivos tocados: `docs/specs/
+  policy-reader/canonical.md`, `docs/specs/policy-reader/compact.md`,
+  `policy/policy.yaml`. 20 substituições total (16 + 2 + 2). Gate: pytest
+  20/20, ruff clean, mypy clean, PyYAML coerce ISO strings.
+- **PR canonical-sync-A.2** (branch
+  `feat/canonical-sync-A.2-semgrep-runner`, um commit, mergeada em main).
+  1 arquivo tocado: `docs/specs/semgrep-runner/canonical.md`. 2
+  substituições. Gate: pytest 20/20 (regressão policy-reader zero), ruff
+  clean, mypy clean.
+
+### Validações empíricas
+
+- **Wire-shape FastMCP 3.2.4 para tool calls empiricamente capturado.**
+  Caminho público: `fastmcp.Client(server.mcp).call_tool(name, args)` →
+  `fastmcp.client.client.CallToolResult` com snake_case attrs. Tool
+  retorna dict → wire `isError=False` + `structuredContent=dict`; tool
+  raise `ToolError(s)` → wire `isError=True` + `content[0].text=s` +
+  `structuredContent=None`. Não há caminho público que combine ambos.
+  Confirmado via leitura de `fastmcp/tools/base.py:124-137 to_mcp_result`
+  + `Tool.convert_result` em base.py:340-401 + `mcp/server/lowlevel/
+  server.py _make_error_result`. Validação externa: issue #4202 do IBM
+  mcp-context-forge confirma prática estabelecida ("Forces non-compliant
+  implementations").
+- **Convenção Option B materializada em três lugares.** Anchor test +
+  `ErrorEnvelope.__doc__` + relatório de gate de T02a. Pendente:
+  documentação formal em canonical §5.1/§5.2 + amendment ADR-0002 (vão
+  para canonical-sync-B).
+- **Polimorfismo `DefinitionalClause | SubstantiveClause` sobrevivente
+  cross-task.** Modelo de T01 reusado direto em T02a sem refactor. AS-1
+  com dois cenários (POL-000 + POL-001) captura regressão polimórfica
+  cedo, antes que T03/T04 introduzam pressão sobre o modelo.
+- **Pattern "PR mecânica pequena descobre débitos análogos durante
+  execução".** Code de canonical-sync-A flagged que
+  `docs/specs/semgrep-runner/` tinha mesmo débito FastMCP 2.x. Antes
+  desse achado, varredura era considerada completa em quatro débitos
+  conhecidos do policy-reader. Lição: PRs mecânicas valem mais que sweep
+  única-tentativa para capturar todos os débitos upfront — varredura
+  incremental por escopo descobre o que sweep única não capturaria.
+- **Gate task-level ADR-0008 §3 cumprido em escala estendida.** T02a +
+  duas PRs mecânicas, todas com gate verde. Pytest 20/20 em todas as
+  três; ruff/mypy clean em todas. Chat review independente sobre cada uma.
+- **Padrão "consertar na fonte" testado em escala maior.** Cleanup
+  canonical-sync-A.2 disparado por achado de A foi conserto-na-fonte de
+  débito que A.2 só descobriu durante execução. PR-A original não
+  precisou de "nota no prompt cobrindo débito semgrep-runner" porque A.2
+  pegou direto.
+
+### Pendências para sessão #21+ ou ADR futuro
+
+- **canonical-sync-B do policy-reader.** Sessão Chat dedicada antes de
+  T02b. Cobre dois itens com decisão de design + um amendment ADR:
+  - `applicability_scope` → `applies_to` em canonical §4.1 (cobertura
+    polimórfica `DefinitionalClause | SubstantiveClause` required;
+    granularidade da exposição de sub-campos
+    `personal_data_categories`/`operation`; paralelismo com
+    `check_applicability.structured_context` §4.3).
+  - `isError`-semantics em canonical §5.1 + §5.2 (documentação Option B;
+    descrição do constraint FastMCP — explícita vs implícita;
+    discriminador formal — declarar em §2 e/ou §5.1).
+  - Amendment a ADR-0002 (MCP conventions) refletindo Option B.
+- **Possível canonical-sync-B do semgrep-runner.** Deliberar na prep de
+  Milestone B. Code de A.2 leu §1 e §8.6 do canonical e não encontrou
+  análogos aos achados de policy-reader, mas varredura completa só na
+  prep de Milestone B.
+- **DX residual — linters como dev deps em `pyproject.toml`.** Workaround
+  atual via `uvx ruff` e `uv run --with mypy mypy` funciona, mas dev deps
+  oficiais reduzem fricção. Sessão Code curta (~15min) em janela
+  futura.
+- **Limpeza dos bullets em `tasks.md` §Companion edits cross-doc dos
+  débitos fechados** (article_source, FastMCP 2.x em policy-reader e
+  semgrep-runner, e em algum momento applicability_scope +
+  isError-semantics pós-canonical-sync-B). Sessão Chat de housekeeping
+  pós-canonical-sync-B.
+- **T02b** (`find_clauses_by_law_article`). Próxima task topológica de
+  Milestone A. Pré-leitura consome canonical já limpo pós-canonical-sync-B.
+- **Itens deferidos T03** (já listados em `tasks.md` §Companion edits):
+  `operation`/`legal_basis` vs `operation_type`/`declared_legal_basis`;
+  `evidence` vs `reason` em `not_applicable`. Resolver pós-T03 quando
+  spec for empiricamente validado.
+- **Decomposição formal de Milestone B em sessão Chat dedicada.** Após
+  gate milestone-level de A. Decisão Semgrep-on-Windows precede.
+
+### Nota de calibração metodológica
+
+Sessão #20 operou quatro turnos com gates intermediários:
+
+1. **Prep T02a em Chat** (v1 → integração com sugestão Code → v2 → três
+   correções factuais do autor → v3 final). Padrão de iteração coordenado
+   onde cada round reduziu superfície de erro. v1 tinha erro factual
+   (afirmava que PR cleanup tocou dois docs) que v2 corrigiu para "quatro
+   docs prescritivos"; v3 corrigiu para "cinco arquivos" após João medir.
+   Lição: prep iterativa entre Chat principal + Code secundário superou
+   prep monolítica.
+
+2. **Execução Code de T02a** (Fase 1 plano com 6 DDs explícitas + DD-6
+   levantada como nova; gate de OK; Fase 2 com AS não-executável detectado
+   no primeiro ato exploratório → escalation pattern → web search
+   validação no Chat → ratificação Option B → implementação completa).
+   Primeira aplicação do escalation pattern em escala documentada do
+   projeto. Code parou ANTES de implementar errado, propôs três opções,
+   recomendou a viável. Material defense candidate forte: contraste
+   empírico com fluxo onde Code implementa primeiro e descobre problema
+   depois (Code → Chat de bug fix retroativo).
+
+3. **Chat review independente de T02a + execução de canonical-sync-A**
+   (prompt mecânico curto, Code executou com discriminação gramatical
+   correta em §1 vs §8.7 do canonical policy-reader; flagou catch
+   específico do `article_sources_summary` como composto preservado).
+
+4. **canonical-sync-A.2 follow-up** (descoberto na execução de A; escopo
+   idêntico aplicado a semgrep-runner spec; explicit non-finding sobre
+   compact.md do semgrep-runner documentado).
+
+Padrão emergente da sessão: **scope discipline funciona como
+contracampo da escalation pattern**. Quando Code escala (AS
+não-executável em T02a), Chat decide; quando Code descobre débito lateral
+(FastMCP em semgrep-runner durante A), Chat NÃO estende escopo de A —
+abre A.2 separada. Escalar é mecanismo para resolver; descobrir é
+mecanismo para registrar. Funções distintas, ambos legítimos, ambos
+operados via prompt structure.
+
+Defense candidate forte para Capítulo de Método do TCC: três PRs
+distintas em uma sessão, todas mecânicas no que se propunham, todas verde
+no gate, materializaram o anti-pattern "PR mista" como evitável por
+disciplina estrutural explícita.
+
+### Próximo passo
+
+Sessão #21 (Chat) — prep de canonical-sync-B do policy-reader (decisão
+de design). Estrutura proposta: ~1h Chat de prep + ~30min Code de
+aplicação + ~30min Chat review. Após merge: T02b. Ver
+`docs/session-handoff.md` para pre-flight pins detalhados.

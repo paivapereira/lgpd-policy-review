@@ -19,7 +19,7 @@ materializada via configuração de `mcp_servers` no AgentDefinition do
 Detector (`architecture-overview.md` §5.7). Outros subagentes não têm este
 servidor em seu inventário de tools.
 
-**Stack e governança.** Implementação em FastMCP 2.x conforme ADR-0001.
+**Stack e governança.** Implementação em FastMCP 3.x conforme ADR-0004.
 Invocação do binário Semgrep via subprocess. Decisões de design deste
 componente são governadas pelo ADR-0002.
 
@@ -412,7 +412,7 @@ observável, verificável por teste automatizado ou inspeção direta.
 
 ### 8.6 Implementação
 
-- [ ] Stack conforme ADR-0001 (FastMCP 2.x, Python 3.12.7).
+- [ ] Stack conforme ADR-0001 (FastMCP 3.x, Python 3.12.7).
 - [ ] Tool retorna `SEMGREP_BINARY_UNAVAILABLE` quando o binário `semgrep` não está localizável no PATH no momento da invocação. Verificação ocorre por chamada; ausência não aborta o processo.
 - [ ] `SCAN_TIMEOUT` é emitido após 300s quando `SEMGREP_RUNNER_TIMEOUT_SECONDS` está ausente do environment; após o valor configurado quando presente.
 - [ ] Findings em arquivos não modificados pelo diff entre `base_ref` e `head_ref` não aparecem em `findings`, mesmo quando regras matcheariam neles ao escanear o repo inteiro.

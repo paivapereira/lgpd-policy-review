@@ -99,7 +99,7 @@
 **Descrição.** A Política aceita múltiplas leis dentro da jurisdição declarada via `accepted_law_identifiers` no header global. Adicionar ou remover uma lei na composição (e.g., cliente que opera sob LGPD apenas vs. cliente que opera sob LGPD + Código de Defesa do Consumidor + Resoluções do Banco Central) é alteração apenas na Política do cliente, sem modificação de código no sistema. Cláusulas que citam leis fora da composição declarada são inativadas para esse cliente — a validação rejeita Política que cita lei ausente da composição declarada.
 
 **Critério.**
-- **Dado** cliente A com `accepted_law_identifiers: [LGPD]` e cliente B com `accepted_law_identifiers: [LGPD, CDC]`, ambos sob `legal_framework: LGPD`, com Política do B contendo cláusula que cita `article_source.lei: CDC`,
+- **Dado** cliente A com `accepted_law_identifiers: [LGPD]` e cliente B com `accepted_law_identifiers: [LGPD, CDC]`, ambos sob `legal_framework: LGPD`, com Política do B contendo cláusula que cita `statutory_reference.lei: CDC`,
 - **quando** ambos clientes executam o sistema sobre o mesmo PR que aciona essa cláusula,
 - **então** o Report do cliente B contém finding referente à cláusula CDC e o Report do cliente A não; nenhum arquivo sob `src/` difere entre as duas execuções.
 

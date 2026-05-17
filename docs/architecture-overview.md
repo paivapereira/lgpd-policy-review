@@ -102,7 +102,7 @@ Identidade da Política tem **três eixos independentes**, todos declarados no h
 A Política é composta por quatro peças sob `policy/`:
 
 - `policy.yaml` — header global com os três eixos de identidade e `accepted_law_identifiers` (lista de leis citáveis dentro da jurisdição declarada).
-- `clauses/` — cláusulas em YAML. Cada cláusula tem `clause_id` opaco com prefixo `POL-`, `article_source` como lista hierárquica (lei, artigo, parágrafo, inciso, alínea), `requirements`, `exceptions`, e ciclo de vida com `status: active|deprecated` mais `successors` para tombstone (sucessão intra-Política, não cross-framework).
+- `clauses/` — cláusulas em YAML. Cada cláusula tem `clause_id` opaco com prefixo `POL-`, `statutory_reference` como lista hierárquica (lei, artigo, parágrafo, inciso, alínea), `requirements`, `exceptions`, e ciclo de vida com `status: active|deprecated` mais `successors` para tombstone (sucessão intra-Política, não cross-framework).
 - `rationale/` — canônico jurídico em Markdown, consumido por humano. Prevalece em drift contra YAML (ver `policy/SCHEMA.md` §8).
 - `SCHEMA.md` — separa explicitamente **camada estrutural** (universal, vive no projeto) de **camada de vocabulários jurisdicionais** (per-cliente, vive em `policy/vocabularies/<framework>/`). Vocabulários jurisdicionais — `operation`, `lawful_basis`, `control`, `out_of_scope` — não são hardcoded em código; são lidos como dados em startup do `policy-reader`.
 

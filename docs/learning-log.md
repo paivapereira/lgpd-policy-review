@@ -2281,3 +2281,417 @@ Sessão #21 (Chat) — prep de canonical-sync-B do policy-reader (decisão
 de design). Estrutura proposta: ~1h Chat de prep + ~30min Code de
 aplicação + ~30min Chat review. Após merge: T02b. Ver
 `docs/session-handoff.md` para pre-flight pins detalhados.
+
+---
+
+## 2026-05-17 — sessão #21 — canonical-sync-B (Option B documentado + polimorfismo + drift estrutural)
+
+**Foco.** Sessão Chat de prep + execução Code + cinco rounds de review
+independente fechando canonical-sync-B do policy-reader spec. Bundle
+único (PR #38, dois commits squash-merged em main) cobrindo três eixos
+de drift cross-doc: isError-semantics adaptada para Option B em
+canonical/compact + amendment ADR-0002 §3 com line-number provenance;
+polimorfismo `applicability_scope` → `applies_to` materializado em
+canonical/compact com discriminação por `clause_type`; vocabulário de
+`operation` migrado para tokens canônicos (`storage`,
+`disclosure_by_transmission`) per SCHEMA.md §9.2. PR #38 hash de squash:
+`<TBD>`.
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1.6 Task decomposition — bundle vs split em PR mecânica.** Decisão
+  consciente de bundle Cluster A (polimorfismo `applies_to`) + Cluster B
+  (isError-semantics) na mesma PR canonical-sync-B em vez de split em
+  duas PRs sequenciais. Trigger: catch do Code na rodada 1 de review
+  indicando que publicar Draft 2 com `applicability_scope` (Cluster A
+  pendente) e depois reeditá-lo em Cluster A produziria double-edit
+  visível no diff, gerando ruído no Code review futuro ("schema
+  desatualizado") que disputaria atenção com o feedback substantivo
+  sobre Option B. Bundle elimina double-edit; custo é PR maior (13+
+  edits vs 8). Trade-off ratificado por scope discipline + review
+  efficiency.
+- **D1.7 Session state management — close limpo via three-property
+  test.** Sessão #21 fechou cobrindo (a) artefato físico endereçável
+  (PR #38 mergeada com squash hash registrado neste log); (b) próximo
+  handoff decidido e enumerado (sessão #22 Chat prep T02b com três DDs
+  já mapeadas); (c) defense candidates registrados antes da sessão
+  terminar (esta entry). Pattern "close limpo > resume com contexto
+  sujo" do exam guide materializado em escala documentada.
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2 isError flag — adaptação documentada framework-vs-spec.**
+  ADR-0002 §3 amendment in-place documenta Option B como adaptação
+  consciente do contrato MCP à realidade FastMCP 3.2.4. Citation chain
+  rastreável: linha 124 (`to_mcp_result`) e 270 (`convert_result`) de
+  `fastmcp/tools/base.py`, linha 467 (`_make_error_result`) e 576
+  (success path com `isError=False`) de `mcp.server.lowlevel.server`,
+  todas sob `fastmcp==3.2.4` pinado em `uv.lock`. Issues externas
+  ancoradas em fonte primária verificada via web fetch: #4042 do
+  IBM/mcp-context-forge (gateway-level validation prioritizing one
+  channel) e #654 do modelcontextprotocol/typescript-sdk (`isError`
+  ignored when `structuredContent` validation runs first). Defense
+  candidate forte para o Capítulo de Método — adaptation defensável
+  contra audit jurídico/banca porque rationale carrega revisit trigger
+  ("reopen when FastMCP exposes public API path producing wire
+  `isError: true` with structured envelope simultaneously, OR project
+  migrates off FastMCP, OR MCP spec adopts implicit-discriminator
+  pattern as preferred practice").
+- **D2 structured output — discriminador implícito por presença de
+  campo.** Sob Option B, o discriminador formal entre sucesso e erro
+  passa a ser **presença do campo `errorCode` em `structuredContent`**,
+  não wire `isError`. Sucesso carrega payload positivo (cláusula,
+  lista, veredito) sem `errorCode`; erro carrega envelope com
+  `errorCode` populado. Materializado em canonical §5.1, §5.3 (este
+  reformulado para colocar discriminador no centro em vez de manter a
+  premissa stale "isError: false = não erro"), compact §2, ADR-0002 §3
+  amendment.
+- **D2 polimorfismo via Pydantic discriminated union projetado na
+  superfície da tool.** `clause_type: substantive | definitional` é
+  discriminator literal em RFC 2119-style ("consumers MUST branch on
+  `clause_type` before reading type-specific fields"). Substantive
+  carrega `applies_to`/`control`/`requirements`/`exceptions`;
+  definitional carrega `defines`/`out_of_scope`. Anti-uniformização
+  declarada normativa em canonical §4.2 tool description ("consumers
+  MUST NOT filter or coerce by `clause_type` to uniformize") porque
+  `find_clauses_by_law_article` produz primeira lista heterogênea em
+  superfície de retorno do componente (busca casando Art. 5 retorna
+  POL-000 + substantivas). Defense candidate para a prova como exemplo
+  prático de "JSON schema com discriminator field" sobrevivendo
+  cross-task sem refactor.
+- **D2 object-wrap em `structuredContent`.** MCP spec define
+  `structuredContent` como `object`, não array. Compact §5.2 carregava
+  débito de array raiz (`structuredContent: [...]`); canonical-sync-B
+  migra para `structuredContent: {clauses: [...]}` consistente em
+  ambos. Conceito relevante para a prova: tool design conforme MCP
+  wire format.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4.6 Multi-instance review pattern em escala empírica documentada.**
+  Cinco rounds independentes de Chat ↔ Code review sobre o mesmo
+  conjunto de artefatos, cada round capturando classe distinta de
+  issue load-bearing:
+  - **Round 1 (pre-apply).** Code review do compilado inicial pegou
+    três classes: companion edits faltantes (§5.3 reformulação,
+    tool descriptions object-wrap, §8.5 acceptance criterion); Cluster
+    A cross-contaminando Draft 2 (recommendation: bundle); claims
+    externas não-verificadas (`fastmcp/tools/base.py` funções, issue
+    #4202).
+  - **Round 2 (pre-apply).** Code review do compilado revisado pegou
+    quatro patches empíricos: `defines` shape inventado (real é
+    objeto com `vocabulary_kind`+`entries[]`); `out_of_scope` shape
+    inventado (real é lista de dicts com `topic`/`statutory_reference`/
+    `reason`/`fallback`); `operation: store` (real é `storage`);
+    `control: purpose_declared` (não existe no vocabulário —
+    `consent_required` ou `anonymization_required` são os dois
+    canônicos no MVP).
+  - **Round 3 (pre-apply).** Code review final pegou drift adicional
+    de `transmit` (real é `disclosure_by_transmission`) em dois sites
+    e imprecisão de atribuição de `_make_error_result` ao path de
+    `ToolError` (real: chamado em três sites protocolares
+    independentes do path de exceções de tool).
+  - **Round 4 (durante apply).** Code durante execução do compilado
+    flagou três sites onde o compilado declarava no amendment
+    ADR-0002 §3.1 que `applicability_scope` → `applies_to` e
+    `transmit` → `disclosure_by_transmission` seriam fechados, mas
+    a edit list mecânica não enumerava dois desses sites:
+    canonical.md:137 tool description (não estava em escopo do Edit
+    1.2), canonical.md:622 e compact.md:412 (drift `store` →
+    `storage` em exemplos `violation_candidate` de §4.3 não
+    enumerados em Patch C original).
+  - **Round 5 (pós-commit).** Chat review independente do diff
+    `5926a03` capturou duas should-fix de exaustividade entre prose
+    declarativa e enumeração mecânica: canonical.md:137 omitia
+    `control` na lista de campos polimórficos (Finding 2.1);
+    compact.md:24 carregava frase stale `isError: false` como
+    discriminador (Finding 8); mais dois cosméticos ratificados como
+    deferred para PR de housekeeping (Findings 7.1/7.2 wordsmithing
+    issues externas; Finding 9 POL-005 placeholder semântico).
+  - **Round 6 (delta pós-follow-up).** Validação 4/4 PASS do commit
+    `1bbc6fe` cobrindo Findings 2.1, 8, 11, 7.3. PR liberada para
+    squash merge.
+  
+  Cinco classes distintas de issue capturadas em seis rounds, todos
+  pré-merge. Métrica derivada para o Capítulo de Método:
+  catches/round × superfície-revisada cresce monotônica até saturar
+  (round 6 retornou 0 findings novos). Generator + evaluator
+  separados validado em escala empírica documentada — Rajasekaran
+  2026 pattern aplicado em human-in-the-loop acadêmico, single
+  generator (Chat de prep) + multi-round evaluator (Code review
+  pre-apply + Code apply + Chat review independente pos-commit +
+  Chat review delta).
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 provenance via verificação direta com line numbers.** ADR-0002
+  amendment ancorado em fonte primária verificada com line numbers
+  precisos: `fastmcp/tools/base.py:124,270` (`to_mcp_result`,
+  `convert_result`); `mcp/server/lowlevel/server.py:467,576`
+  (`_make_error_result`, success path); `policy/clauses/POL-000.yaml`
+  e `policy/SCHEMA.md` §5.2-5.4, §9.2 para shapes empíricos;
+  issues externas (#4042, #654) verificadas via web fetch. Nenhuma
+  claim por inferência de contexto histórico. Citation chain rastreável
+  até source verificável. É o pattern D5 cobra como "scratchpad files"
+  + "context extraction" aplicado em escala de ADR.
+- **D5 sanity greps como verificação de exaustividade.** Padrão
+  operacional emergente desta sessão: greps de exaustividade fazem
+  parte do compilado de uma PR mecânica, não da varredura pós-fato.
+  Em canonical-sync-B, os sanity greps pós-apply (`"operation":
+  "(store|transmit)"` retornando zero matches; `applicability_scope`
+  retornando zero matches; `isError.*false.*not.*errors` retornando
+  zero matches pós-follow-up) confirmaram exaustividade do bundle.
+  Forma operacional concreta do que D5 chama "context extraction" +
+  "scratchpad". Generalizável para futuras PRs cross-doc.
+- **D5 robustez de citation chain a estado upstream evoluir.** Finding
+  7.3 do Chat review pós-commit capturou que as duas issues citadas
+  no amendment (`IBM/mcp-context-forge #4042`,
+  `modelcontextprotocol/typescript-sdk #654`) estão ambas em estado
+  CLOSED nos respectivos issue trackers. Patch 4 do follow-up commit
+  acrescentou frase reconhecendo isso e separando fix-status
+  (downstream patch concreto) de pattern-recurrence (tensão estrutural
+  schema-vs-content). Defense candidate D5: ADRs duram, issues mudam
+  de estado; tese do amendment deve sobreviver a "patches downstream
+  specific bugs were fixed". Pattern materializado em prosa explícita
+  do amendment.
+
+### Decisões fechadas
+
+**P3 forma do amendment ADR-0002 §3 — contrato no canonical, rationale
+no ADR.** Trade-off considerado: (P1) canonical "limpo" sem mencionar
+constraint perde rastreabilidade; (P2) canonical honest com constraint
+inline mistura contrato vs rationale; (P3) canonical declara convenção
+objetivamente, ADR amendment carrega rationale + revisit trigger +
+referências externas. Ratificado P3 por (a) consistência arquitetural
+com cut estabelecido (canonical = contrato; ADR = rationale histórico);
+(b) padrão de amendment in-place herdado de ADR-0008 amended
+2026-05-16 — Pin #6 do handoff de prep já se inclinava para amendment
+in-place vs ADR novo (ADR-0002 fresco demais para succession; consumidor
+primário é Claude, não auditor humano com expectativa de imutabilidade
+acionada); (c) defense acadêmica para Capítulo de Método (canonical
+estável como documento de contrato; ADR como audit trail de adaptações
+framework-vs-spec).
+
+**Bundle Cluster A + B em PR única vs split em duas PRs sequenciais.**
+Ratificado bundle único (PR #38). Razão substantiva: catch do Code na
+rodada 1 indicou que publicar exemplos com `applicability_scope`
+desatualizado seguidos de reedit em Cluster A produziria double-edit
+visível, gerando ruído review. Custo: PR maior (16 edits totais);
+ganho: review única, código pós-sync-B consome spec coerente em todos
+os eixos. Padrão register-able para futuras PRs mecânicas: bundle
+quando split produziria double-edit no mesmo arquivo.
+
+**Compact não carrega exemplos de erro (decisão deliberada).**
+Frase adicionada em compact §5.1 e §5.2: "Examples of error envelopes
+live in canonical §4.x and §5; not duplicated here." Compact é
+destilação operacional; tabela §3 + canonical §4.x cobrem forma do
+envelope. Princípio aplicado: compact é forma navegacional; canonical
+é instância autoritativa.
+
+**Linguagem RFC 2119 (MUST NOT) em canonical §4.2 anti-uniformização.**
+Manter tom normativo deliberadamente. "Consumers MUST NOT filter or
+coerce by `clause_type` to uniformize the list" é invariante de
+protocolo, não sugestão estilística. Pattern reaplicável para futuras
+invariantes load-bearing em tool descriptions.
+
+### Artefatos produzidos
+
+**PR #38 (`feat/canonical-sync-B`), mergeada em main via squash com
+hash `<TBD>`.** Dois commits pré-squash (registrados aqui como audit
+trail interno, sobrevivem ao squash apenas via este log):
+
+- `5926a03` — `feat(canonical-sync-B): align canonical+compact+ADR-0002
+  to Option B and empirical clause shape`. 3 arquivos, +445 / -87.
+  13 edits originais + 3 patches de exaustividade (Edits 1.8, 1.9, 2.6
+  identificados pelo Code durante apply).
+- `1bbc6fe` — `fix(canonical-sync-B): close exhaustiveness drift caught
+  by independent review`. 4 patches do Chat review pós-commit
+  (Findings 2.1, 8, 11, 7.3).
+
+Total mergeado: ~20 edits em três arquivos:
+
+- `docs/specs/policy-reader/canonical.md` — 9 edits cobrindo §4.1
+  (Output prose polimórfico + 4 exemplos + tool description com
+  `control`), §4.2 (description object-wrap + anti-uniformização +
+  Output prose + 4 exemplos polimórficos), §4.3 (paralelismo cross-ref
+  §4.1↔§4.3 + flip `isError` deprecated + `transmit` →
+  `disclosure_by_transmission` em indeterminate + `store` → `storage`
+  em violation_candidate), §5.1 (reescrita Option B), §5.3
+  (reformulação em torno do discriminador formal `errorCode` presence).
+- `docs/specs/policy-reader/compact.md` — 6 edits cobrindo §2 (Wire
+  format com parágrafo Option B), §3 (reformulação stale
+  `isError: false` para discriminador `errorCode`), §5.1 (description
+  polimórfica + Output structure com shapes empíricos + 2 exemplos),
+  §5.2 (description object-wrap + 2 exemplos polimórficos), §5.3
+  (flip `isError` deprecated + `transmit` → `disclosure_by_transmission`
+  em indeterminate + `store` → `storage` em violation_candidate).
+- `docs/adr/0002-mcp-conventions-and-deferments.md` — 1 edit cobrindo
+  amendment in-place ao Decision 3 com nove parágrafos (constraint
+  FastMCP + linha de provenance + ecosystem references + adoption
+  statement + rationale + revisit trigger + CLOSED status acknowledgment
+  + companion edits enumerados).
+- `src/mcp_servers/policy_reader/models.py` — docstring `ErrorEnvelope`
+  alinhada com canonical §5.1 pós-amendment (Patch 3 do follow-up).
+
+### Validações empíricas
+
+- **Gate task-level ADR-0008 §3 cumprido em escala documentada.**
+  pytest 20/20 verde em ambos os commits (pré e pós follow-up);
+  ruff `All checks passed!`; mypy `--strict src/` `no issues found in
+  7 source files`. Tests em `tests/` carregam pré-existências
+  (não tocados nesta PR; pytest configurado sem `--strict` em tests é
+  estado prévio do repo).
+- **Sanity greps de exaustividade retornaram zero matches.** Três
+  comandos rodados pós-apply: (a) `grep -nE '"operation":\s*"(store|transmit)"'
+  docs/specs/policy-reader/` retornou zero; (b) `grep -n
+  'applicability_scope' docs/specs/policy-reader/` retornou zero;
+  (c) pós-follow-up `grep -nE 'isError.*false.*not.*errors|not.*errors.*isError'
+  docs/specs/policy-reader/` retornou zero. Confirmação operacional
+  de varredura completa.
+- **Pattern "consertar na fonte" reaplicado em escala maior.**
+  canonical-sync-A fechou drift textual (regex-replaceable). 
+  canonical-sync-B fechou drift estrutural (shape de exemplos, prosa
+  polimórfica, amendment ADR). Mesma disciplina source-of-fix
+  aplicada a dois tipos diferentes de drift. Material defense
+  candidate strong: contraste empírico com hipotética PR-mista que
+  bundleasse correções estruturais + nova feature.
+- **Multi-round Chat ↔ Code review materializou D4.6 em escala
+  empírica.** Cinco classes distintas de issue capturadas em seis
+  rounds independentes, todos pré-merge. Métrica derivável:
+  catches/round × superfície decrescente (round 6 retornou 0 findings
+  novos = saturação atingida). Quantificável para argumentação no
+  Capítulo de Método.
+- **Citation chain do ADR-0002 amendment verificado via fontes
+  primárias.** Quatro line numbers (`fastmcp/tools/base.py:124,270`,
+  `mcp/server/lowlevel/server.py:467,576`) confirmados pelo Chat
+  reviewer pós-commit contra `.venv` pinado `fastmcp==3.2.4`. Duas
+  issues externas (#4042, #654) verificadas via web fetch durante a
+  redação do compilado e ratificadas na rodada delta. Provenance
+  rastreável até fonte verificável; nenhuma claim por inferência.
+
+### Pendências para sessão #22+ ou PR futura
+
+**Resolver na #22 (Chat — prep do prompt T02b):**
+
+- **DD-T02b-1: helpers compartilhados de envelope.** T02b é o segundo
+  consumidor de `_envelope_tool_result` + builders per-errorCode.
+  DD-6 de T02a registrou "extrair para módulo compartilhado quando
+  segundo consumidor aterrissar". T02b decide na Fase 1: extrair para
+  `tools/_envelope.py` agora ou manter inline em `tools.py` até T03
+  (cinco errorCodes adicionais) gerar pressão real. Inclinação
+  prévia: manter inline; YAGNI aos quatro errorCodes atuais.
+- **DD-T02b-2: modelagem do `specification` de input.** Três caminhos:
+  (a) parâmetros nomeados na assinatura (`def
+  find_clauses_by_law_article(lei, artigo, paragrafo=None, inciso=None,
+  alinea=None)`); (b) Pydantic model dedicado em `models.py`; (c) dict
+  com validação inline. Inclinação prévia: (a), por simplicidade e
+  por bater com stub já em `server.py:125-152`.
+- **DD-T02b-3: lista heterogênea polimórfica como invariante de
+  implementação.** §4.2 da spec carrega
+  `consumers MUST NOT filter or coerce by clause_type to uniformize`
+  como invariante de protocolo. Brief T02b precisa adicionar como
+  invariante de implementação: algoritmo de matching
+  prefix-hierarchical não filtra por `clause_type`, nenhum refactor
+  futuro pode "limpar" a lista. Candidato a AS de teste explícito
+  (e.g., AS-6 cobrindo busca por Art. 5 retornando POL-000 definitional
+  + alguma substantive simultaneamente).
+- **AS-2 fixtures sintéticas.** Pack POL-001..004 não cobre
+  prefix-hierarchical (todas as cláusulas têm inciso/parágrafo).
+  T02b precisa de fixtures sintéticas inline em
+  `test_find_clauses.py` via `_write_yaml` no `tmp_path` — duas
+  cláusulas com `{lei, artigo}`-only refs vs `{lei, artigo, inciso}`
+  refs para exercitar a semântica de match.
+- **Pré-leitura obrigatória:** docs/specs/policy-reader/canonical.md
+  §4.2 + §5 pós-canonical-sync-B (spec limpa); preview de prompt T02b
+  que Code preview-ou no documento anexado em #21 (já carrega 60% do
+  framing).
+
+**Resolver em sessão #23+ (Code — execução T02b):**
+
+- `find_clauses_by_law_article` implementação completa. Pré-leitura
+  consome canonical já limpo pós-canonical-sync-B (Pin satisfeito).
+
+**Resolver em janela futura sem urgência:**
+
+- **DX residual:** linters (ruff, mypy) como dev deps oficiais em
+  `pyproject.toml`. Workaround `uvx ruff` e `uv run --with mypy mypy`
+  funciona. Sessão Code curta (~15min).
+- **Itens deferidos T03** (já listados em `tasks.md` §Companion edits):
+  `operation`/`legal_basis` vs `operation_type`/`declared_legal_basis`;
+  `evidence` vs `reason` em `not_applicable`. Resolver pós-T03 quando
+  spec for empiricamente validado.
+- **Decisão Semgrep-on-Windows** (Docker, pip native, remote worker,
+  CI-only) — afeta forma de Milestone B; antecede decomposição formal.
+- **Cosméticos diferidos do round 5 review:** Findings 6.1 (ADR
+  caracterização `_make_error_result` com 4 call sites em vez de 3);
+  7.1, 7.2 (wordsmithing das issues externas no amendment); 9
+  (POL-005 placeholder semanticamente contrived em Art. 5). Todos
+  cosméticos, sem urgência, viajam com próxima PR que tocar respectivo
+  arquivo.
+
+**Resolver em prep de Milestone B (canonical-sync-C):**
+
+- **Drift análogo no template `docs/specs/_template.md`** — linha 107
+  ainda carrega `### 5.3 Casos que parecem erro mas não são` (título
+  antigo de policy-reader §5.3, renomeado nesta PR para "Discriminador
+  formal entre sucesso e erro"). Template precisa de sync quando
+  algum motivo o tocar.
+- **Drift análogo no semgrep-runner spec** — `docs/specs/semgrep-runner/canonical.md`
+  linha 283 ainda usa título antigo análogo; spec inteira do
+  semgrep-runner não foi migrada para Option B. Trigger natural:
+  prep de Milestone B (semgrep-runner implementation) deliberará
+  canonical-sync-C que propaga amendment §3 para essa spec também.
+
+**Resolver pós-Milestone B:**
+
+- **Decomposição formal de Milestone C** (pipeline multi-agente) e
+  **Milestone D** (CI/CD + validação empírica) em sessões Chat
+  dedicadas, sequencialmente.
+
+### Nota de calibração metodológica
+
+Sessão #21 operou seis rounds Chat ↔ Code review independente sobre
+artefato único (PR #38 canonical-sync-B), capturando cinco classes
+distintas de issue load-bearing pré-merge. Round 1-3 pre-apply, round
+4 durante apply, round 5 Chat review pós-commit, round 6 validação
+delta pós-follow-up. Padrão emergente: granularidade do escopo de
+review escala inversamente à proximidade do merge. Rounds iniciais
+amplos (catch macro de classes inteiras); rounds finais delta-focados
+(validar fechamento das classes anteriores). Round 6 retornou 0
+findings novos = saturação atingida = PR pronta para merge.
+
+Defense candidate forte para o Capítulo 4 do TCC (Capítulo de Método):
+métrica quantificável é catches load-bearing por hora de operação
+humana investida, ou catches/round × superfície-revisada. Sem o
+pattern multi-round, single-instance self-review do gerador (Chat)
+perderia consistentemente os mesmos catches que o reviewer
+independente (Code) acertou. Argumentação reproduzível: gravar
+ordinal-por-ordinal das classes capturadas em cada round, calcular
+densidade de catches/superfície revisada, plotar curva de saturação.
+Para canonical-sync-B, a curva satura no round 6; trabalho subsequente
+seria mover catches cosméticos de defer-pending para zero, custo
+diminuendo monotônica.
+
+Adicional: bundle Cluster A + B em PR única (vs split) ratificou
+disciplina "consertar na fonte" em escala maior. PR-A (canonical-sync-A)
+fechou drift textual; PR-A.2 (canonical-sync-A.2) fechou drift textual
+adicional descoberto durante A; PR-B (canonical-sync-B) fechou drift
+estrutural + amendment ADR. Padrão "PR mecânica descobre débito
+análogo durante execução" reaplicado em escala maior: round 4 Code
+durante apply descobriu drift adicional não enumerado no edit list
+original (Edits 1.8, 1.9, 2.6); round 5 Chat reviewer pós-commit
+descobriu drift adicional não capturado por nenhuma rodada anterior
+(Findings 2.1, 8). Lição: PR mecânica em escala maior precisa de
+sanity greps no compilado (preventivo), não só pós-apply (curativo).
+
+### Próximo passo
+
+Sessão #22 (Chat) — prep do prompt T02b, três DDs a deliberar
+(helpers compartilhados, modelagem de specification, invariante
+anti-uniformização). Produz prompt mecânico para sessão Code #23+
+executar T02b. Pré-leitura obrigatória: canonical §4.2 + §5 limpos
+pós-sync-B; preview de prompt T02b já redigido em #21 (60% do
+framing). Custo estimado: ~1h Chat de prep. Após #22 fechar, sessão
+Code #23+ implementa T02b (~2-3h, gate task-level ADR-0008 §3).

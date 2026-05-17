@@ -142,6 +142,110 @@ the system: an empty result is a valid answer, not a failure.
 condition, and shape of `details`. Specs without business or system
 errors declare this positively (see Decision 4).
 
+---
+
+**Amendment (2026-05-17).** Wire placement of the error envelope
+adapted to FastMCP framework constraint.
+
+The original formulation of this decision implicitly assumed the MCP
+specification's documented shape for tool errors: wire `isError: true`
+on the `CallToolResult` simultaneously with the structured envelope
+in `structuredContent`. The MCP specification permits this shape; the
+FastMCP 3.2.4 framework — adopted in ADR-0004 — does not expose a
+public API path that produces it. The framework offers two mutually
+exclusive return paths: a tool returning a `dict` produces wire
+`isError: false` with `structuredContent` populated; a tool raising
+`ToolError(s)` produces wire `isError: true` with the message in
+`content[0].text` and `structuredContent: None`. There is no public
+path that combines `isError: true` with a structured envelope.
+
+This was confirmed empirically during session #20 via direct reading
+of the FastMCP source under the pinned version (`fastmcp==3.2.4`,
+`uv.lock`): `fastmcp/tools/base.py::to_mcp_result` (line 124) and
+`fastmcp/tools/base.py::convert_result` (line 270) are the two
+public-API functions converting tool return values into the wire
+`CallToolResult`. Neither sets `isError`. Grep across
+`fastmcp/tools/` for `isError|is_error` under the pinned version
+returns zero matches.
+
+The wire flag is set elsewhere by the framework —
+`mcp.server.lowlevel.server::_make_error_result` (line 467) is
+called on schema-validation failures (input or output) and on
+unexpected tool return types, and the success path at line 576
+sets `isError=False` explicitly when populating
+`structuredContent`. Neither path combines `isError: true` with a
+populated `structuredContent`. There is therefore no code path —
+public or internal — in either `fastmcp/tools/` or
+`mcp.server.lowlevel.server` that produces the combination the
+original MCP-spec-documented shape requires.
+
+The pattern is also recognized in the broader MCP ecosystem as a
+recurring concern documented in independent issues across
+implementations: `IBM/mcp-context-forge` #4042 (gateway-level
+validation prioritizing one channel over the other) and
+`modelcontextprotocol/typescript-sdk` #654 (`isError: true` set
+by tool ignored when `structuredContent` validation runs first
+and rejects empty schema). Similar reports appear in other SDK
+implementations. The pattern repeats across SDKs and gateways,
+not only FastMCP. Both referenced issues are CLOSED in their
+respective issue trackers as of 2026-05; the structural tension
+between schema validation and isError inspection, however,
+remains intrinsic to any SDK that validates outputSchema before
+inspecting the wire flag, regardless of whether specific bugs
+were patched downstream.
+
+The amendment adopts the following convention. For errors of domain
+classes (validation, business, system per the original Decision 3),
+the envelope `{errorCode, message, isRetryable, details}` is serialized
+in `structuredContent` of the `CallToolResult` with wire `isError: false`.
+The `content` array carries a single `TextContent` block reproducing
+`message`, per Decision 1. The formal success-versus-error discriminator
+is presence of the `errorCode` field in `structuredContent`: successful
+returns carry positive payloads (clause, list, verdict) without
+`errorCode`; error returns carry the envelope with `errorCode` populated.
+Wire `isError: true` is reserved for MCP protocol-level failures
+produced by the framework (schema-invalid `inputSchema`, nonexistent
+tool, transport-level errors), not by the component.
+
+**Rationale for the amendment.** Adopting the framework's two-path
+constraint while preserving the structured-envelope contract of the
+original Decision 3 prioritizes two properties: (a) the four-field
+envelope shape that callers depend on for retry routing, and (b) the
+three-class error taxonomy that maps to the certification scope's
+"transient vs business vs permission" vocabulary. The cost is
+relinquishing the wire `isError` flag as the formal discriminator;
+the implicit discriminator (presence of `errorCode`) is structurally
+equivalent and machine-checkable from the same `structuredContent`
+payload the caller already parses.
+
+**Revisit trigger.** Reopen this amendment when (a) FastMCP exposes
+a public API path producing wire `isError: true` with a structured
+envelope simultaneously, OR (b) the project migrates off FastMCP to
+a framework with that shape available, OR (c) the MCP specification
+formally adopts the implicit-discriminator pattern as preferred
+practice across SDKs and gateways.
+
+**Companion edits.** `docs/specs/policy-reader/canonical.md` §4.1,
+§4.2, §4.3, §5.1, §5.3 and `docs/specs/policy-reader/compact.md` §2,
+§5.1, §5.2, §5.3 updated in the same PR (`feat/canonical-sync-B`)
+to reflect the amended convention in examples and in normative prose,
+and in the same PR the `applicability_scope` field of clause output
+is migrated to the polymorphic `applies_to` form per the empirical
+shape of `models.py` since T01 (Cluster A of canonical-sync-B). In
+the same PR, clause-shape examples across canonical §4.1, §4.2 and
+compact §5.1, §5.2 are aligned to the empirical shape of definitional
+clauses (`defines: {vocabulary_kind, entries: [...]}`,
+`out_of_scope: [{topic, statutory_reference, reason, fallback}, ...]`
+per SCHEMA.md §5.2-5.4 and POL-000.yaml), and the `operation`
+vocabulary in examples uses the canonical tokens `storage` and
+`disclosure_by_transmission` per SCHEMA.md §9.2 (replacing
+pre-existing `store` and `transmit` drift). These shape corrections
+are bundled here because canonical-sync-B is the first pass through
+§4.1/§4.2 since the empirical clause shape stabilized; they are not
+part of the isError amendment proper. The original Decision 3 text
+above remains the contract for envelope shape, class semantics, and
+`isRetryable` discipline; the amendment governs only wire placement.
+
 ### 4. Positive declaration of empty error classes
 
 When a tool's contract has no `errorCode` in one of the three

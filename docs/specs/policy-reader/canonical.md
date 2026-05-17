@@ -134,7 +134,7 @@ Retrieve a single Policy clause by its stable `clause_id`.
 
 Use this when the caller already knows the exact identifier (typically recovered from `policy://catalog`, from a previous `find_clauses_by_law_article` call, or from a `successors` field returned by a `CLAUSE_DEPRECATED` error). Do not use this to search clauses by law article — for that, use `find_clauses_by_law_article`. Do not use this to evaluate whether a clause applies to a code-handling context — for that, use `check_applicability`.
 
-Returns the clause object with `clause_id`, `title`, `statutory_reference` (hierarchical structure of law references), `applicability_scope` (data classes covered, drawn from the canonical vocabulary), `requirements` (numbered sub-items the clause demands), `exceptions` (numbered sub-items that suspend requirements), and `status`.
+Returns the clause object with `clause_id`, `title`, `statutory_reference` (hierarchical structure of law references), `applies_to` (scope of applicability — for substantive clauses, an object with personal_data_categories and operation drawn from the canonical vocabulary), `control` (control token from the framework's control vocabulary, present on substantive clauses), `requirements`, `exceptions` (numbered sub-items), and `status`. Definitional clauses omit applies_to/control/requirements/exceptions and instead carry defines and out_of_scope — see Output structure below.
 
 If the clause is `deprecated`, this tool returns it successfully with a `tombstone` block containing `successors` (list of replacement `clause_id`s), `effective_until` (ISO date), and `deprecation_reason`. Deprecated clauses are not errors here — auditing historical decisions and following successor chains are legitimate use cases.
 
@@ -147,31 +147,63 @@ If the `clause_id` does not match any clause, returns business error `CLAUSE_NOT
 |---|---|---|---|
 | `clause_id` | string | sim | Identificador opaco com prefixo `POL-` seguido de inteiro de três dígitos zero-padded (ex: `POL-027`). Formato validado por regex `^POL-\d{3}$` no schema. |
 
-**Output em sucesso.** Objeto com a estrutura completa da cláusula conforme schema canônico (`policy/SCHEMA.md`):
+**Output em sucesso.** Objeto polimórfico com a estrutura completa da cláusula conforme schema canônico (`policy/SCHEMA.md`). O campo `clause_type` discrimina dois tipos polimórficos com campos distintos:
 
 ```yaml
+# Cláusula substantiva (clause_type: substantive)
 clause_id: POL-027
+clause_type: substantive
+policy_schema_version: 0.1.0
 title: <rótulo humano-legível>
 status: active            # ou: deprecated
 statutory_reference:      # estrutura hierárquica — ver SCHEMA.md
   - lei: LGPD
     artigo: 7
     inciso: 1
-applicability_scope:      # vocabulário canônico — ver SCHEMA.md (POL-000)
-  - dados_de_identificacao
-  - dados_de_contato
+applies_to:               # escopo de aplicabilidade — ver SCHEMA.md §6
+  personal_data_categories:
+    - dados_de_identificacao
+  operation:
+    - collection
+control: consent_required   # vocabulário em policy/vocabularies/<framework>/control.yaml
 requirements:
   - id: R1
     text: <exigência humana-legível>
 exceptions:
   - id: E1
     text: <exceção humana-legível>
-# Quando status: deprecated, adicionalmente:
+
+# Cláusula definitional (clause_type: definitional, ex: POL-000 vocabulário universal)
+clause_id: POL-000
+clause_type: definitional
+policy_schema_version: 0.1.0
+title: <rótulo humano-legível>
+status: active
+statutory_reference:
+  - lei: LGPD
+    artigo: 5
+defines:                        # estrutura governada por SCHEMA.md §5.2-5.3
+  vocabulary_kind: <kind>       # ex: personal_data_categories
+  entries:
+    - name: <category_name>
+      definition: <prosa>
+      canonical_examples: [<exemplos>]
+      statutory_reference: [{lei, artigo, ...}]
+      special_category: <bool>
+out_of_scope:                   # estrutura governada por SCHEMA.md §5.4
+  - topic: <topic_name>
+    statutory_reference: [{lei, artigo, ...}]
+    reason: <reason_token>
+    fallback: <fallback_token>
+
+# Quando status: deprecated, adicionalmente em qualquer dos tipos:
 tombstone:
   successors: [POL-031, POL-032]
   effective_until: 2026-12-31
   deprecation_reason: <texto curto>
 ```
+
+A discriminação `clause_type: substantive | definitional` é normativa: cláusulas substantivas carregam `applies_to`, `control`, `requirements`, `exceptions`; cláusulas definitional carregam `defines` e `out_of_scope`. Consumidores devem não pressupor estrutura unificada — ver `policy/SCHEMA.md` §6 (substantive) e §5 (definitional).
 
 Estrutura interna dos campos governada por `policy/SCHEMA.md` (princípio aplicado: schema fora, comportamento dentro).
 
@@ -186,39 +218,134 @@ Tabela completa de `errorCode` do componente em §5 (Contrato de erro).
 
 **Exemplos.**
 
-*Caso normal — recuperação de cláusula ativa.*
+*Caso normal — recuperação de cláusula substantiva ativa.*
 
-```
+```json
 Input: { "clause_id": "POL-027" }
-Output: { "isError": false, "content": [{ ...estrutura da cláusula POL-027... }] }
-```
-
-*Caso de cláusula deprecated.*
-
-```
-Input: { "clause_id": "POL-014" }
-Output: { "isError": false, "content": [{
-  "clause_id": "POL-014",
-  "status": "deprecated",
-  "tombstone": {
-    "successors": ["POL-031", "POL-032"],
-    "effective_until": "2026-06-30",
-    "deprecation_reason": "Cláusula original dividida em duas após reforma legislativa."
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "clause_id": "POL-027",
+    "clause_type": "substantive",
+    "policy_schema_version": "0.1.0",
+    "title": "Consentimento para coleta de dados de identificação",
+    "status": "active",
+    "statutory_reference": [{ "lei": "LGPD", "artigo": 7, "inciso": 1 }],
+    "applies_to": {
+      "personal_data_categories": ["dados_de_identificacao"],
+      "operation": ["collection"]
+    },
+    "control": "consent_required",
+    "requirements": [{ "id": "R1", "text": "Consentimento explícito antes da coleta." }],
+    "exceptions": []
   },
-  ...resto da cláusula...
-}]}
+  "content": [
+    { "type": "text", "text": "POL-027: Consentimento para coleta de dados de identificação (LGPD Art. 7º, I)." }
+  ]
+}
+```
+
+*Caso de cláusula definitional ativa.*
+
+```json
+Input: { "clause_id": "POL-000" }
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "clause_id": "POL-000",
+    "clause_type": "definitional",
+    "policy_schema_version": "0.1.0",
+    "title": "Vocabulário canônico de categorias de dados pessoais",
+    "status": "active",
+    "statutory_reference": [{ "lei": "LGPD", "artigo": 5 }],
+    "defines": {
+      "vocabulary_kind": "personal_data_categories",
+      "entries": [
+        {
+          "name": "dados_de_identificacao",
+          "definition": "Atributos que nomeiam ou rotulam diretamente o titular.",
+          "canonical_examples": ["nome", "sobrenome", "apelido"],
+          "statutory_reference": [{ "lei": "LGPD", "artigo": 5, "inciso": 1 }],
+          "special_category": false
+        },
+        {
+          "name": "dados_de_documentos_oficiais",
+          "definition": "Identificadores emitidos pelo Estado.",
+          "canonical_examples": ["cpf", "rg", "passaporte"],
+          "statutory_reference": [{ "lei": "LGPD", "artigo": 5, "inciso": 1 }],
+          "special_category": false
+        }
+      ]
+    },
+    "out_of_scope": [
+      {
+        "topic": "origem_racial_ou_etnica",
+        "statutory_reference": [{ "lei": "LGPD", "artigo": 5, "inciso": 2 }],
+        "reason": "unmodeled_special_category",
+        "fallback": "unmodeled_special_category_fallback"
+      },
+      {
+        "topic": "conviccao_religiosa",
+        "statutory_reference": [{ "lei": "LGPD", "artigo": 5, "inciso": 2 }],
+        "reason": "unmodeled_special_category",
+        "fallback": "unmodeled_special_category_fallback"
+      }
+    ]
+  },
+  "content": [
+    { "type": "text", "text": "POL-000: Vocabulário canônico de categorias de dados pessoais (LGPD Art. 5º)." }
+  ]
+}
+```
+
+*Caso de cláusula deprecated (substantiva).*
+
+```json
+Input: { "clause_id": "POL-014" }
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "clause_id": "POL-014",
+    "clause_type": "substantive",
+    "policy_schema_version": "0.1.0",
+    "title": "Cláusula original anterior à reforma",
+    "status": "deprecated",
+    "statutory_reference": [{ "lei": "LGPD", "artigo": 11 }],
+    "applies_to": {
+      "personal_data_categories": ["dados_de_saude"],
+      "operation": ["storage"]
+    },
+    "control": "consent_required",
+    "requirements": [{ "id": "R1", "text": "..." }],
+    "exceptions": [],
+    "tombstone": {
+      "successors": ["POL-031", "POL-032"],
+      "effective_until": "2026-06-30",
+      "deprecation_reason": "Cláusula original dividida em duas após reforma legislativa."
+    }
+  },
+  "content": [
+    { "type": "text", "text": "POL-014 (deprecated): sucessores POL-031, POL-032." }
+  ]
+}
 ```
 
 *Caso de erro — cláusula inexistente.*
 
-```
+```json
 Input: { "clause_id": "POL-999" }
-Output: { "isError": true, "content": [{
-  "errorCode": "CLAUSE_NOT_FOUND",
-  "message": "Cláusula POL-999 não encontrada na Política versão atual.",
-  "isRetryable": false,
-  "details": { "clause_id": "POL-999" }
-}]}
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "errorCode": "CLAUSE_NOT_FOUND",
+    "message": "Cláusula POL-999 não encontrada na Política atual.",
+    "isRetryable": false,
+    "details": { "clause_id": "POL-999" }
+  },
+  "content": [
+    { "type": "text", "text": "Cláusula POL-999 não encontrada na Política atual." }
+  ]
+}
 ```
 
 ### 4.2 `find_clauses_by_law_article`
@@ -232,9 +359,9 @@ Use this when the caller needs to enumerate clauses applicable to a specific pie
 
 Specification is hierarchical and progressive. `lei` and `artigo` are required; `paragrafo`, `inciso`, `alinea` are optional and narrow the search. A clause matches when ANY element of its `statutory_reference` list starts hierarchically with the given specification (matching `lei` first, then `artigo`, then optional fields in order). Clauses with multiple legal anchors thus match if any anchor is in scope. Example: a query for `{lei: LGPD, artigo: 7}` returns all active clauses whose statutory_reference begins with LGPD Art. 7º, regardless of inciso. A query for `{lei: LGPD, artigo: 7, inciso: 1}` returns only clauses tied specifically to inciso 1.
 
-Returns a list of clause objects (same structure as `get_clause` returns, without the `tombstone` block — deprecated clauses are excluded from results since this tool is for discovering operative clauses).
+Returns an object with a `clauses` field — list of clause objects (same polymorphic structure as `get_clause` returns, without the `tombstone` block — deprecated clauses are excluded from results since this tool is for discovering operative clauses). The result list MAY mix definitional and substantive clauses (`clause_type` discriminator); consumers MUST NOT filter or coerce by `clause_type` to "uniformize" the list, since heterogeneity reflects the law: a single article can govern a vocabulary definition (definitional clause) and a behavioral rule (substantive clause) simultaneously.
 
-Empty result is not an error: if no clauses in the current Policy match the specification, returns an empty list with `isError: false`.
+Empty result is not an error: if no clauses in the current Policy match the specification, returns `{clauses: []}` with `isError: false`.
 ```
 
 **`inputSchema`.**
@@ -247,7 +374,7 @@ Empty result is not an error: if no clauses in the current Policy match the spec
 | `inciso` | integer | não | Número do inciso (forma canônica é inteiro, não numeral romano — renderização para romano é responsabilidade da camada de apresentação). |
 | `alinea` | string | não | Letra da alínea (ex: `"a"`, `"b"`). |
 
-**Output em sucesso.** Lista de objetos de cláusula. Cada item da lista carrega a estrutura completa de cláusula conforme §4.1 em sucesso (sem o bloco `tombstone`, já que cláusulas deprecated são excluídas). Lista pode ser vazia.
+**Output em sucesso.** Objeto com campo `clauses` carregando lista de objetos de cláusula. Cada item da lista carrega a estrutura polimórfica completa de cláusula conforme §4.1 em sucesso (sem o bloco `tombstone`, já que cláusulas deprecated são excluídas). Lista pode misturar `clause_type: definitional` e `clause_type: substantive` quando a busca casar artigo referenciado por ambos os tipos. Lista pode ser vazia.
 
 A ordem dos itens segue ordem natural do `clause_id`. Não há paginação na v0.1.0.
 
@@ -261,43 +388,108 @@ Sem outros casos de erro de domínio: lei desconhecida vira lista vazia, não er
 
 **Exemplos.**
 
-*Caso normal — busca ampla por artigo.*
+*Caso normal — busca ampla por artigo, retorno polimórfico misto.*
 
-```
-Input: { "lei": "LGPD", "artigo": 7 }
-Output: { "isError": false, "content": [
-  { "clause_id": "POL-027", "statutory_reference": [{lei: "LGPD", artigo: 7, inciso: 1}], ... },
-  { "clause_id": "POL-028", "statutory_reference": [{lei: "LGPD", artigo: 7, inciso: 2}], ... },
-  { "clause_id": "POL-029", "statutory_reference": [{lei: "LGPD", artigo: 7, inciso: 5}], ... }
-]}
+```json
+Input: { "lei": "LGPD", "artigo": 5 }
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "clauses": [
+      {
+        "clause_id": "POL-000",
+        "clause_type": "definitional",
+        "policy_schema_version": "0.1.0",
+        "title": "Vocabulário canônico de categorias de dados pessoais",
+        "status": "active",
+        "statutory_reference": [{ "lei": "LGPD", "artigo": 5 }],
+        "defines": {
+          "vocabulary_kind": "personal_data_categories",
+          "entries": [
+            { "name": "dados_de_identificacao", "definition": "...", "canonical_examples": ["nome", "..."], "statutory_reference": [{ "lei": "LGPD", "artigo": 5, "inciso": 1 }], "special_category": false }
+          ]
+        },
+        "out_of_scope": [
+          { "topic": "origem_racial_ou_etnica", "statutory_reference": [{ "lei": "LGPD", "artigo": 5, "inciso": 2 }], "reason": "unmodeled_special_category", "fallback": "unmodeled_special_category_fallback" }
+        ]
+      },
+      {
+        "clause_id": "POL-005",
+        "clause_type": "substantive",
+        "policy_schema_version": "0.1.0",
+        "title": "<exemplo hipotético — placeholder de cláusula substantiva governando Art. 5>",
+        "status": "active",
+        "statutory_reference": [{ "lei": "LGPD", "artigo": 5 }],
+        "applies_to": { "personal_data_categories": ["dados_de_identificacao"], "operation": ["collection"] },
+        "control": "consent_required",
+        "requirements": [{ "id": "R1", "text": "<texto da exigência>" }],
+        "exceptions": []
+      }
+    ]
+  },
+  "content": [
+    { "type": "text", "text": "2 cláusulas encontradas para LGPD Art. 5º (1 definitional, 1 substantive)." }
+  ]
+}
 ```
 
 *Caso de busca estreita.*
 
-```
+```json
 Input: { "lei": "LGPD", "artigo": 7, "inciso": 1 }
-Output: { "isError": false, "content": [
-  { "clause_id": "POL-027", "statutory_reference": [{lei: "LGPD", artigo: 7, inciso: 1}], ... }
-]}
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "clauses": [
+      {
+        "clause_id": "POL-027",
+        "clause_type": "substantive",
+        "policy_schema_version": "0.1.0",
+        "title": "Consentimento para coleta de dados de identificação",
+        "status": "active",
+        "statutory_reference": [{ "lei": "LGPD", "artigo": 7, "inciso": 1 }],
+        "applies_to": { "personal_data_categories": ["dados_de_identificacao"], "operation": ["collection"] },
+        "control": "consent_required",
+        "requirements": [{ "id": "R1", "text": "..." }],
+        "exceptions": []
+      }
+    ]
+  },
+  "content": [
+    { "type": "text", "text": "1 cláusula encontrada para LGPD Art. 7º, I." }
+  ]
+}
 ```
 
 *Caso de empty result.*
 
-```
+```json
 Input: { "lei": "LGPD", "artigo": 50 }
-Output: { "isError": false, "content": [] }
+Output: {
+  "isError": false,
+  "structuredContent": { "clauses": [] },
+  "content": [
+    { "type": "text", "text": "Nenhuma cláusula referencia LGPD Art. 50." }
+  ]
+}
 ```
 
 *Caso de erro — lei fora do vocabulário.*
 
-```
+```json
 Input: { "lei": "CodigoPenal", "artigo": 1 }
-Output: { "isError": true, "content": [{
-  "errorCode": "INVALID_LAW_IDENTIFIER",
-  "message": "Identificador de lei 'CodigoPenal' não está no vocabulário aceito.",
-  "isRetryable": false,
-  "details": { "provided": "CodigoPenal", "accepted_values": ["LGPD"] }
-}]}
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "errorCode": "INVALID_LAW_IDENTIFIER",
+    "message": "Identificador de lei 'CodigoPenal' não está no vocabulário aceito.",
+    "isRetryable": false,
+    "details": { "provided": "CodigoPenal", "accepted_values": ["LGPD"] }
+  },
+  "content": [
+    { "type": "text", "text": "Identificador de lei 'CodigoPenal' não está no vocabulário aceito." }
+  ]
+}
 ```
 
 **Independência de framework.** Esta tool é agnóstica ao valor de `legal_framework`: opera sobre o índice de cláusulas da Política carregada, qualquer que seja a jurisdição. O vocabulário aceito de `lei` no input é determinado pelo campo `accepted_law_identifiers` do header da Política — não codificado na tool. Trocar de framework (e.g., de `LGPD` para `GDPR`) não altera o comportamento da tool, apenas o conjunto de identificadores de lei aceitos e o conjunto de cláusulas indexadas, ambos derivados da Política carregada.
@@ -331,6 +523,8 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
 | `structured_context.operation` | string (enum) | sim | Tipo de operação sobre o dado. Vocabulário canônico definido em `policy/vocabularies/<framework>/operation.yaml`, exposto ao consumidor via resource `policy://vocabularies` (ver §3.3). |
 | `structured_context.legal_basis` | string | não | Base legal declarada pelo código (quando presente). Valor textual livre — não vocabulário fechado. Ausência sinaliza que o código não declara base. |
 | `structured_context.destination` | string | não | Destino do dado quando relevante (ex: `external_service`, `internal_database`, `client_browser`). Ausência sinaliza não-aplicabilidade. |
+
+**Paralelismo com `applies_to` em cláusulas substantivas.** Os campos `structured_context.data_categories` e `structured_context.operation` no input desta tool são paralelos a `applies_to.personal_data_categories` e `applies_to.operation` no campo `applies_to` de cláusulas substantivas retornadas por `get_clause` (§4.1) e `find_clauses_by_law_article` (§4.2). O paralelismo é deliberado: o `structured_context` descreve o handling concreto observado em código; `applies_to` descreve o escopo de aplicabilidade declarado pela cláusula. A avaliação de `check_applicability` casa um contra o outro (cf. §2.2 e ADR-0005).
 
 **Output em sucesso.** Objeto com veredito e estrutura associada. A estrutura varia conforme o veredito:
 
@@ -425,7 +619,7 @@ Input: {
   "clause_id": "POL-031",
   "structured_context": {
     "data_categories": ["dados_de_saude"],
-    "operation": "store",
+    "operation": "storage",
     "legal_basis": "interesse legítimo"
   }
 }
@@ -456,7 +650,7 @@ Input: {
   "clause_id": "POL-027",
   "structured_context": {
     "data_categories": ["dados_de_identificacao"],
-    "operation": "transmit",
+    "operation": "disclosure_by_transmission",
     "destination": "external_service"
   }
 }
@@ -488,7 +682,7 @@ Output: {
 ```
 Input: { "clause_id": "POL-014", "structured_context": {...} }
 Output: {
-  "isError": true,
+  "isError": false,
   "structuredContent": {
     "errorCode": "CLAUSE_DEPRECATED",
     "message": "Cláusula POL-014 está deprecated. Sucessores: POL-031, POL-032.",
@@ -512,7 +706,7 @@ Output: {
 
 ### 5.1 Estrutura canônica do payload de erro
 
-Quando uma tool retorna falha, o resultado MCP tem `isError: true`. O objeto canônico de erro é serializado em `structuredContent` (canal nativo MCP para JSON estruturado), com a estrutura abaixo:
+Quando uma tool emite erro de domínio (validation, business ou system, ver §5.2), o objeto canônico de erro é serializado em `structuredContent` do `CallToolResult`, com a estrutura abaixo:
 
 ```yaml
 {
@@ -525,11 +719,11 @@ Quando uma tool retorna falha, o resultado MCP tem `isError: true`. O objeto can
 
 O campo `content` do `CallToolResult` carrega um único bloco `TextContent` cuja chave `text` reproduz `message`. Placement híbrido `structuredContent` + `content` é convenção do projeto registrada em ADR-0002 §1.
 
+O wire flag `isError` do `CallToolResult` permanece `false` para erros de domínio. O discriminador formal entre sucesso e erro é presença do campo `errorCode` em `structuredContent`: sucesso carrega payload positivo (cláusula, lista, veredito) sem campo `errorCode`; erro carrega envelope com `errorCode` populado. O wire `isError: true` fica reservado para falhas em nível de protocolo MCP (parâmetro inválido no `inputSchema`, tool inexistente), produzidas pelo framework, não pelo componente. Esta convenção é registrada em ADR-0002 §3 (amendment), que carrega o constraint de framework que a motiva e o gatilho de revisão.
+
 A separação inglês/português é deliberada. `errorCode` é constante de máquina — orchestrator faz comparação programática (`if errorCode == "CLAUSE_DEPRECATED"`), idioma estável evita bugs por capitalização ou tradução. `message` é destinada a humanos: logs do sistema, mensagens posteriores ao dev no PR review, depuração. Mistura inversa quebra ambos os usos.
 
 `details` é estruturado por `errorCode` (cada código tem sua forma) e carrega informação que o caller precisa para a próxima ação. Sem `details` rico, erro retryable vira erro não-retryable na prática (caller não tem como ajustar a chamada).
-
-O contrato dos quatro campos é convenção deste projeto sobreposta ao protocolo MCP — o único campo de erro nativo do `CallToolResult` é o booleano `isError`, que sinaliza falha mas não distingue classes (validation/business/system, ver §5.2) nem decisão de retry. A convenção materializa essas distinções programaticamente.
 
 ### 5.2 Classes de erro
 
@@ -541,15 +735,19 @@ O componente emite erros em três classes, com semânticas distintas:
 
 **System.** Falha transiente de infraestrutura. Disco, I/O, lock, recurso indisponível. **Quase sempre `isRetryable: true`** com backoff. Não há raciocínio sobre o conteúdo — caller decide quando, não como, repetir.
 
-### 5.3 Casos que parecem erro mas não são
+### 5.3 Discriminador formal entre sucesso e erro
 
-Três condições produzem retorno bem-sucedido (`isError: false`) mesmo que "intuitivamente" pareçam falha:
+Sob a convenção do projeto (§5.1, ADR-0002 §3 amendment), o wire flag `isError` do `CallToolResult` permanece `false` para erros de domínio. O discriminador formal entre sucesso e erro é **presença do campo `errorCode` em `structuredContent`**: sucesso carrega payload positivo (cláusula, lista de cláusulas, veredito) sem campo `errorCode`; erro carrega envelope canônico com `errorCode` populado.
 
-**Empty result.** `find_clauses_by_law_article` invocada com especificação para a qual a Política não tem cláusulas operativas correspondentes retorna lista vazia com `isError: false`. Vazio é informação acionável: caller sabe que pode prosseguir sem cláusulas para esse artigo.
+Essa convenção tem três consequências semânticas que merecem registro explícito porque cruzam a fronteira "intuitiva" entre falha e sucesso:
 
-**Veredito `indeterminate` em `check_applicability`.** É o output legítimo de "análise estática não consegue decidir esta dimensão". Sucesso do sistema sendo honesto, não falha. Modelar como erro destruiria a fronteira epistêmica do componente.
+**Empty result não é erro.** `find_clauses_by_law_article` invocada com especificação para a qual a Política não tem cláusulas operativas correspondentes retorna `{clauses: []}` com `isError: false` e **sem** `errorCode`. Vazio é informação acionável: caller sabe que pode prosseguir sem cláusulas para esse artigo.
 
-**Cláusula `deprecated` em `get_clause`.** Retorno é sucesso com bloco `tombstone` no payload. Auditoria histórica e seguimento de cadeia de sucessores são casos de uso legítimos. (Em `check_applicability`, a mesma condição vira erro `CLAUSE_DEPRECATED` retryable, porque a semântica da tool é diferente — ver §2.2.)
+**Veredito `indeterminate` não é erro.** `check_applicability` pode retornar `verdict: indeterminate` com `verification_scope` populado, `isError: false`, sem `errorCode`. É o output legítimo de "análise estática não consegue decidir esta dimensão". Sucesso do sistema sendo honesto, não falha. Modelar como erro destruiria a fronteira epistêmica do componente.
+
+**Cláusula `deprecated` em `get_clause` não é erro.** Retorno é sucesso com bloco `tombstone` no payload, `isError: false`, sem `errorCode`. Auditoria histórica e seguimento de cadeia de sucessores são casos de uso legítimos. (Em `check_applicability`, a mesma condição vira erro `CLAUSE_DEPRECATED` retryable — `isError: false` mas **com** `errorCode` populado — porque a semântica da tool é diferente. Ver §2.2.)
+
+Note que `isError: false` por si só não discrimina: tanto sucesso quanto erro de domínio carregam `isError: false`. Apenas a presença de `errorCode` em `structuredContent` resolve a ambiguidade. Wire `isError: true` é reservado para falhas de protocolo MCP (parâmetro inválido no `inputSchema`, tool inexistente), produzidas pelo framework, não pelo componente.
 
 ### 5.4 Tabela consolidada de `errorCode`
 

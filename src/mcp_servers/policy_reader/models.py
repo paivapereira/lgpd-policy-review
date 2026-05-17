@@ -171,10 +171,10 @@ class ErrorEnvelope(BaseModel):
     fallback; wire `isError` stays `False` and is reserved for protocol-level
     failures (input schema rejection, tool-not-found). Consumers discriminate
     success vs domain error by the presence of `errorCode` in
-    `structuredContent`. Canonical §5.1 prescribes `isError: True` for domain
-    failures, but FastMCP 3.2.4 has no public path that simultaneously emits
-    `isError: True` and a structured payload — pinned as cross-doc debt
-    (DD-6 in T02a session notes).
+    `structuredContent`. Canonical §5.1 (as amended in canonical-sync-B /
+    ADR-0002 §3 amendment) prescribes this Option B placement explicitly;
+    the FastMCP 3.2.4 framework constraint documented in the ADR amendment
+    is the structural reason. No cross-doc debt remains.
     """
 
     model_config = ConfigDict(extra="forbid")

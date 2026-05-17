@@ -36,7 +36,7 @@ When suggesting libraries, prefer the canonical stack above. Do not introduce al
 - **Source code, comments, identifiers, docstrings, commit messages, ADRs, this file:** English.
 - **LGPD policy content under `policy/`:** Brazilian Portuguese (legal fidelity to LGPD text).
 - **System outputs to end users (review reports, PR comments, escalation messages):** Brazilian Portuguese.
-- **Cláusula IDs in policy:** opaque, stable, with `POL-` prefix (e.g., `POL-001`). The mapping from clause to legal source lives in the `article_source` field of each clause, not in the ID itself.
+- **Cláusula IDs in policy:** opaque, stable, with `POL-` prefix (e.g., `POL-001`). The mapping from clause to legal source lives in the `statutory_reference` field of each clause, not in the ID itself.
 
 ## Immutable domain rules
 
@@ -44,7 +44,7 @@ These rules express the core thesis of the project. Violating them in code, prom
 
 1. **No fabricated certainty.** When the system cannot decide compliance with confidence — because the verification requires runtime observation, upstream behavior, or context the static analysis of a PR cannot see — it must return the verdict `indeterminate` with `verification_scope` indicating the dimension a human reviewer must verify manually. The system never fabricates `compliant` or `violation_candidate` to appear conclusive. The four valid verdicts are `compliant`, `violation_candidate`, `indeterminate`, `not_applicable`.
 
-2. **Citation of stable clause IDs.** Every finding, suggestion, or block produced by the agent must cite the stable `clause_id` (opaque identifier with `POL-` prefix, e.g., `POL-007`) of the clause it relies on. The `article_source` field of the clause carries the mapping to the legal text (lei, artigo, parágrafo, inciso, alínea). Findings without a `clause_id` citation are invalid output and must be rejected by validation.
+2. **Citation of stable clause IDs.** Every finding, suggestion, or block produced by the agent must cite the stable `clause_id` (opaque identifier with `POL-` prefix, e.g., `POL-007`) of the clause it relies on. The `statutory_reference` field of the clause carries the mapping to the legal text (lei, artigo, parágrafo, inciso, alínea). Findings without a `clause_id` citation are invalid output and must be rejected by validation.
 
 3. **Two-axis policy versioning with declared compatibility.** The policy is versioned along two independent axes: `policy_schema_version` for the structural schema of the YAML files, and `policy_version` for the textual content of the clauses. The system declares which `policy_schema_version` range it supports via `compatible_schema_range`. A pull request that changes the schema (clause structure, ID format, required fields) requires a major bump of `policy_schema_version`. A pull request that changes only the textual content of clauses (without schema change) requires at minimum a minor bump of `policy_version`. The system must reject at load time any policy whose `policy_schema_version` falls outside its declared compatibility range.
 

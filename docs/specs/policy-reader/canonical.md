@@ -12,7 +12,7 @@
 
 **Consumidores autorizados.** Tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`) são acessadas exclusivamente pelo subagente Matcher. Resources (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`) são consumidos pelo Matcher e, no caso específico de `policy://vocabularies`, também pelo Classifier (read-only, sem acesso às tools). Restrição materializada via configuração de `mcp_servers` no AgentDefinition de cada subagente (`architecture-overview.md` §5.7). Outros subagentes (Triager, Detector, Reporter) não têm este servidor em seu inventário.
 
-**Stack e governança.** Implementação em FastMCP 2.x conforme ADR-0001. Decisões de design deste componente são governadas pelo ADR-0002, incluindo deferimentos registrados explicitamente.
+**Stack e governança.** Implementação em FastMCP 3.x conforme ADR-0004. Decisões de design deste componente são governadas pelo ADR-0002, incluindo deferimentos registrados explicitamente.
 
 ## 2. Contrato com o artefato servido
 
@@ -36,7 +36,7 @@ A separação evita o anti-padrão "bumpamos schema major porque mudou um texto"
 
 ### 2.2 Comportamento contratual perante estados de cláusula
 
-O schema da Política define o estado de cada cláusula via campo `status`. As operações do componente reagem a cada estado conforme tabela abaixo. Outros campos do schema (estrutura de `article_source`, sub-ids em requirements, vocabulário canônico de classes) são governados por `policy/SCHEMA.md` e não geram comportamento diferenciado nas operações deste componente.
+O schema da Política define o estado de cada cláusula via campo `status`. As operações do componente reagem a cada estado conforme tabela abaixo. Outros campos do schema (estrutura de `statutory_reference`, sub-ids em requirements, vocabulário canônico de classes) são governados por `policy/SCHEMA.md` e não geram comportamento diferenciado nas operações deste componente.
 
 | Estado da cláusula | `get_clause` | `check_applicability` | `find_clauses_by_law_article` |
 |---|---|---|---|
@@ -62,7 +62,7 @@ O componente expõe três resources, todos sob o scheme `policy://`. O scheme cu
 - `clause_id` — identificador opaco com prefixo `POL-`.
 - `title` — rótulo humano-legível da cláusula.
 - `status` — `active` ou `deprecated`.
-- `article_sources_summary` — lista compacta de referências aos artigos da lei que a cláusula invoca, em forma sumarizada (forma exata definida em `policy/SCHEMA.md`). Estrutura completa de `article_source` vive na cláusula em si, recuperável via `get_clause`.
+- `article_sources_summary` — lista compacta de referências aos artigos da lei que a cláusula invoca, em forma sumarizada (forma exata definida em `policy/SCHEMA.md`). Estrutura completa de `statutory_reference` vive na cláusula em si, recuperável via `get_clause`.
 - `successors` — lista de `clause_id` sucessores, **presente apenas quando** `status: deprecated`. Ausente para cláusulas ativas.
 
 A ordem dos itens segue ordem natural do `clause_id` (POL-001, POL-002, ...). Não há paginação na v0.1.0 — escala assumida da Política do MVP é < 200 cláusulas.
@@ -134,7 +134,7 @@ Retrieve a single Policy clause by its stable `clause_id`.
 
 Use this when the caller already knows the exact identifier (typically recovered from `policy://catalog`, from a previous `find_clauses_by_law_article` call, or from a `successors` field returned by a `CLAUSE_DEPRECATED` error). Do not use this to search clauses by law article — for that, use `find_clauses_by_law_article`. Do not use this to evaluate whether a clause applies to a code-handling context — for that, use `check_applicability`.
 
-Returns the clause object with `clause_id`, `title`, `article_source` (hierarchical structure of law references), `applicability_scope` (data classes covered, drawn from the canonical vocabulary), `requirements` (numbered sub-items the clause demands), `exceptions` (numbered sub-items that suspend requirements), and `status`.
+Returns the clause object with `clause_id`, `title`, `statutory_reference` (hierarchical structure of law references), `applicability_scope` (data classes covered, drawn from the canonical vocabulary), `requirements` (numbered sub-items the clause demands), `exceptions` (numbered sub-items that suspend requirements), and `status`.
 
 If the clause is `deprecated`, this tool returns it successfully with a `tombstone` block containing `successors` (list of replacement `clause_id`s), `effective_until` (ISO date), and `deprecation_reason`. Deprecated clauses are not errors here — auditing historical decisions and following successor chains are legitimate use cases.
 
@@ -153,7 +153,7 @@ If the `clause_id` does not match any clause, returns business error `CLAUSE_NOT
 clause_id: POL-027
 title: <rótulo humano-legível>
 status: active            # ou: deprecated
-article_source:           # estrutura hierárquica — ver SCHEMA.md
+statutory_reference:      # estrutura hierárquica — ver SCHEMA.md
   - lei: LGPD
     artigo: 7
     inciso: 1
@@ -230,7 +230,7 @@ Find Policy clauses that reference a given law article (or sub-section of it).
 
 Use this when the caller needs to enumerate clauses applicable to a specific piece of law, without knowing clause identifiers in advance. Typical flow: the caller has structured context describing handling of personal data and needs to discover which clauses operate over the relevant law article. Do not use this when the caller already knows the `clause_id` — use `get_clause` instead. Do not use this to evaluate whether a clause applies to a context — use `check_applicability`.
 
-Specification is hierarchical and progressive. `lei` and `artigo` are required; `paragrafo`, `inciso`, `alinea` are optional and narrow the search. A clause matches when ANY element of its `article_source` list starts hierarchically with the given specification (matching `lei` first, then `artigo`, then optional fields in order). Clauses with multiple legal anchors thus match if any anchor is in scope. Example: a query for `{lei: LGPD, artigo: 7}` returns all active clauses whose article_source begins with LGPD Art. 7º, regardless of inciso. A query for `{lei: LGPD, artigo: 7, inciso: 1}` returns only clauses tied specifically to inciso 1.
+Specification is hierarchical and progressive. `lei` and `artigo` are required; `paragrafo`, `inciso`, `alinea` are optional and narrow the search. A clause matches when ANY element of its `statutory_reference` list starts hierarchically with the given specification (matching `lei` first, then `artigo`, then optional fields in order). Clauses with multiple legal anchors thus match if any anchor is in scope. Example: a query for `{lei: LGPD, artigo: 7}` returns all active clauses whose statutory_reference begins with LGPD Art. 7º, regardless of inciso. A query for `{lei: LGPD, artigo: 7, inciso: 1}` returns only clauses tied specifically to inciso 1.
 
 Returns a list of clause objects (same structure as `get_clause` returns, without the `tombstone` block — deprecated clauses are excluded from results since this tool is for discovering operative clauses).
 
@@ -266,9 +266,9 @@ Sem outros casos de erro de domínio: lei desconhecida vira lista vazia, não er
 ```
 Input: { "lei": "LGPD", "artigo": 7 }
 Output: { "isError": false, "content": [
-  { "clause_id": "POL-027", "article_source": [{lei: "LGPD", artigo: 7, inciso: 1}], ... },
-  { "clause_id": "POL-028", "article_source": [{lei: "LGPD", artigo: 7, inciso: 2}], ... },
-  { "clause_id": "POL-029", "article_source": [{lei: "LGPD", artigo: 7, inciso: 5}], ... }
+  { "clause_id": "POL-027", "statutory_reference": [{lei: "LGPD", artigo: 7, inciso: 1}], ... },
+  { "clause_id": "POL-028", "statutory_reference": [{lei: "LGPD", artigo: 7, inciso: 2}], ... },
+  { "clause_id": "POL-029", "statutory_reference": [{lei: "LGPD", artigo: 7, inciso: 5}], ... }
 ]}
 ```
 
@@ -277,7 +277,7 @@ Output: { "isError": false, "content": [
 ```
 Input: { "lei": "LGPD", "artigo": 7, "inciso": 1 }
 Output: { "isError": false, "content": [
-  { "clause_id": "POL-027", "article_source": [{lei: "LGPD", artigo: 7, inciso: 1}], ... }
+  { "clause_id": "POL-027", "statutory_reference": [{lei: "LGPD", artigo: 7, inciso: 1}], ... }
 ]}
 ```
 
@@ -713,7 +713,7 @@ A implementação do `policy-reader` está completa quando todos os critérios a
 
 ### 8.7 Implementação
 
-- [ ] Stack conforme ADR-0001 (FastMCP 2.x, Python 3.12.7).
+- [ ] Stack conforme ADR-0001 (FastMCP 3.x, Python 3.12.7).
 - [ ] Política carregada no startup; restart necessário para reload.
 - [ ] Vocabulário POL-000 (classes de dados) lido de `policy/SCHEMA.md`; vocabulários jurisdicionais (`operation`, `lawful_basis`, `control`, `out_of_scope`) lidos de `policy/vocabularies/<framework>/*.yaml` no startup, governados por `legal_framework` do header da Política (nenhum vocabulário hardcoded no componente).
 - [ ] Troca de `legal_framework` da Política não exige alteração de código: instanciar Política nova/clonada sob nova jurisdição, popular `policy/vocabularies/<new_framework>/`, atualizar header, restart. Verificável por exercício de clone sob framework alternativo.

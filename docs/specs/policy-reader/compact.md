@@ -120,7 +120,7 @@ Three tools. Naming convention: `mcp__policy-reader__<tool>` (runtime-generated)
 
 > Retrieve a single Policy clause by its stable `clause_id`. Use this when the caller already knows the exact identifier. Do not use this to search clauses by law article — use `find_clauses_by_law_article`. Do not use this to evaluate whether a clause applies to a context — use `check_applicability`.
 >
-> Returns the clause object with `clause_id`, `title`, `article_source`, `applicability_scope`, `requirements`, `exceptions`, and `status`. If the clause is `deprecated`, returns it successfully with a `tombstone` block containing `successors`, `effective_until`, and `deprecation_reason`. Deprecated clauses are not errors here — auditing historical decisions is a legitimate use case.
+> Returns the clause object with `clause_id`, `title`, `statutory_reference`, `applicability_scope`, `requirements`, `exceptions`, and `status`. If the clause is `deprecated`, returns it successfully with a `tombstone` block containing `successors`, `effective_until`, and `deprecation_reason`. Deprecated clauses are not errors here — auditing historical decisions is a legitimate use case.
 >
 > Returns business error `CLAUSE_NOT_FOUND` (non-retryable) if `clause_id` does not match any clause.
 
@@ -137,7 +137,7 @@ Three tools. Naming convention: `mcp__policy-reader__<tool>` (runtime-generated)
   clause_id: POL-027,
   title: <string>,
   status: active,
-  article_source: [{lei, artigo, inciso, ...}],   # estrutura em policy/SCHEMA.md
+  statutory_reference: [{lei, artigo, inciso, ...}],   # estrutura em policy/SCHEMA.md
   applicability_scope: [<data_category>, ...],     # vocabulário em policy/SCHEMA.md
   requirements: [{id: R1, text: ...}, ...],
   exceptions: [{id: E1, text: ...}, ...]
@@ -163,7 +163,7 @@ Output: {
     "clause_id": "POL-027",
     "title": "Consentimento para coleta de dados de identificação",
     "status": "active",
-    "article_source": [{"lei": "LGPD", "artigo": 7, "inciso": 1}],
+    "statutory_reference": [{"lei": "LGPD", "artigo": 7, "inciso": 1}],
     "applicability_scope": ["dados_de_identificacao"],
     "requirements": [{"id": "R1", "text": "Consentimento explícito antes da coleta."}],
     "exceptions": []
@@ -186,7 +186,7 @@ Output: {
       "effective_until": "2026-06-30",
       "deprecation_reason": "Cláusula original dividida em duas após reforma legislativa."
     },
-    "article_source": [...],
+    "statutory_reference": [...],
     "requirements": [...]
   },
   "content": [{"type": "text", "text": "POL-014 (deprecated): sucessores POL-031, POL-032."}]
@@ -199,7 +199,7 @@ Output: {
 
 > Find Policy clauses that reference a given law article (or sub-section of it). Use this when the caller needs to enumerate clauses applicable to a specific law fragment without knowing clause identifiers. Do not use this when `clause_id` is known — use `get_clause`. Do not use to evaluate applicability — use `check_applicability`.
 >
-> Specification is hierarchical and progressive: `lei` and `artigo` are required; `paragrafo`, `inciso`, `alinea` are optional and narrow the search. A clause matches when ANY element of its `article_source` list starts hierarchically with the given specification (matching `lei` first, then `artigo`, then optional fields in order). Clauses with multiple legal anchors thus match if any anchor is in scope.
+> Specification is hierarchical and progressive: `lei` and `artigo` are required; `paragrafo`, `inciso`, `alinea` are optional and narrow the search. A clause matches when ANY element of its `statutory_reference` list starts hierarchically with the given specification (matching `lei` first, then `artigo`, then optional fields in order). Clauses with multiple legal anchors thus match if any anchor is in scope.
 >
 > Returns a list of clause objects (same structure as `get_clause` success, without `tombstone` — deprecated clauses are excluded). Empty list is not an error: if no clauses match, returns `[]` with `isError: false`.
 
@@ -224,8 +224,8 @@ Input:  {"lei": "LGPD", "artigo": 7}
 Output: {
   "isError": false,
   "structuredContent": [
-    {"clause_id": "POL-027", "article_source": [{"lei": "LGPD", "artigo": 7, "inciso": 1}], ...},
-    {"clause_id": "POL-028", "article_source": [{"lei": "LGPD", "artigo": 7, "inciso": 2}], ...}
+    {"clause_id": "POL-027", "statutory_reference": [{"lei": "LGPD", "artigo": 7, "inciso": 1}], ...},
+    {"clause_id": "POL-028", "statutory_reference": [{"lei": "LGPD", "artigo": 7, "inciso": 2}], ...}
   ],
   "content": [{"type": "text", "text": "2 cláusulas encontradas para LGPD Art. 7º."}]
 }

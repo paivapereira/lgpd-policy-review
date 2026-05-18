@@ -156,7 +156,7 @@ Validação na redação canônica: nomes de categorias substituídos por valore
 
 **Acceptance scenarios task-level.**
 
-- **AS-1 — Veredito compliant.** Dado POL-001 active requerendo `legal_basis` não-nulo, e `structured_context` `{operation: collection, data_categories: [<categoria casando POL-001>], legal_basis: "<string declarada como base legal>", destination: <valor>}`, quando a tool é invocada com `clause_id: POL-001`, então `verdict: compliant`, trinca de provenance presente no payload, `isError: false`.
+- **AS-1 — Veredito compliant.** Dado POL-001 active requerendo `legal_basis` não-nulo, e `structured_context` `{operation: collection, data_categories: [<categoria casando POL-001>], legal_basis: "<string declarada como base legal>", destination: "external_service"}` (campo `destination` opcional per canonical §4.3 — aceito sem efeito sobre o veredito), quando a tool é invocada com `clause_id: POL-001`, então `verdict: compliant`, trinca de provenance presente no payload, `isError: false`.
 
 - **AS-2 — Veredito violation_candidate.** Dado POL-001 (mesma cláusula de AS-1), e `structured_context` que omite `legal_basis` (campo nulo), quando a tool é invocada, então `verdict: violation_candidate`, payload contém `evidence` (snippet ou referência do que foi observado) e `contradicted_requirement` (qual requirement da cláusula foi contrariado), trinca de provenance presente.
 
@@ -168,9 +168,9 @@ Validação na redação canônica: nomes de categorias substituídos por valore
 
 - **AS-6 — Provenance idêntica ao header.** Dado qualquer veredito em sucesso (AS-1 a AS-5), quando o payload é inspecionado, então `policy_schema_version`, `policy_version` e `legal_framework` são exatamente os valores carregados do header de `policy.yaml` em T01, sem transformação ou normalização que altere os valores.
 
-- **AS-7 — Cláusula deprecated.** Dado `clause_id` de cláusula deprecated (POL-003), quando a tool é invocada, então `isError: true`, `errorCode: CLAUSE_DEPRECATED`, `isRetryable: true`, `details` contém `{clause_id, successors, deprecation_reason}` conforme spec §5.4 — não apenas `successors`.
+- **AS-7 — Cláusula deprecated.** Dado `clause_id` de cláusula deprecated (POL-003), quando a tool é invocada, então (per Option B — wire `isError: false`; envelope em `structured_content`) `errorCode: CLAUSE_DEPRECATED`, `isRetryable: true`, `details` contém `{clause_id, successors, deprecation_reason}` conforme spec §5.4 — não apenas `successors`.
 
-- **AS-8 — Erros de validação de input.** Dado `structured_context` com `data_categories` contendo valor fora de POL-000.yaml, ou `operation` fora do vocabulário carregado, ou `data_categories: []`, quando a tool é invocada, então `isError: true`, errorCode em `{INVALID_DATA_CATEGORY, INVALID_OPERATION, EMPTY_DATA_CATEGORIES}` conforme caso, `isRetryable: false`, message em português descrevendo o erro.
+- **AS-8 — Erros de validação de input.** Dado `structured_context` com `data_categories` contendo valor fora de POL-000.yaml, ou `operation` fora do vocabulário carregado, ou `data_categories: []`, quando a tool é invocada, então (per Option B — wire `isError: false`; envelope em `structured_content`) errorCode em `{INVALID_DATA_CATEGORY, INVALID_OPERATION, EMPTY_DATA_CATEGORIES}` conforme caso, `isRetryable: false`, message em português descrevendo o erro.
 
 **Gate task-level.**
 

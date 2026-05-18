@@ -36,7 +36,11 @@ async def test_as1_returns_compliant_verdict(
     policy_root_with_pack_clauses: Path, reset_server_state: None,
 ) -> None:
     """AS-1. POL-001 (consent_required) + dados_de_contato + collection +
-    legal_basis='consent' → compliant. Provenance trinque presente."""
+    legal_basis='consent' + destination='external_service' → compliant.
+    Provenance trinque presente. Campo `destination` é opcional per canonical
+    §4.3 (linha 525) e exercitado aqui sem efeito sobre o veredito — garante
+    que StructuredContext aceita o campo (regression test contra remoção
+    futura do campo do modelo)."""
     server._bootstrap(policy_root_with_pack_clauses)
     async with Client(server.mcp) as client:
         result = await client.call_tool("check_applicability", {
@@ -45,6 +49,7 @@ async def test_as1_returns_compliant_verdict(
                 "data_categories": ["dados_de_contato"],
                 "operation": "collection",
                 "legal_basis": "consent",
+                "destination": "external_service",
             },
         })
     assert result.is_error is False
@@ -370,8 +375,23 @@ async def test_definitional_clause_returns_not_applicable(
             },
             "not_applicable",
         ),
+        (
+            "POL-001",
+            {
+                "data_categories": ["dados_de_contato"],
+                "operation": "use",
+                "legal_basis": "consent",
+            },
+            "not_applicable",
+        ),
     ],
-    ids=["compliant", "violation_candidate", "indeterminate", "not_applicable"],
+    ids=[
+        "compliant",
+        "violation_candidate",
+        "indeterminate",
+        "not_applicable_mismatch",
+        "not_applicable_mvp_scope",
+    ],
 )
 async def test_provenance_trinque_in_every_verdict_path(
     clause_id: str,

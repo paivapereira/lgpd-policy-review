@@ -559,11 +559,13 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
 {
   verdict: not_applicable,
   policy_clause_ref: POL-027,
-  evidence: <texto explicando por que a cláusula não governa este contexto>
+  reason: <texto explicando por que a cláusula não governa este contexto>
 }
 ```
 
-**Nota sobre `evidence` e `verification_target`.** Os campos de prosa (`evidence` em `compliant`, `violation_candidate`, `not_applicable`; `verification_target` em `indeterminate`) são gerados pelo componente como parte do veredito. Mecanismo de geração é decisão de implementação livre para evoluir (template, geração por modelo, híbrido) sem mudar a interface — ver §7.1. Caller não fornece esses campos.
+**Nota sobre `evidence`, `reason` e `verification_target`.** Os campos de prosa (`evidence` em `compliant` e `violation_candidate`; `reason` em `not_applicable`; `verification_target` em `indeterminate`) são gerados pelo componente como parte do veredito. Mecanismo de geração é decisão de implementação livre para evoluir (template, geração por modelo, híbrido) sem mudar a interface — ver §7.1. Caller não fornece esses campos.
+
+**Nota sobre `not_applicable` e clauses definitional.** O veredito `not_applicable` cobre três sub-casos: (i) escopo MVP — `operation` fora de `collection` retorna `not_applicable` antes de invocar matching (ADR-0007 Decision 3); (ii) applicability mismatch — `clause.applies_to` não intersecta com o context declarado em pelo menos uma dimensão; (iii) cláusula definitional — quando `clause_id` aponta para uma cláusula `definitional` (e.g., POL-000), `check_applicability` retorna `not_applicable` com `reason` explicando que cláusulas definitional declaram vocabulário, não governam contextos operacionais; cláusulas definitional não prescrevem `control` e portanto não têm aplicabilidade no sentido do veredito.
 
 **Condições de erro específicas.**
 

@@ -38,21 +38,27 @@ def valid_policy_root(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def policy_root_with_pack_clauses(tmp_path: Path) -> Path:
-    """`valid_policy_root` extended with POL-001 (active substantive),
-    POL-003 (deprecated with tombstone, successors=[POL-004]) and POL-004
-    (active substantive, the declared successor of POL-003) from the test
-    pack at `tests/.../fixtures/clauses_pack_check_applicability/`.
+    """`valid_policy_root` extended with the four pack clauses POL-001
+    through POL-004 from
+    `tests/.../fixtures/clauses_pack_check_applicability/`:
+
+    - POL-001: active substantive, `consent_required`, LGPD Art. 7, I
+    - POL-002: active substantive, `anonymization_required`, LGPD Art. 12 §2
+    - POL-003: deprecated, tombstone with successors=[POL-004]
+    - POL-004: active substantive, `consent_required`, declared successor
+      of POL-003 (refined wording for `dados_de_documentos_oficiais`)
 
     POL-000 ships from the real `policy/clauses/` via the initial `copytree`.
-    T02a consumes this fixture for AS-1.b (POL-001) and AS-2 (POL-003); T02b
-    additionally consumes POL-004 in the AS-1/AS-3 pair (broad LGPD Art. 7
-    query: POL-001 + POL-004 active, POL-003 deprecated and filtered).
-    POL-002 stays out — it is T03 territory and lives in the test that
-    needs it.
+    Composition history: T02a consumed POL-001/POL-003 for AS-1.b/AS-2; T02b
+    added POL-004 for the broad LGPD Art. 7 query pair; T03 adds POL-002
+    aditively for the indeterminate verdict path. The fixture name is kept
+    across mutations to preserve T02a/T02b assertion compatibility (those
+    suites use subset-style assertions; no test asserts exact count or
+    absence of POL-002).
     """
     root = tmp_path / "policy"
     shutil.copytree(REAL_POLICY, root)
-    for pol_id in ("POL-001", "POL-003", "POL-004"):
+    for pol_id in ("POL-001", "POL-002", "POL-003", "POL-004"):
         shutil.copy(
             PACK_CLAUSES / f"{pol_id}.yaml",
             root / "clauses" / f"{pol_id}.yaml",

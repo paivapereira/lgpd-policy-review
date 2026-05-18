@@ -12,13 +12,12 @@ handshake payload (`policy_schema_version`, `policy_version`,
 
 T02a migrates `get_clause` from an inline skeleton into a thin wrapper that
 delegates to `tools.get_clause` (pure function in `tools.py`); T02b does the
-same for `find_clauses_by_law_article`. The remaining resource
-(`policy://catalog`) and tool `check_applicability` remain as skeleton stubs
-until T03 / T04 land.
+same for `find_clauses_by_law_article`; T03 does the same for
+`check_applicability`. The remaining resource (`policy://catalog`) is the
+only skeleton stub left, pending T04.
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -191,38 +190,55 @@ def find_clauses_by_law_article(
 def check_applicability(
     clause_id: str,
     structured_context: dict[str, Any],
-) -> dict[str, Any]:
-    """Evaluate whether a clause applies to a structured operational context.
+) -> ToolResult:
+    """Evaluate whether a Policy clause governs a candidate handling and,
+    if so, with which verdict (canonical §4.3).
 
-    Use this when you have a clause_id and a structured_context describing a
-    data-processing operation (data_categories, operation, legal_basis,
-    purpose, etc.), and need a verdict on whether the operation complies with
-    the clause.
+    Use this when you have a `clause_id` and a `structured_context`
+    describing a data-processing operation observed in a pull request
+    (`data_categories`, `operation`, optional `legal_basis`), and need a
+    verdict on whether the handling aligns with the clause's prescription.
 
-    Returns one of four verdicts:
-      - compliant: operation conforms to the clause requirements
-      - violation_candidate: operation contradicts a requirement (with
-        evidence and contradicted_requirement)
-      - indeterminate: static analysis cannot decide (with verification_scope
-        describing the dimension to verify manually)
-      - not_applicable: clause does not govern this context
+    Returns one of four verdicts in `structured_content` on success:
+      - `compliant`: candidate satisfies the clause requirement; `evidence`
+        cites the requirement and the canonical token observed.
+      - `violation_candidate`: candidate contradicts a requirement;
+        `contradicted_requirement` identifies which requirement (e.g.,
+        "R1") and `evidence` differentiates the sub-case (omission vs.
+        non-canonical value).
+      - `indeterminate`: static analysis of the PR cannot decide this
+        dimension; `verification_scope` names the dimension (e.g.,
+        `upstream_state`), the prescribed treatment, and what a human
+        reviewer must verify. `indeterminate` is a first-class verdict
+        per canonical §7.3 — it signals epistemic honesty, not failure.
+      - `not_applicable`: the clause does not govern this context; `reason`
+        explains the boundary (MVP scope per ADR-0007 D3, or applicability
+        mismatch between the clause's `applies_to` and the context).
 
-    Successful returns carry policy_schema_version, policy_version, and
-    legal_framework (provenance). For deprecated clauses, returns business
-    error CLAUSE_DEPRECATED (retryable) with successors in details.
+    Every success carries the provenance trinque (`policy_schema_version`,
+    `policy_version`, `legal_framework`) sourced from the loaded Policy
+    header (ADR-0005 D5; canonical §6.4).
 
-    Do not use this for clause retrieval — use `get_clause` instead.
-    Do not use this without a clause_id — discover clauses first via
-    `find_clauses_by_law_article`.
-
-    [SKELETON STUB — returns indeterminate; real implementation lands in T03.]
+    Six error envelopes are possible (wire `isError: false`; envelope in
+    `structured_content` discriminated by presence of `errorCode` per
+    Option B):
+      - `INVALID_CLAUSE_ID_FORMAT`: `clause_id` does not match `POL-NNN`.
+      - `EMPTY_DATA_CATEGORIES`: `data_categories` is the empty list.
+      - `INVALID_DATA_CATEGORY`: an element of `data_categories` is not
+        in POL-000's canonical vocabulary (`accepted_values` is dynamic).
+      - `INVALID_OPERATION`: `operation` is not in the canonical
+        operation vocabulary (`accepted_values` is dynamic).
+      - `CLAUSE_NOT_FOUND`: `clause_id` does not exist in the loaded
+        Policy.
+      - `CLAUSE_DEPRECATED` (retryable): the clause is deprecated; `details`
+        carries `successors` and `deprecation_reason`. Asymmetric with
+        `get_clause`, which returns success-with-tombstone for the same
+        clause — historical retrieval is legitimate there; applicability
+        evaluation on a deprecated clause is a usage error here
+        (canonical §2.2 / §5.3).
     """
-    _ = json.dumps(structured_context, default=str)  # touch arg, lint quiet
-    return {
-        "_stub": "policy-reader skeleton — check_applicability not yet implemented",
-        "clause_id_received": clause_id,
-        "verdict": "indeterminate",
-    }
+    assert _STATE is not None, "policy-reader bootstrap did not run"
+    return tools.check_applicability(clause_id, structured_context, _STATE)
 
 
 if __name__ == "__main__":

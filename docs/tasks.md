@@ -221,12 +221,10 @@ PRs separados, fora do escopo de implementação Code de Milestone A. Não bloqu
 
 **Sync `docs/session-handoff.md`.** A entrada "Plano de ação Fase 2" do handoff descreve "Milestone A — MCPs standalone validados (T01-T05)" agrupando policy-reader e semgrep-runner. Este `tasks.md` divide em Milestone A (policy-reader) e Milestone B (semgrep-runner) por capability boundary. Atualizar handoff na mesma PR que promove `tasks.md` para evitar drift.
 
-**Sync `docs/specs/policy-reader/canonical.md`.** Quatro débitos identificados pelas três passadas de auditoria de v0/v1:
+**Sync `docs/specs/policy-reader/canonical.md`.** Dois débitos identificados pelas três passadas de auditoria de v0/v1:
 
-- Nome do campo de referência legal em cláusulas: canonical §4.1 cita `article_source` (singular); `policy/SCHEMA.md` §5.1/§6.1 e `policy/clauses/POL-000.yaml` (artefato real) usam `statutory_reference`. Adotar `statutory_reference` no canonical.
 - Nomes dos campos do `structured_context` no inputSchema de `check_applicability` (§4.3): canonical usa `operation` e `legal_basis`; `docs/REQUIREMENTS.md` RF-003 usa `operation_type` e `declared_legal_basis` (saída do Classifier). Decidir lado canônico — se manter canonical, RF-003 documenta o adapter Classifier→tool; se mover para RF-003, atualizar inputSchema da tool.
 - Campo de payload em `not_applicable`: canonical §4.3 exemplo usa `evidence`; ADR-0007 Decision 3 (mergeada) introduz `reason`. Atualizar canonical para refletir ADR-0007.
-- Versão de FastMCP: canonical §1 e §8.7 declaram "FastMCP 2.x conforme ADR-0001"; `pyproject.toml` linha 10 tem `fastmcp>=3.2.0,<4.0`; CLAUDE.md confirma 3.x; ADR-0004 governa. Sync FastMCP 2.x → 3.x no canonical.
 
 ---
 

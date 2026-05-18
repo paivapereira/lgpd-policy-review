@@ -73,16 +73,33 @@ Task decomposition and verification follow ADR-0008 (as amended 2026-05-16): med
 - Architectural overview and component contracts → `docs/architecture-overview.md`.
 - Component-level specifications → `docs/specs/<component>.md`.
 - Multi-step procedures, runbooks, or workflows → `.claude/skills/<skill-name>/SKILL.md`.
-- Path-scoped rules (only relevant when working inside `policy/` or `mcp_servers/`) → nested `CLAUDE.md` in that subdirectory.
+- Path-scoped rules (only relevant when working inside `policy/` or
+  `mcp_servers/`) → nested `CLAUDE.md` in that subdirectory, OR
+  `.claude/rules/<topic>.md` with `paths:` YAML frontmatter (glob
+  patterns) for finer-grained scoping. The latter is preferred when
+  scope is by file pattern rather than directory containment.
 - Personal preferences of any individual contributor → user-scope `~/.claude/CLAUDE.md`.
 
 ## Status flags for the agent
 
-- **Repository age:** early development — architecture and conceptual design closed; implementation not yet started.
-- **Tests:** none yet — `pytest` has nothing to run.
+- **Repository age:** early-mid development — Milestone A in progress
+  (T01, T02a, T02b operational; T03, T04 pending).
+- **Tests:** 27 passing (T01 bootstrap, T02a get_clause + parametrize,
+  T02b find_clauses_by_law_article, wire-shape anchor).
 - **CI:** not configured yet.
-- **MCP servers:** designed (`policy-reader`, `semgrep-runner`), not implemented.
-- **Subagents:** designed (Triager, Detector, Classifier, Matcher, Reporter, plus coordinator), not implemented.
-- **Policy:** schema v0.1.0 conceptually closed (sessão #03), spec to be written; no clauses authored yet.
+- **MCP servers:** policy-reader has 1 of 3 resources operational
+  (`policy://schema-version`; `policy://catalog` skeleton stub pending
+  T04; `policy://vocabularies` not yet introduced) + 2 of 3 tools
+  operational (`get_clause`, `find_clauses_by_law_article`;
+  `check_applicability` skeleton stub pending T03). semgrep-runner
+  designed, not implemented.
+- **Subagents:** designed (Triager, Detector, Classifier, Matcher,
+  Reporter, plus coordinator), not implemented.
+- **Policy:** schema v0.1.0 stable; POL-000 (definitional, universal
+  vocabulary) authored in real `policy/`; pack POL-001..POL-004 in
+  `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/`
+  for T02b and T03 testing; no substantive clauses in real policy yet.
 
-When the agent is asked to perform an action that depends on infrastructure described as "not yet" above, it must say so plainly rather than fabricate.
+When the agent is asked to perform an action that depends on
+infrastructure described as "not yet", "pending", or "skeleton stub"
+above, it must say so plainly rather than fabricate.

@@ -469,7 +469,7 @@ Output: {
   "isError": false,
   "structuredContent": { "clauses": [] },
   "content": [
-    { "type": "text", "text": "Nenhuma cláusula referencia LGPD Art. 50." }
+    { "type": "text", "text": "Nenhuma cláusula referencia LGPD Art. 50º." }
   ]
 }
 ```
@@ -628,7 +628,7 @@ Output: {
   "structuredContent": {
     "verdict": "violation_candidate",
     "policy_clause_ref": "POL-031",
-    "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11.",
+    "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11º.",
     "contradicted_requirement": "R1",
     "policy_schema_version": "0.1.0",
     "policy_version": "0.1.0",
@@ -637,7 +637,7 @@ Output: {
   "content": [
     {
       "type": "text",
-      "text": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11."
+      "text": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11º."
     }
   ]
 }

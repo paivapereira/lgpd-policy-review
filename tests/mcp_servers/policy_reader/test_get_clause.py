@@ -169,7 +169,7 @@ async def test_as1_returns_active_substantive_clause(
     ]
 
     assert result.content[0].text.startswith("POL-001:")
-    assert "LGPD Art. 7" in result.content[0].text
+    assert "LGPD Art. 7º, I" in result.content[0].text
 
 
 # ---------------------------------------------------------------------------

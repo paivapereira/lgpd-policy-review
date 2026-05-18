@@ -183,3 +183,116 @@ class ErrorEnvelope(BaseModel):
     message: str = Field(min_length=1)
     isRetryable: bool
     details: dict[str, Any] = Field(default_factory=dict)
+
+
+class StructuredContext(BaseModel):
+    """T03 input model — context describing candidate handling extracted from
+    a pull request (canonical §4.3).
+
+    Semantic validation of `data_categories` (non-empty + members of POL-000
+    canonical vocabulary) and `operation` (member of operation vocabulary)
+    happens in `tools.check_applicability` BEFORE construction of this model
+    (DD-T03-4). Pydantic here only locks the structural shape post-validation;
+    `min_length=1` on `data_categories` is intentionally omitted to keep the
+    semantic envelope `EMPTY_DATA_CATEGORIES` upstream.
+
+    `legal_basis` is a free-form string compared against the canonical token
+    `consent` for `consent_required` clauses (R1 of POL-001/POL-004 prescribes
+    the comparison against the canonical token, not mere presence/absence).
+
+    Not exported from the policy_reader package — internal type pending
+    Milestone C contract decision when Matcher consumes (DD-T03-4).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    data_categories: list[str]
+    operation: str
+    legal_basis: str | None = None
+    destination: str | None = None
+
+
+class VerificationScope(BaseModel):
+    """Nested block of `IndeterminateVerdict` (canonical §4.3 / §7.3).
+
+    Signals which dimension the system cannot decide via static analysis and
+    what verification a human reviewer must perform manually.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    dimension: str
+    prescribed_treatment: str
+    verification_target: str
+
+
+class CompliantVerdict(BaseModel):
+    """`check_applicability` verdict: candidate satisfies the clause
+    requirement (canonical §4.3 / §7.3). Provenance trinque mandatory
+    per ADR-0005 D5."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    verdict: Literal["compliant"] = "compliant"
+    policy_clause_ref: str
+    evidence: str
+    policy_schema_version: str
+    policy_version: str
+    legal_framework: str
+
+
+class ViolationCandidateVerdict(BaseModel):
+    """`check_applicability` verdict: candidate appears to violate the
+    clause (canonical §4.3 / §7.3). `contradicted_requirement` cites the
+    specific requirement (e.g., "R1"). Provenance trinque mandatory."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    verdict: Literal["violation_candidate"] = "violation_candidate"
+    policy_clause_ref: str
+    evidence: str
+    contradicted_requirement: str
+    policy_schema_version: str
+    policy_version: str
+    legal_framework: str
+
+
+class IndeterminateVerdict(BaseModel):
+    """`check_applicability` verdict: static analysis cannot decide this
+    dimension (canonical §7.3 — first-class verdict, not evaluation
+    failure). Provenance trinque mandatory."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    verdict: Literal["indeterminate"] = "indeterminate"
+    policy_clause_ref: str
+    verification_scope: VerificationScope
+    policy_schema_version: str
+    policy_version: str
+    legal_framework: str
+
+
+class NotApplicableVerdict(BaseModel):
+    """`check_applicability` verdict: clause does not govern this context
+    (canonical §4.3). Uses `reason` (not `evidence`) per ADR-0007 D3 +
+    tasks.md AS-4/AS-5 — the prescriptive sources win over canonical's
+    descriptive example, which carries cross-doc sync debt to be applied
+    in a follow-up PR. Provenance trinque mandatory.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    verdict: Literal["not_applicable"] = "not_applicable"
+    policy_clause_ref: str
+    reason: str
+    policy_schema_version: str
+    policy_version: str
+    legal_framework: str
+
+
+Verdict = (
+    CompliantVerdict
+    | ViolationCandidateVerdict
+    | IndeterminateVerdict
+    | NotApplicableVerdict
+)

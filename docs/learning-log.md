@@ -2695,3 +2695,458 @@ executar T02b. Pré-leitura obrigatória: canonical §4.2 + §5 limpos
 pós-sync-B; preview de prompt T02b já redigido em #21 (60% do
 framing). Custo estimado: ~1h Chat de prep. Após #22 fechar, sessão
 Code #23+ implementa T02b (~2-3h, gate task-level ADR-0008 §3).
+
+## 2026-05-17 — sessão #22 — prep prompt T02b + cleanup render romano (#22.5) + 
+T02b find_clauses_by_law_article (#23 Code) + Chat review independente
+
+**Foco.** Sessão Chat persistente cobrindo o ciclo T02b completo: refinamento 
+iterativo do prompt de Code (v1 → v2 → v3 → execução) com três rodadas Chat ↔ 
+Code, sessão Code #22.5 dedicada à PR de cleanup mecânico 
+`fix/render-romano-in-T02a` pré-T02b, sessão Code #23 implementando T02b Fase 1 
+(plano) + Fase 2 (código), e Chat review independente dos quatro arquivos 
+modificados antes da PR. Bundle conceitual único cobrindo a primeira aplicação 
+em escala documentada do pattern "uma sessão Chat persistente sustenta múltiplos 
+ciclos Code rotativos". PRs: `fix/render-romano-in-T02a` em `<TBD>` (sessão 
+#22.5), `feat/policy-reader-find-clauses` em `<TBD>` (sessão #23, após merge da 
+cleanup).
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1 multi-agent coordinator-subagent com human-in-the-loop — três rodadas 
+  Chat ↔ Code aplicadas a prompt prep, não a execução.** Primeira sessão a 
+  exercitar o pattern coordinator-subagent sobre redação iterativa de prompt: 
+  Code redigiu draft inicial v1 do prompt T02b (durante a sessão T02a anterior), 
+  Chat refinou para v2 com seis correções factuais/estruturais, Code reviewou v2 
+  e pegou a lacuna do drift romano vs literal de inciso que escapou ao Chat, 
+  Chat refinou para v3 absorbendo a DD-5 com quatro opções, João ratificou v3 
+  com sub-sub-decisão (d.1) sobre assinatura semântica do helper compartilhado, 
+  Chat refinou para final. Padrão: cada rodada captura uma classe distinta de 
+  catch (factual macro → transversal cross-component → semântico de tipos). 
+  Material defense candidate forte para Capítulo de Método.
+
+- **D1 scope discipline cross-PR — descritivo de propriedade desejada, não 
+  ritual.** Quando João abriu inadvertidamente a sessão Code de cleanup na 
+  mesma sessão da prep anterior (falso alarme — sessão era nova mas com nome 
+  parecido), o reflexo inicial foi "refazer em sessão fresh para preservar 
+  pattern". Chat refinou: scope discipline é descritiva de **auditabilidade de 
+  blame por PR**, não ritual de "sessão fresh para cada PR". Se o diff está 
+  limpo (verificável independentemente via Chat review do diff), a propriedade 
+  está atendida independente da sessão Code que produziu. Cinco checks 
+  estruturais propostos para validar o diff direto antes de ratificar; todos 
+  passaram. Quarta aplicação do pattern PR sequencial em escala (#19, #20, #21, 
+  #22.5 → #23) consolida defense candidate.
+
+- **D1 session state management — heurística refinada sobre sessões persistentes 
+  vs fresh.** Originalmente projetei o ciclo como "sessão Chat #22 prep → 
+  sessão Chat #23 review T02b" com handoff entre as duas. João corrigiu: Chat 
+  persiste sobre múltiplos ciclos Code, sessão fresh só após PR de T02b 
+  mergear. Refinamento: contexto que vale preservar vs descartar não é função 
+  do papel (Chat vs Code), é função do **tipo de output**. Code produz código 
+  (output verificável independentemente, então sessão fresh evita 
+  cross-contamination silenciosa que gates podem não pegar). Chat produz 
+  decisões e ratificações (output que ganha qualidade com histórico narrativo 
+  cumulativo). Heurística destilada: sessões fresh para outputs verificáveis 
+  empiricamente; sessões persistentes para outputs narrativos. Pattern a 
+  formalizar em CLAUDE.md ou ADR futuro.
+
+- **D1 task decomposition — DD reversion fundamentada vs inércia.** Plano que 
+  Code esboçou em sessão Code anterior (#22.5 que ficou esboçada antes do 
+  cleanup) recomendava criar fixture nova `policy_root_with_pack_clauses_full` 
+  ao lado da existente, argumentando "risk de regression silenciosa em T02a 
+  tests". Em sessão Code #23 (Fase 1 plano), Code reverteu para "estender 
+  fixture existente incluindo POL-004", com dois argumentos novos: (i) 
+  coerência intra-fixture (POL-003 declara `successors: [POL-004]`; POL-004 
+  ausente da fixture é inconsistência conceitual); (ii) verificação direta de 
+  T02a tests confirmou asserções por `clause_id` específico, não por count — 
+  POL-004 não rompe nenhuma. Coerência justifica mudança; verificação direta 
+  neutraliza o risco original. Defense candidate: **reversão fundamentada de 
+  recomendação prévia ≠ inércia**, quando os argumentos da reversão são 
+  empíricos.
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2 tool description com anti-uniformization rule literal no docstring.** 
+  Server.py wrapper de `find_clauses_by_law_article` carrega no docstring final 
+  "The list MAY mix `clause_type: definitional` and `clause_type: substantive` 
+  when the same article is referenced by both kinds; consumers MUST NOT filter 
+  or coerce by `clause_type` to uniformize the list." Literal do canonical 
+  §4.2 line 362. Exemplo de como a invariante de contrato declarada na spec 
+  vira parte do docstring que é consumido pelo cliente MCP via 
+  `inputSchema`/`description`.
+
+- **D2 discriminador polimórfico `clause_type` no output schema.** A 
+  invariante anti-uniformização é exercitada por código no anchor de teste 
+  `test_polymorphic_mix_at_art_5` sobre fixture sintética que carrega 
+  POL-000 (definitional, real) + POL-901 + POL-902 (substantive, sintéticas). 
+  Query `{lei: LGPD, artigo: 5}` retorna lista heterogênea de 3 elementos 
+  com `types == {"definitional", "substantive"}`. **Sem o anchor, a 
+  invariante ficaria só na spec** — implementação que filtrasse 
+  definitional-only ou substantive-only passaria todos os outros 5 AS por 
+  coincidência. Padrão D2 cobrado pela prova como "schema design — output 
+  discriminator preservation".
+
+- **D2 isError flag Option B canonicalizada — segunda aplicação operacional.** 
+  T02b consumiu sem DD: envelope em `structured_content` com `errorCode`, 
+  `content[0].text == message`, wire `isError: false`. Convenção Option B 
+  já documentada em canonical §5.1 + §5.3 + ADR-0002 §3 amendment 
+  (canonical-sync-B / #21). Segundo consumidor (`INVALID_LAW_IDENTIFIER`) 
+  aplicou direto. Convenção operacional ratificada por uso, não por mais um 
+  round de DD.
+
+- **D2 errorCode `INVALID_LAW_IDENTIFIER` com `details` dinâmico do header.** 
+  `accepted_values` do envelope vem de `state.header.accepted_law_identifiers` 
+  (não hardcoded), com `sorted()` defensivo para determinismo. Pin do brief 
+  capturou esse requisito; teste AS-5 valida `details == {"provided": "GDPR", 
+  "accepted_values": ["LGPD"]}` literal. Quando T04 introduzir framework swap, 
+  `accepted_values` automaticamente reflete o header carregado.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **D3 plan mode com gate de OK explícito — quarta aplicação em escala.** 
+  Sessão Code #23 Fase 1 entregou plano com 8 DDs enumeradas (DD-1 a DD-8), 
+  recomendação por DD justificada, mapping AS tabular, riscos enumerados, 
+  alvos de edição escopados. Estrutura permite ratificação granular: João 
+  ratificou DDs 1-3 e 5-8, mudou DD-4 (reversion já discutida acima), anotou 
+  observação cosmética sobre AS-4 (canonical line 472 sem º), e aprovou. 
+  Padrão "gate de OK pode ser cirúrgico, não binário" materializado em 
+  escala.
+
+- **D3 CLAUDE.md / convenções como prescritivos vivos.** Quatro convenções 
+  novas formalizadas em texto durante esta sessão: (a) "sessões fresh para 
+  outputs verificáveis, persistentes para narrativos" (D1 acima); (b) 
+  "assertion strictness escala inversamente com expansibilidade do fixture" 
+  (testes que **definem** contrato usam asserções estritas com ordem exata; 
+  testes que **exercitam** contrato usam subset — formalizado para T03+); 
+  (c) range `POL-9NN` reservado para fixtures sintéticas de teste, separado 
+  de `POL-001..POL-099` (cláusulas reais) e do pack `POL-001..POL-004`; 
+  (d) "compartilhar função de formatação entre dois domínios é OK; 
+  compartilhar tipo requer justificativa semântica" (DD-5 sub-sub d.1 sobre 
+  helper signature). Pendência: codificar (a), (b) e (d) em ADR ou regras 
+  `.claude/rules/` em janela futura.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4.6 multi-instance review com escalation progressiva — três rounds 
+  capturando classes distintas.** Round 1 (Code → Chat): Chat pegou seis 
+  correções factuais/estruturais em v1 do prompt (AS-1 query drift, anchor 
+  polimórfico que não testava mix, render rules underspecified, deprecated 
+  framing, fixture composição incompleta, verificação obrigatória de estado 
+  real). Round 2 (Chat → Code): Code validou as seis com referências de 
+  linha específicas e achou lacuna nova que Chat não tinha visto sozinho — 
+  drift romano vs literal de inciso entre `tools.py` T02a e canonical-sync-B 
+  pós-#21. Round 3 (Code → Chat → João): Chat propôs opção (d) PR sequencial 
+  pequena que Code não tinha considerado (recomendava bundle (c) por 
+  argumento de tamanho); João ratificou (d) com sub-sub-decisão (d.1) 
+  sobre assinatura do helper compartilhado pinando impedância semântica 
+  stored vs query. **Três classes distintas de catches por round.** 
+  Saturação atingida em 3 rounds (curva de saturação para PR de tamanho 
+  médio).
+
+- **D4 validation-retry implícito via AS-2 narrow — granularidade calibrada 
+  por dimensão de falha.** Bug do `_matches` (curto-circuito 
+  `if spec is None: return True` ignorava specs mais profundas) só foi 
+  pego pelo AS-2 narrow no primeiro run da Fase 2. Sem split AS-2 em 
+  narrow/broad — se ficasse apenas AS-2 broad como o brief original 
+  pinava menos explicitamente — todos os outros 5 testes passariam por 
+  coincidência. AS-1 (query `{artigo: 7}` sem opcionais), AS-3 (mesma 
+  query), AS-4 (lista vazia, não exercita matching), AS-5 (erro antes do 
+  matching), anchor polimórfico (broad query). **AS-2 narrow é o teste 
+  único** que força a comparação de campo opcional não-trivial entre 
+  spec e stored. Defense candidate forte: granularidade de teste calibrada 
+  por **dimensão de falha esperada**, não por count de cenários — exatamente 
+  o que D4 cobra em validation-retry loops aplicado em forma estática.
+
+- **D4 prompt engineering com structured phases iterado a quatro 
+  versões.** v1 (esqueleto baseado em T02a, 270 linhas) → v2 (DD-5 
+  adicionada, 540 linhas) → v3 (sub-sub d.1 pinada, 583 linhas) → 
+  execução (DD-5 colapsada pós-cleanup, ~380 linhas). Cada versão 
+  preservou estrutura Fase 1 plan / gate / Fase 2 execute / Post-Fase 2 / 
+  Guard-rails; deltas foram cirúrgicos via `str_replace` em vez de 
+  regeneração. Pattern de versionamento via deltas reduz risco de 
+  introdução acidental de mudanças não-relacionadas — material defense 
+  para "estrutura > capacidade do modelo".
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 canary check via pin de pré-condição.** Brief de execução T02b 
+  pinou: "Se `_format_law_reference` **não** estiver em `tools.py` após 
+  `git pull origin main`, abort e levanta com João antes de prosseguir." 
+  Asserção barata no início da Fase 1 que pega erro caro (Code 
+  reimplementar helper em paralelo porque acha que não existe) antes 
+  de o erro se propagar. Build the canary that screams first — princípio 
+  aplicado em T01 para wire-shape FastMCP, replicado aqui para estado 
+  de `main`. Padrão reusável: sessões T03+ que dependerem de helpers 
+  consolidados em sessões anteriores carregam canary pin equivalente.
+
+- **D5 provenance via leitura direta vs inferência — pin obrigatório 
+  na Fase 1.** Brief v1 originalmente carregava afirmações herdadas do 
+  Code da T02a sobre estado de `conftest.py`, `server.py:125-152`, 
+  `tools.py`. Pin #6 das seis correções iniciais forçou: "verificar 
+  essas afirmações lendo os arquivos direto; se divergente do brief, 
+  parar e levantar antes de planejar". Code da Fase 1 cumpriu o pin com 
+  10 verificações tabuladas direto contra os arquivos. Achado menor: 
+  range de linhas `server.py:125-152` afirmado pelo brief é na verdade 
+  `141-168` no estado real (drift menor não-bloqueante). Confirmação 
+  empírica de que herdar afirmações entre sessões sem verificação 
+  produz drift; pin "lê direto, não infere" funciona em escala.
+
+- **D5 escalation pattern — bug do `_matches` pego, validado, e 
+  corrigido sem rerun.** Code da Fase 2 reportou: "Bug pego pelo AS-2 
+  narrow no primeiro run. Versão original fazia curto-circuito... 
+  Corrigi para semântica equivalente sem curto-circuito; a falha de 
+  teste validou o algoritmo por código — sem o AS-2, o bug teria 
+  escapado." Padrão clássico de generator/evaluator (Rajasekaran 2026): 
+  o test escreveu primeiro o que o código deveria fazer, o código 
+  falhou no que o teste exigia, o código corrigiu. **Sem escalation 
+  para Chat** — Code resolveu localmente porque o teste especificou o 
+  comportamento esperado com precisão suficiente. Contraste empírico 
+  com T02a (#20) onde AS não-executável precisou escalation: lá o 
+  contrato do framework FastMCP era a fonte do problema; aqui o 
+  contrato canonical §4.2 era a fonte da solução.
+
+- **D5 débito cosmético cross-doc anotado em três lugares.** Inconsistência 
+  em canonical §4.2 line 472 (`"Nenhuma cláusula referencia LGPD Art. 50."` 
+  sem ordinal `º`) vs linhas 431/459 (com ordinal). Implementação de T02b 
+  escolheu consistência interna (`_format_law_reference` sempre emite 
+  `º`) e asserção do AS-4 acompanha (`"Art. 50º."` com `º`). Débito 
+  registrado em: (i) relatório do Code Fase 2; (ii) Chat review 
+  independente; (iii) este learning-log. Anotação tripla previne perda 
+  de rastro entre sessões. Pendência para sessão Chat de housekeeping 
+  cross-doc futura.
+
+### Conceitos fora do escopo da prova
+
+- **PR sequencial vs PR encadeada — git workflow.** Discussão em #22.5 
+  sobre (A) Code abre PR de cleanup → João mergeia em main → Code 
+  ramifica T02b de main vs (B) Code ramifica T02b de branch de cleanup 
+  sem mergear primeiro. (B) exige rebase pós-squash, frágil; (A) limpo 
+  com gate Chat-review independente sobre cada PR. (A) escolhida, 
+  consistente com pattern #19 (cleanup → main → T01) e #21 
+  (canonical-sync-B → main → T02b).
+
+- **`git stash -u` para preservar untracked pré-checkout** — pin 
+  operacional herdado de #19, aplicado em #22.5 para preservar working 
+  state durante checkout entre branches.
+
+### Decisões tomadas
+
+- **DD-1 (helper extraction):** (a) manter inline em `tools.py` por 
+  YAGNI. T03 com 5 errorCodes adicionais será o gatilho real de 
+  extração para `_envelope.py`. `tools.py` cresceu de ~150 para ~285 
+  linhas em T02b — ainda manejável.
+
+- **DD-2 (algoritmo prefix-hierarchical):** semântica "specification ≤ 
+  stored" implementada via `_matches(lei, artigo, paragrafo, inciso, 
+  alinea, entry)`. Sem curto-circuito em `spec is None`; loop verifica 
+  todos os níveis. Filtro de deprecated estrutural via `c.status == 
+  "active"`, parte do contrato canonical §4.2 (não AS-driven).
+
+- **DD-3 (modelagem da specification):** parâmetros nomeados na 
+  função pública (5 args). Sem dataclass `_LawArticleSpec` privada 
+  (simplificação vs plano da sessão Code anterior). YAGNI aos 5 args.
+
+- **DD-4 (fixture):** estender `policy_root_with_pack_clauses` para 
+  incluir POL-004 (reversão fundamentada vs plano anterior; ver D1 
+  acima). Coerência intra-fixture com `successors: [POL-004]` 
+  preservada.
+
+- **DD-5 (render romano):** colapsada após PR `fix/render-romano-in-T02a` 
+  (#22.5) mergear. Helper `_format_law_reference` em `tools.py` é 
+  single source of truth para rendering de referência legal. T02b 
+  consome direto em `_render_query_text`; sem duplicação.
+
+- **DD-5 sub-sub (assinatura do helper):** (d.1) helper aceita 5 
+  parâmetros soltos, não `StatutoryReferenceEntry`. Justificativa 
+  semântica: `StatutoryReferenceEntry` representa estado armazenado; 
+  reusar para render de query confunde domínios deliberadamente 
+  distintos. Compartilha função de formatação, não tipo. Convenção a 
+  formalizar para T03+.
+
+- **DD-6 (output wrapper):** `{"clauses": [<model_dump(mode="json", 
+  exclude_none=True), ...>]}` com sort por `clause_id`. 
+  Ordenação lexicográfica funciona porque IDs são zero-padded.
+
+- **DD-7 (envelope INVALID_LAW_IDENTIFIER):** `accepted_values` 
+  dinâmico do header com `sorted()` defensivo. `{provided!r}` produz 
+  aspas simples casando canonical §4.2 line 485 literal.
+
+- **DD-8 (rendering content[0].text):** três regras destiladas 
+  (campos opcionais da query, singular/plural por count, breakdown 
+  só em mistura de tipos). `_render_query_text` consome 
+  `_format_law_reference` para o componente "lei + opcionais", 
+  aplica regras de count/breakdown.
+
+- **Convenção POL-9NN:** range reservado para fixtures sintéticas 
+  de teste. Documentada em docstring do helper 
+  `_write_synthetic_art5_root` e no pack README. Sem ADR (overhead 
+  desproporcional).
+
+- **Filtro de deprecated em `find_clauses_by_law_article` é 
+  contratual per canonical §4.2 line 362.** AS-3 é o teste do 
+  contrato, não o driver dele. Pin reforçado em três lugares do 
+  brief de execução para prevenir framing errôneo como "edge case".
+
+### Validações empíricas
+
+- **Gate task-level ADR-0008 §3 cumprido em escala consolidada.** 
+  Para `fix/render-romano-in-T02a` (#22.5): pytest 20/20, ruff verde, 
+  mypy clean, Chat review independente desta sessão sobre 5 checks 
+  estruturais do diff direto. Para `feat/policy-reader-find-clauses` 
+  (#23): pytest 27/27 (11 T01 + 8 T02a com parametrize + 7 T02b + 1 
+  wire-shape anchor), ruff verde, mypy clean, Chat review independente 
+  sobre 4 arquivos modificados (este review).
+
+- **AS-2 narrow pegou bug do `_matches` em primeiro run.** Confirmação 
+  empírica de que granularidade de teste calibrada por dimensão de 
+  falha funciona — bug que escaparia silencioso em 5 dos 6 testes foi 
+  capturado pelo único teste que exercita a dimensão.
+
+- **Anchor polimórfico exercitou anti-uniformization rule por código.** 
+  Sem o anchor, a invariante canonical §4.2 line 362 ficaria só na 
+  spec; com o anchor, implementação que filtrasse `clause_type` falha 
+  em código.
+
+- **Pattern PR sequencial cross-PR aplicado pela quarta vez.** #19 
+  (cleanup cross-doc → T01), #20 (canonical-sync-A → continue), #21 
+  (canonical-sync-B → T02b), #22.5 (fix/render-romano-in-T02a → T02b). 
+  Convenção descritiva da propriedade desejada (auditabilidade de blame 
+  por PR), não ritual de processo.
+
+- **Sessão Chat persistente sustentou 3 sub-eventos sem degradação 
+  observável.** Prep → cleanup → T02b execução + review. Contraste 
+  com hipótese de "Chat fresh por sub-evento" — fluxo persistente 
+  preservou continuidade narrativa de decisões (DDs cumulativas, 
+  defense candidates encadeados) sem cross-contamination. Heurística 
+  refinada (D1 acima) explica quando o pattern é seguro.
+
+- **Reversão fundamentada DD-4 sem inércia.** Plano Code #22.5 dizia 
+  "fixture nova"; plano Code #23 disse "estender existente" com 
+  argumentos novos. Mudança ratificada pelo Chat. Não foi 
+  "esqueceu da decisão anterior" — foi "encontrou argumentos melhores 
+  via verificação direta de asserções T02a".
+
+### Pendências para sessão #24+ ou PR futura
+
+**Pré-merge de T02b:**
+
+- João abre PR `feat/policy-reader-find-clauses` → `main` com a 
+  mensagem que Code sugeriu. Mergeia squash. Registra hash neste 
+  log substituindo `<TBD>`.
+
+**Resolver em sessão #24 (Chat fresh — prep do prompt T03):**
+
+- **DD-T03-X**: composição da fixture para AS-1..AS-7 de T03 (pack 
+  POL-001..POL-004 completo, incluindo POL-002 que ficou de fora de 
+  T02b). Análogo ao DD-T02b-4 mas em escala maior (4 vereditos × 4 
+  cláusulas).
+- **Algoritmo de matching de `check_applicability`.** Mecanismo 
+  interno deferido (regra/LLM/híbrido) conforme handoff de Fase 1.5; 
+  decisão substantiva nesta prep.
+- **Filtro de escopo MVP via `not_applicable` para `operation ≠ 
+  collection`** per ADR-0007. Implementação antes ou depois do 
+  matching de cláusulas? Decisão na prep.
+- **`structured_context` modelagem — Pydantic em models.py ou 
+  parâmetros nomeados?** Análogo à DD-T02b-3 mas com mais campos 
+  (4 campos: `data_categories`, `operation`, `legal_basis`, 
+  `destination`).
+- **Provenance trinque `(policy_schema_version, policy_version, 
+  legal_framework)` em todo sucesso** per canonical §6.4. Onde 
+  injetar — no envelope de sucesso, ou em layer separado?
+- **Refator de envelope helpers para `_envelope.py`** (gatilho real 
+  agora — T03 introduz 5 errorCodes). DD-T03 dedicada.
+
+**Resolver em sessão Chat de housekeeping cross-doc futura:**
+
+- **`tasks.md` §Companion edits cross-doc stale** — lista menciona 
+  itens resolvidos por PRs #36-#39. Atualizar para refletir estado 
+  real. Anotado em três sessões anteriores; ainda pendente.
+- **canonical §4.2 line 472 sem ordinal `º`** — débito cosmético 
+  descoberto durante T02b. Anotado em três lugares (relatório Code, 
+  Chat review, este log) para evitar perda de rastro.
+- **Convenções a formalizar em `.claude/rules/` ou ADR:** (a) 
+  sessões fresh vs persistentes por tipo de output; (b) assertion 
+  strictness vs subset; (d) função compartilhada vs tipo 
+  compartilhado entre domínios. (c) POL-9NN já documentada em 
+  docstring + pack README.
+
+**Resolver pós-T03:**
+
+- **T04** (`policy://vocabularies` + framework swap) — exercita 
+  framework-awareness via consumo dinâmico do vocabulário carregado.
+- **Gate milestone-level Milestone A** — sessão Chat dedicada após 
+  T03+T04 fecharem, ~1-2h, manual exercise via MCP Inspector 
+  validando cada Dado/Quando/Então de RFs 004-parcial, 005, 
+  007-parcial, 008-parcial, 009.
+
+**Resolver em janela futura sem urgência:**
+
+- **DX residual:** linters (ruff, mypy) como dev deps oficiais em 
+  `pyproject.toml`. Workaround `uvx ruff` / `uv run --with mypy mypy` 
+  funciona. Sessão Code curta (~15min).
+- **Decomposição formal de Milestone B em sessão Chat dedicada.** 
+  Após gate milestone-level de A. Decisão Semgrep-on-Windows 
+  precede.
+
+### Nota de calibração metodológica
+
+Sessão #22 operou em escala estendida: três rodadas de prep do prompt 
+com classes distintas de catches por round (factual macro → 
+transversal → semântico); ciclo Chat persistente sustentando 
+sessão Code #22.5 (cleanup) + sessão Code #23 (T02b) sem fresh entre 
+elas; bug do `_matches` capturado por AS-2 narrow no primeiro run, 
+sem escalation porque o teste especificou o comportamento com 
+precisão; cinco convenções novas formalizadas em texto (sessões 
+persistentes vs fresh por output type, assertion strictness, função 
+vs tipo compartilhado, POL-9NN, render contratual vs AS-driven). 
+Defense candidates novos para Capítulo de Método do TCC:
+
+1. **Multi-instance review com escalation progressiva**: três rounds, 
+   três classes de catches, curva de saturação atingida em PR média. 
+   Material reproduzível via "ordinal-por-ordinal das classes capturadas 
+   por round, plotar densidade catches/superfície".
+2. **AS-2 narrow como teste único pegando bug que escaparia 
+   silencioso em 5/6 testes**: granularidade de teste calibrada por 
+   dimensão de falha esperada, não por cenário. Empírico 
+   quantificável.
+3. **Reversão fundamentada de recomendação prévia ≠ inércia**: 
+   DD-4 fixture mudou de "fixture nova" para "estender existente" 
+   entre planos Code #22.5 e #23, com argumentos novos via 
+   verificação direta. Não foi esquecimento; foi recalibração.
+4. **Heurística sessões fresh vs persistentes por tipo de output**: 
+   refinamento sobre quando Chat sustenta múltiplos ciclos Code. 
+   Originalmente projetei por papel (Chat fresh por evento); 
+   refinado para por tipo de output (verificável vs narrativo).
+5. **Scope discipline cross-PR como propriedade descritiva, não 
+   ritual**: falso alarme em #22.5 (João achou que tinha aberto 
+   sessão errada) capturou que a propriedade desejada é 
+   auditabilidade de blame por PR, atendida pelo Chat review do 
+   diff. Pattern do projeto é descritivo, não normativo absoluto.
+6. **Canary check via pin de pré-condição**: "se 
+   `_format_law_reference` não estiver em main, abort". Replicação 
+   do princípio "build the canary that screams first" (T01 
+   wire-shape FastMCP) para estado de main entre sessões.
+
+O método deste projeto está se estabilizando suficientemente para 
+virar contribuição metodológica autônoma do TCC, não só ferramenta 
+operacional. Capítulo de Método ganha cinco defense candidates 
+empíricos desta sessão.
+
+### Próximo passo
+
+Sessão #24 (Chat fresh) — prep do prompt T03 (`check_applicability`, 
+quatro vereditos + provenance trinque + escopo MVP via 
+`not_applicable` para `operation ≠ collection`). Pré-leitura consome 
+canonical §4.3 + ADR-0007 + pack POL-001..004 completo (incluindo 
+POL-002 que ficou de fora de T02b). DD-T03 substantiva: refator de 
+envelope helpers para `_envelope.py` (gatilho real agora — T03 
+introduz 5 errorCodes). Custo estimado: ~1h Chat prep + ~3-4h Code 
+implementação (T03 é a maior task de Milestone A em complexidade).
+
+Pre-flight para #24 a documentar no session-handoff: três DDs 
+estruturais (matching algorithm, structured_context modeling, 
+provenance injection) + uma DD operacional (escopo MVP antes ou 
+depois do matching) + um refator (envelope helpers).
+
+---

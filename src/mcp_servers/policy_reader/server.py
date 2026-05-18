@@ -11,10 +11,10 @@ handshake payload (`policy_schema_version`, `policy_version`,
 `legal_framework`, `compatible_schema_range`).
 
 T02a migrates `get_clause` from an inline skeleton into a thin wrapper that
-delegates to `tools.get_clause` (pure function in `tools.py`). The remaining
-resource (`policy://catalog`) and two tools
-(`find_clauses_by_law_article`, `check_applicability`) remain as skeleton
-stubs until T02b / T03 / T04 land.
+delegates to `tools.get_clause` (pure function in `tools.py`); T02b does the
+same for `find_clauses_by_law_article`. The remaining resource
+(`policy://catalog`) and tool `check_applicability` remain as skeleton stubs
+until T03 / T04 land.
 """
 from __future__ import annotations
 
@@ -145,27 +145,46 @@ def find_clauses_by_law_article(
     paragrafo: int | None = None,
     inciso: int | None = None,
     alinea: str | None = None,
-) -> dict[str, Any]:
-    """Find clauses referencing a specific article of a law.
+) -> ToolResult:
+    """Find Policy clauses that reference a given law article (or sub-section
+    of it).
 
-    Use this when you have a law reference (e.g. LGPD, Art. 7, inciso IX) and
-    need to discover which clauses in the Policy invoke that article. Supports
-    hierarchical narrowing: provide `lei` + `artigo` for broad search; add
-    `paragrafo`, `inciso`, `alinea` to narrow further.
+    Use this when the caller needs to enumerate clauses applicable to a
+    specific piece of law without knowing clause identifiers in advance.
+    Typical flow: the caller has structured context describing handling of
+    personal data and needs to discover which clauses operate over the
+    relevant law article. Do not use this when the caller already knows the
+    `clause_id` — use `get_clause` instead. Do not use this to evaluate
+    whether a clause applies to a context — use `check_applicability`.
 
-    Returns a list of matching clauses (deprecated clauses excluded — for
-    historical retrieval, use `get_clause` with a known clause_id).
+    Specification is hierarchical and progressive. `lei` and `artigo` are
+    required; `paragrafo`, `inciso`, `alinea` are optional and narrow the
+    search. A clause matches when ANY element of its `statutory_reference`
+    list starts hierarchically with the given specification. A query for
+    `{lei: LGPD, artigo: 7}` returns all active clauses whose
+    `statutory_reference` begins with LGPD Art. 7º, regardless of inciso;
+    `{lei: LGPD, artigo: 7, inciso: 1}` returns only clauses tied
+    specifically to inciso 1. `inciso` is encoded as integer (canonical
+    form); rendering as Roman numeral lives in the presentation layer.
 
-    Do not use this when you already have a clause_id — use `get_clause`.
+    Returns the object `{clauses: [...]}` in `structuredContent`. Each entry
+    carries the polymorphic clause structure produced by `get_clause`, minus
+    the `tombstone` block — deprecated clauses are excluded from results
+    since this tool is for discovering operative clauses. The list MAY mix
+    `clause_type: definitional` and `clause_type: substantive` when the same
+    article is referenced by both kinds; consumers MUST NOT filter or coerce
+    by `clause_type` to uniformize the list. Empty match is not an error:
+    returns `{clauses: []}` with wire `isError: false`.
 
-    [SKELETON STUB — returns empty list; real implementation lands in T02b.]
+    Domain error: `INVALID_LAW_IDENTIFIER` (non-retryable) when `lei` is not
+    in the Policy header's `accepted_law_identifiers` vocabulary. The
+    envelope follows the Option B convention (envelope in `structuredContent`
+    with `errorCode`; `content[0].text` reproduces `message`).
     """
-    return {
-        "_stub": "policy-reader skeleton — find_clauses_by_law_article not yet implemented",
-        "lei_received": lei,
-        "artigo_received": artigo,
-        "clauses": [],
-    }
+    assert _STATE is not None, "policy-reader bootstrap did not run"
+    return tools.find_clauses_by_law_article(
+        lei, artigo, paragrafo, inciso, alinea, _STATE,
+    )
 
 
 @mcp.tool

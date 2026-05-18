@@ -1,10 +1,9 @@
 """Pure tool implementations for the policy-reader MCP server.
 
-T02a introduces this module and migrates `get_clause` from the inline
-skeleton in `server.py`. The other two tools (`find_clauses_by_law_article`,
-`check_applicability`) remain inline stubs in `server.py` until T02b / T03
-migrate each in their own session — `tools.py` carries exactly one public
-function (`get_clause`) in T02a.
+T02a introduced this module migrating `get_clause` from the inline skeleton
+in `server.py`. T02b adds `find_clauses_by_law_article` alongside, so this
+module now carries two public functions; `check_applicability` remains an
+inline stub in `server.py` until T03 migrates it.
 
 Functions here are pure: they receive `state: LoadedPolicy` as an argument
 (the same object the loader produces in T01) and return a `ToolResult`
@@ -37,7 +36,7 @@ _CLAUSE_ID_EXPECTED_FORMAT = r"^POL-\d{3}$"
 
 
 # ---------------------------------------------------------------------------
-# Public surface — T02a contributes exactly one function
+# Public surface — get_clause (T02a) + find_clauses_by_law_article (T02b)
 # ---------------------------------------------------------------------------
 
 def get_clause(clause_id: str, state: LoadedPolicy) -> ToolResult:
@@ -59,8 +58,99 @@ def get_clause(clause_id: str, state: LoadedPolicy) -> ToolResult:
     return _success_tool_result(clause)
 
 
+def find_clauses_by_law_article(
+    lei: str,
+    artigo: int,
+    paragrafo: int | None,
+    inciso: int | None,
+    alinea: str | None,
+    state: LoadedPolicy,
+) -> ToolResult:
+    """Find clauses matching a law-article specification (canonical §4.2).
+
+    Match semantics are prefix-hierarchical: a stored `statutory_reference`
+    entry matches when it starts hierarchically with the query
+    (`lei` → `artigo` → `paragrafo` → `inciso` → `alinea`). A clause matches
+    when ANY entry of its top-level `statutory_reference` list matches.
+    Deprecated clauses are excluded from the result by contract (canonical
+    §4.2) — operative-clause discovery is the sole use case here; historical
+    retrieval goes through `get_clause` with a known `clause_id`.
+
+    Returns the wrapper `{"clauses": [...]}` as success payload, polymorphic
+    by `clause_type` and ordered by `clause_id`. Consumers MUST NOT filter or
+    coerce by `clause_type` to uniformize the list (canonical §4.2). Returns
+    the `INVALID_LAW_IDENTIFIER` envelope when `lei` is not in the Policy
+    header's `accepted_law_identifiers` vocabulary.
+    """
+    accepted = state.header.accepted_law_identifiers
+    if lei not in accepted:
+        return _envelope_tool_result(
+            _invalid_law_identifier(lei, accepted),
+        )
+
+    matched = sorted(
+        (
+            clause
+            for clause in state.clauses.values()
+            if clause.status == "active"
+            and any(
+                _matches(lei, artigo, paragrafo, inciso, alinea, entry)
+                for entry in clause.statutory_reference
+            )
+        ),
+        key=lambda c: c.clause_id,
+    )
+
+    payload: dict[str, Any] = {
+        "clauses": [
+            clause.model_dump(mode="json", exclude_none=True)
+            for clause in matched
+        ],
+    }
+    text = _render_query_text(
+        lei, artigo, paragrafo, inciso, alinea, matched,
+    )
+    return ToolResult(
+        content=[TextContent(type="text", text=text)],
+        structured_content=payload,
+    )
+
+
 # ---------------------------------------------------------------------------
-# Error envelope builders — local to T02a
+# Prefix-hierarchical matching (canonical §4.2)
+# ---------------------------------------------------------------------------
+
+def _matches(
+    lei: str,
+    artigo: int,
+    paragrafo: int | None,
+    inciso: int | None,
+    alinea: str | None,
+    entry: StatutoryReferenceEntry,
+) -> bool:
+    """True when `entry` starts hierarchically with the given specification.
+
+    Field order is fixed by SCHEMA §5.1: lei → artigo → paragrafo → inciso →
+    alinea. A `None` field in the specification imposes no constraint at that
+    level; a non-`None` field must equal the corresponding stored field. A
+    stored `None` against a non-`None` specification means the stored entry
+    is strictly less specific than the query, so it does not match (per
+    canonical §4.2 — "specification ≤ stored").
+    """
+    if entry.lei != lei or entry.artigo != artigo:
+        return False
+    for spec, stored in (
+        (paragrafo, entry.paragrafo),
+        (inciso, entry.inciso),
+        (alinea, entry.alinea),
+    ):
+        if spec is not None and stored != spec:
+            return False
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Error envelope builders
 # ---------------------------------------------------------------------------
 
 def _invalid_clause_id_format(provided: str) -> ErrorEnvelope:
@@ -84,6 +174,20 @@ def _clause_not_found(clause_id: str) -> ErrorEnvelope:
         message=f"Cláusula {clause_id} não encontrada na Política atual.",
         isRetryable=False,
         details={"clause_id": clause_id},
+    )
+
+
+def _invalid_law_identifier(
+    provided: str, accepted: list[str],
+) -> ErrorEnvelope:
+    return ErrorEnvelope(
+        errorCode="INVALID_LAW_IDENTIFIER",
+        message=(
+            f"Identificador de lei {provided!r} não está no vocabulário "
+            f"aceito."
+        ),
+        isRetryable=False,
+        details={"provided": provided, "accepted_values": sorted(accepted)},
     )
 
 
@@ -192,3 +296,39 @@ def _render_clause_text(clause: Clause) -> str:
         f"{clause.clause_id}: {clause.title} "
         f"({_format_first_stat_ref(first_ref)})."
     )
+
+
+def _render_query_text(
+    lei: str,
+    artigo: int,
+    paragrafo: int | None,
+    inciso: int | None,
+    alinea: str | None,
+    matched: list[Clause],
+) -> str:
+    """Render the human-facing summary for `find_clauses_by_law_article`.
+
+    Three rules distilled from canonical §4.2 examples (lines 431, 459, 472):
+      1. The reference string carries the optional fields from the QUERY,
+         not from the matched stored entries — `_format_law_reference` is the
+         single source of truth for the rendering.
+      2. Singular/plural agrees with `count`; `count == 0` renders the
+         "Nenhuma cláusula referencia ..." phrasing.
+      3. The `(N definitional, M substantive)` breakdown appears only when
+         the result is heterogeneous (more than one distinct `clause_type`).
+    """
+    reference = _format_law_reference(lei, artigo, paragrafo, inciso, alinea)
+    count = len(matched)
+    if count == 0:
+        return f"Nenhuma cláusula referencia {reference}."
+
+    types = {clause.clause_type for clause in matched}
+    if len(types) > 1:
+        defs = sum(1 for c in matched if c.clause_type == "definitional")
+        subs = count - defs
+        breakdown = f" ({defs} definitional, {subs} substantive)"
+    else:
+        breakdown = ""
+
+    noun = "cláusula encontrada" if count == 1 else "cláusulas encontradas"
+    return f"{count} {noun} para {reference}{breakdown}."

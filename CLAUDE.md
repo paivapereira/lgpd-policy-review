@@ -48,24 +48,6 @@ These rules express the core thesis of the project. Violating them in code, prom
 
 3. **Two-axis policy versioning with declared compatibility.** The policy is versioned along two independent axes: `policy_schema_version` for the structural schema of the YAML files, and `policy_version` for the textual content of the clauses. The system declares which `policy_schema_version` range it supports via `compatible_schema_range`. A pull request that changes the schema (clause structure, ID format, required fields) requires a major bump of `policy_schema_version`. A pull request that changes only the textual content of clauses (without schema change) requires at minimum a minor bump of `policy_version`. The system must reject at load time any policy whose `policy_schema_version` falls outside its declared compatibility range.
 
-## Conventions
-
-- **Commits:** Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `ci:`, `build:`).
-- **Branches:** `main` is protected; work happens in `feat/<short-description>`, `fix/<short-description>`, `docs/<short-description>`. No long-lived feature branches.
-- **Pull requests:** describe what changed and why; link to ADR if applicable; include manual test notes for any change that touches policy loading, MCP server contracts, or the agent loop.
-
-## Working methodology
-
-This project follows Spec-Driven Development. Implementation work proceeds against written specifications under `docs/specs/` and architectural decisions under `docs/adr/`. Architecture context lives in `docs/architecture-overview.md`. When asked to implement a component without a corresponding spec, confirm with the user that the spec is intentionally absent before writing code.
-
-Task decomposition and verification follow ADR-0008 (as amended 2026-05-16): medium-granularity tasks (1-3h each) grouped into milestones. Capability acceptance is bound to REQUIREMENTS.md RFs/RNFs at the milestone scope; tasks deliver coherent function within their milestone without individual RF binding. Verification operates at two scopes — task-level (function-specific pytest + independent Chat review) and milestone-level (manual exercise validating each declared RF acceptance criterion).
-
-## Privacy and safety
-
-- **Never commit real PII** in fixtures, tests, examples, or documentation. All test data must be synthetic. If a user pastes a real CPF, CNPJ, name, or address into a session, redact it before writing to disk and warn the user.
-- **Never include API keys, OAuth tokens, or credentials in any committed file.** Use environment variable expansion (`${VAR_NAME}`) in `.mcp.json` and similar config.
-- **Do not commit anything under `data/raw/` or `evaluation/private/`** — those paths are gitignored and reserved for benchmarks that may contain semi-sensitive material.
-
 ## What does NOT belong in this file
 
 - Setup instructions → `README.md`.

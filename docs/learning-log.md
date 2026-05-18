@@ -3677,3 +3677,685 @@ operacional (escopo MVP antes ou depois do matching) + um refator
 (envelope helpers).
 
 ---
+
+## 2026-05-18 — sessão #23 — prep prompt T03 + ciclo T03 fechado + housekeeping cross-doc pós-T03 despachado para Code
+
+**Foco.** Sessão Chat persistente cobrindo dois sub-ciclos completos
+sequenciais: (a) ciclo T03 — prep do prompt em 3 versões iterativas
+(v1 → v2 → v3) com 3 reviews independentes em sessões Code clean,
+sanção do plano da Fase 1 (GATE 1), Fase 2 execução pelo Code, Chat
+review do diff pós-Fase 2.E com 2 correções pré-PR aplicadas
+(`destination` em StructuredContext + teste para DD-T03-12), body do
+PR redigido, T03 mergeada em main com 43/43 testes verdes; (b) ciclo
+de housekeeping cross-doc pós-T03 — análise de bloqueio +
+classificação mecânico vs design dos 5 débitos cross-doc residuais,
+aplicação no workspace Chat via `str_replace` cirúrgicos para
+validação, descoberta de 4º site implícito em compact §5.3 linha 376
+durante leitura adjacente, decisão de migrar execução final para Code
+via prompt versionado (v1 → v2 pós-review do Code) usando 10 pares
+verbatim `old_str`/`new_str`. Maior sessão Chat documentada do
+projeto em volume de sub-eventos (14+) preservando continuidade
+narrativa do início ao fim sem fresh entre eles.
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1.4 Escalation patterns — `indeterminate` como honest escalation
+  estruturada.** Veredito `indeterminate` em `check_applicability`
+  materializa "policy gap identification" do exam guide: o componente
+  não tenta adivinhar; devolve sinal estruturado com
+  `verification_scope` (dimension, prescribed_treatment,
+  verification_target) que o consumidor humano precisa para verificar
+  manualmente upstream. Framing semântico cristalizado no docstring
+  de `check_applicability` (1 frase per refinamento de Fase 2.C):
+  "is a first-class verdict per canonical §7.3 — signals static
+  analysis cannot decide this dimension; does not represent
+  evaluation failure". Defense narrative full ("indeterminate como
+  sinal de evolução da Política") mora aqui no learning-log e migra
+  para o Capítulo de Método.
+
+- **D1.6 Task decomposition — 10 DDs sancionadas + 2 emergentes
+  durante execução T03 + 5 débitos de housekeeping decompostos em
+  10 sub-edits cirúrgicos.** Plano sancionado no GATE 1 carregou 10
+  DDs deliberadas em Chat (DD-T03-1 a DD-T03-10). Fase 1 do Code
+  descobriu terceira ocorrência de drift 1 em `compact.md` linha
+  371, gerando DD-T03-11 como adição construtiva (escalou sync
+  pós-T03 de 2 para 3 sites). Fase 2.C produziu DD-T03-12 —
+  `DefinitionalClause` → `not_applicable` como caminho de retorno
+  adicional (5 paths, não 4). Em housekeeping, leitura adjacente
+  descobriu 4º site implícito em compact §5.3 linha 376 (nota
+  genérica que ficaria imprecisa após edit do bloco YAML linha
+  371) — escalou drift 1 de 3 para 4 sites. Decomposição
+  prompt-housekeeping em 10 sub-edits (Edits 1, 2a, 2b, 3, 4, 5,
+  6, 7, 8, 9) materializou granularidade adequada: 1 substituição
+  textual por sub-edit; débitos com múltiplos sites tratados em
+  edits separados; débito #2 (DD-T03-12 nota nova) isolado em
+  edit dedicado após review do Code apontar bundle indesejado em
+  v1.
+
+- **D1.7 Session state management — Chat persistente sustentou 14+
+  sub-eventos sem fresh entre eles.** Sessão #23 cobriu: (T03)
+  prep v1 → review #1 (Code clean) → prep v2 → review #2 + #3
+  (Code clean independentes) → prep v3 → GATE 1 (Fase 1 Code) →
+  Chat review diff (Fase 2.E Code) → correções pré-PR → body PR
+  → T03 mergeada → (housekeeping) análise de bloqueio →
+  classificação mecânico/design → ratificação 5 decisões → 4
+  leituras adjacentes (canonical §4.3, compact §5.3, tasks.md
+  T03, test Anchor 1) → aplicação 5 débitos no workspace Chat →
+  decisão de migrar para Code → prompt v1 → review do Code do
+  prompt → prompt v2. Quatorze ciclos Chat ↔ Code, todos
+  preservando continuidade narrativa (DDs cumulativas, defense
+  candidates encadeados, leituras feitas em uma fase reusadas em
+  outra). Heurística "Chat persistente por tipo de output
+  narrativo" formalizada em `.claude/rules/session-management.md`
+  reconfirmada empiricamente em escala consideravelmente maior
+  que #22 (6 sub-eventos) e do que a primeira metade da própria
+  #23 antes do housekeeping (7 sub-eventos).
+
+- **D1 Multi-agent coordinator-subagent com human-in-the-loop —
+  reviews independentes em sessões Code clean, em dois objetos
+  distintos.** Três reviews da prep T03 (Code clean × 3,
+  contextos isolados); um review do prompt-housekeeping (Code
+  clean). Pattern de generator (Chat redator) → evaluator (Code
+  reviewer independente sem ver rounds prévios) materializado
+  duas vezes na mesma sessão sobre artefatos diferentes —
+  primeira vez em #23 que o pattern foi exercitado em prompt
+  (artefato narrativo) e não só em código (artefato verificável).
+  Convergência empírica registrada em "Validações empíricas".
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2 Tool description anatomy.** Docstring de `check_applicability`
+  em `server.py` cobre 4 vereditos com semântica de cada um, 6
+  errorCodes (4 novos + 2 reaproveitados de T02a), trinca de
+  provenance, framing semântico de `indeterminate`. Convenção
+  canonical §4.3 aplicada sem seções nomeadas obrigatórias.
+
+- **D2 Error envelope estruturado + discriminador implícito.** T03
+  adiciona 4 errorCodes novos (`CLAUSE_DEPRECATED`,
+  `INVALID_DATA_CATEGORY`, `INVALID_OPERATION`,
+  `EMPTY_DATA_CATEGORIES`) ao `ErrorEnvelope` Pydantic existente.
+  `accepted_values` em INVALID_DATA_CATEGORY/INVALID_OPERATION é
+  dinâmico — carregado de POL-000 e do operation vocabulary runtime
+  via helpers `_load_*_vocabulary` em `_envelope.py`, não hard-coded.
+
+- **D2 isError flag — Option B reforçada via novo anchor e
+  housekeeping cross-doc.** Anchor
+  `test_deprecated_clause_returns_envelope_not_tombstone` protege
+  assimetria `check_applicability(POL-003)` (envelope retryable) vs
+  `get_clause(POL-003)` (sucesso com tombstone). Sexto sítio de
+  cristalização de Option B (sítios prévios: canonical §5.1/§5.3,
+  compact §2, `models.py` `ErrorEnvelope.__doc__`, anchor wire-shape
+  de T02a, ADR-0002 §3 amendment). Housekeeping pós-T03 adiciona
+  drift sync em tasks.md AS-7/AS-8 — phrasing `isError: true`
+  lógico substituído por wire literal "(per Option B — wire
+  `isError: false`; envelope em `structured_content`)". Sétimo
+  sítio (tasks.md) cristaliza a convenção em superfície
+  prescriptiva, não só descritiva.
+
+- **D2 MCP resources como vocabulário runtime.** POL-000 (única
+  `DefinitionalClause` carregada no MVP) consumida runtime via
+  `_load_data_categories_vocabulary(state)` em `_envelope.py`.
+  Convenção formalizada: validations de vocabulário consomem POL-000
+  via helper, não inline em `check_applicability`. Análogo para
+  `operation` via `state.vocabularies["operation"].values`. Type
+  narrowing via `isinstance(pol_000, DefinitionalClause)` necessário
+  para mypy strict (union `Clause = DefinitionalClause |
+  SubstantiveClause`).
+
+- **D2 output polimórfico via Pydantic discriminated union plain.**
+  `Verdict = Compliant | ViolationCandidate | Indeterminate |
+  NotApplicable` discriminada por `Literal[verdict]` em cada
+  variant. Precedente reusado de `Clause` em `models.py:146`. Sem
+  `Annotated[Union[...], Field(discriminator="verdict")]` — JSON
+  schema generation não é deliverable de T03 (FastMCP gera
+  inputSchema da assinatura da tool, não dos models de output).
+  Plain union basta; refinamento opcional adiável se T04 ou
+  Milestone C exigir.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **D3 `.claude/rules/` convocadas nominalmente em vez de
+  re-explicar.** v3 do prompt T03 é ~30% menor que v1 em volume
+  porque `test-strategy.md` §"Granularity calibration" e
+  §"Anchor test as second-line defense" são chamadas por nome em
+  DD-T03-7/DD-T03-9, e `spec-driven-workflow.md` é chamada para
+  plan-mode + source-of-truth precedence. Materializa o benefício
+  empírico do housekeeping pré-T03 (PRs #41-43): cristalização
+  canônica de convenções em rules permite redação subsequente mais
+  enxuta. Defense candidate.
+
+- **D3 Plan mode + pause-and-ask + str_replace cirúrgico
+  housekeeping.** Fase 1 do Code seguiu o pattern da
+  `.claude/rules/spec-driven-workflow.md`: leitura obrigatória →
+  plano com 10 DDs ratificadas + 1 emergente (DD-T03-11) → GATE 1
+  → Fase 2 com gates intermediários (mypy 2.A, pytest 2.B, etc).
+  Pause-and-ask cumprido em todas as pré-deliberações. Para
+  housekeeping cross-doc, prompt usou `str_replace` cirúrgico com
+  10 pares verbatim `old_str`/`new_str` em vez de substituição de
+  arquivo inteiro — pattern alternativo aplicável quando cleanup
+  é mecânico (sem decisões de design) e auditabilidade de cada
+  edit importa mais que velocidade. Vantagens auditáveis: (a)
+  diff resultante mostra apenas os sites tocados; (b) `old_str`
+  funciona como canary de drift — se o estado de main divergiu
+  do que o Chat assumiu, o `str_replace` falha cedo em vez de
+  produzir resultado silenciosamente incorreto; (c) Code não
+  precisa inferir contexto além do par.
+
+- **D3 CLAUDE.md status flags autoritativos pós-housekeeping.** v3
+  do prompt T03 enxugou "Estado herdado" para "leia CLAUDE.md
+  status flags + state real de tools.py/models.py/conftest.py" em
+  vez de enumerar 5+ bullets do que existia em cada arquivo.
+  Pattern materializa o ganho do housekeeping pré-T03 — status
+  flags em CLAUDE.md são fonte autoritativa única do estado de
+  cada componente; prompts subsequentes referenciam, não duplicam.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4.1 Few-shot examples como anchors de comportamento.** Os 4
+  exemplos da canonical §4.3 (compliant, violation_candidate,
+  indeterminate, CLAUSE_DEPRECATED) foram a base para os 4 verdict
+  models em `models.py` e para os helpers de evidência/reason em
+  `tools.py`. Format demonstration via exemplos textuais → schema
+  Pydantic + reasoning rules.
+
+- **D4.2 Structured output via tool_use forçado + Pydantic
+  discriminated union.** `check_applicability` retorna union de 4
+  variantes discriminadas por `Literal[verdict]` no
+  `structured_content`. Validation por construção via Pydantic; o
+  caller (Milestone C Matcher) consumirá o type sem ambiguidade.
+  Provenance trinque inline em cada variante (DD-T03-5).
+
+- **D4 JSON Schema + Pydantic — Opção 1 do review #1.** Tensão Issue
+  B de review #1 sobre `StructuredContext` resolvida: wrapper de
+  `server.py` assina `structured_context: dict[str, Any]` (FastMCP
+  gera inputSchema do dict, não-aninhado); `tools.py` valida
+  semanticamente (4 errorCodes per spec §5.4) ANTES de construir
+  `StructuredContext` Pydantic. `StructuredContext` é tipo interno
+  pós-validação, NÃO exportado como contrato MCP. Decisão sobre
+  subir para contrato externo deferred para Milestone C quando
+  Matcher consumir.
+
+- **D4 Multi-instance review com escalation progressiva — 5 rounds
+  + 1 round sobre artefato prompt.** Round 1 (review v1 do prompt
+  T03, Code clean): 2 materiais alta severidade (consent token
+  comparison, `StructuredContext` ambiguidade
+  wrapper/Pydantic). Round 2 (review v2 do prompt T03, Code
+  clean): 0 materiais; 3 refinamentos textuais minor. Round 3
+  (review v2 do prompt T03 independente, Code clean): 2 materiais
+  média severidade (`applies_to.operation` não checado,
+  `isError: true` drift em tasks.md). Round 4 (Fase 1 Code): 1
+  emergente construtiva (DD-T03-11 escalou drift 1 para 3
+  sítios). Round 5 (Chat review do diff pós-Fase 2.E): 2
+  materiais (destination ausente em StructuredContext, cobertura
+  faltante para DD-T03-12). Round 6 (review do prompt-housekeeping
+  v1, Code clean independente): 5 observações (numeração
+  dessincronizada entre §Context e headings, shell mismatch
+  PowerShell vs bash, Edit 2 bundla 2 débitos, falta canary
+  externo para CI/scripts, limitação single-line do sanity grep).
+  Trend de convergência: severidade decai monotonicamente até
+  verificação empírica direta tomar lugar de review textual.
+  **Pattern novo materializado em #23: prompt como artefato
+  auditável com mesma rigor que código** — versionamento
+  iterativo (v1 → v2) com review independente entre versões é
+  pattern válido para output narrativo, não só para código.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 Provenance/citations ubíqua via helper centralizado.**
+  Helper `_provenance_from(state) -> Provenance(TypedDict)` em
+  `_envelope.py` é fonte única do trinque
+  (`policy_schema_version`, `policy_version`, `legal_framework`).
+  Injetado inline via `**unpack` em TODOS os 4 vereditos de
+  sucesso. Anchor parametrizado
+  `test_provenance_trinque_in_every_verdict_path` garante por
+  construção (igualdade exata vs header, não substring).
+  Materializa ADR-0005 Decision 5 (provenance non-opcional) +
+  canonical §6.4. Refinamento técnico de Fase 2.C: `Provenance`
+  é `TypedDict`, não `dict[str, str]`, porque mypy strict bloqueia
+  `**unpack` em construtor que tem `verdict: Literal[...]`
+  (colapso de tipo shadowing o discriminador). Solução mínima.
+  Housekeeping pós-T03 adiciona 5º setup ao Anchor 1 cobrindo
+  sub-caso "MVP scope `not_applicable`" — garantia por construção
+  expandida de 4 para 5 paths de sucesso.
+
+- **D5 Escalation patterns — `indeterminate` como honest escalation
+  estruturada.** Cobertura cruzada com D1.4 acima. Pattern
+  adicional para D5 especificamente: o ramo `indeterminate` é o
+  sinal estável que o consumidor (Matcher em Milestone C) usa para
+  "honest escalation" para revisão humana, não para retry
+  automatizado. Sub-caso de policy gap identification +
+  escalation criteria do exam guide.
+
+- **D5 Source-of-truth precedence aplicada a 4 drifts em
+  housekeeping cross-doc.** Drift 1 (`reason` vs `evidence` em
+  `not_applicable`): ADR-0007 D3 + tasks.md AS-4/AS-5 vs canonical
+  §4.3 linha 562 + 566 + compact §5.3 linha 371 + linha 376
+  (descoberta nova). ADR + 2 AS vs 4 sites descritivos → ADR wins
+  (camada normativa mais alta + explicitude do MVP scope). Drift
+  2 (`isError: true` lógico em tasks.md AS-7/AS-8): wire é Option
+  B per 6+ sítios cristalizados; tasks.md AS é o sítio que recebe
+  sync. Drift 3 implícito (`destination` em canonical §4.3 sem
+  cobertura em tasks.md AS): canonical wins per source-of-truth
+  precedence; `destination: str | None = None` adicionado em
+  `StructuredContext` pós-review do Chat de T03; AS-1 estendida
+  no housekeeping para exercitar. Drift 4 (DD-T03-12 — caminho
+  emergente `DefinitionalClause` → `not_applicable` não
+  documentado em canonical §4.3): teste já em main; canonical
+  precisa documentar — nota inline nova adicionada no
+  housekeeping. Pattern operacional consolidado: **drift cumulativo
+  é detectado por leitura adjacente ao site de edição, não por
+  enumeração prévia**. DD-T03-11 começou com 2 sites enumerados
+  em Chat (canonical 562 + 566), escalou para 3 na Fase 1 do
+  Code (compact 371), e agora para 4 na fase de housekeeping
+  (compact 376 implícito). Reviewers independentes em rounds
+  sucessivos continuam agregando enquanto a leitura toca o estado
+  real do código.
+
+### Conceitos fora do escopo da prova
+
+- **TypedDict para `**unpack` ergonômico.** `Provenance(TypedDict)`
+  resolve fricção real do mypy strict sem alterar contrato wire.
+  Refino dentro do escopo do plano sancionado; sem ADR ceremony per
+  ADR-0005 D7 (reasoning mechanism livre). Pattern: refino técnico
+  que preserva contrato observável + resolve fricção do toolchain +
+  não introduz coupling novo = aceitável sem ratificação.
+
+- **DD emergente vs refinamento tactical — critério de
+  classificação.** Provenance TypedDict não muda o set de retornos
+  observáveis pelo caller (estrutura wire preservada) → refinamento
+  tactical aceito sem ratificação. DefinitionalClause →
+  `not_applicable` muda o set de retornos (5 paths, não 4) → DD
+  emergente que exige teste de cobertura próprio. Critério
+  cristalizado para o Capítulo de Método.
+
+- **Plan-mode admite refinamento técnico sem voltar ao Chat.** Code
+  aplicou TypedDict e DefinitionalClause path em Fase 2.C sem
+  re-deliberar com Chat. Defensável porque (a) preserva contrato
+  observável (TypedDict) ou (b) é caminho funcional necessário para
+  evitar crash (DefinitionalClause). Mas DD-T03-12 (DefinitionalClause)
+  exigiu cobertura própria — Chat review do diff capturou o gap e
+  o Code adicionou teste pós-correção.
+
+- **Cirurgia textual via `str_replace` pares verbatim como pattern
+  alternativo a substituição de arquivo inteiro.** Aplicável quando
+  cleanup é mecânico (sem decisões de design) e auditabilidade de
+  cada edit importa mais que velocidade. Materializado no
+  prompt-housekeeping com 10 pares verbatim. Trade-off: prompt fica
+  mais longo (10 pares ocupam espaço); mas ganho de auditabilidade
+  compensa. Cada `old_str` funciona como canary de drift; se o
+  estado de main divergiu do que o Chat assumiu, o `str_replace`
+  falha cedo. Pattern complementar ao precedente de #20-#21
+  (canonical-sync-A/B com substituições cirúrgicas via
+  str_replace) — mas agora **prompt-formalized** para Code
+  execution, não execução direta do Chat.
+
+- **Limitação de single-line substring matching em sanity grep.**
+  `grep "evidence" file.md | grep "not_applicable"` só detecta
+  co-ocorrência em linha única. Aceitável para sites onde o
+  pattern crítico (`evidence: <`) é canonicamente single-line.
+  Para sites multi-linha ou prosa adjacente, requer abordagem
+  mais sofisticada (e.g., `grep -A`/`-B`, awk multi-line, ou
+  cross-reference manual). Identificado no review do
+  prompt-housekeeping v1 como limitação não documentada;
+  documentado no v2.
+
+### Decisões tomadas
+
+**Sobre o prompt T03 (sessão Chat #23 primeiro sub-ciclo):**
+
+- 10 DDs sancionadas no GATE 1: DD-T03-1 (extrair `_envelope.py`),
+  DD-T03-2 (rule-based + token canônico `consent`), DD-T03-3 (filtro
+  MVP entre lookup e applicability match), DD-T03-4 (wrapper dict;
+  `StructuredContext` interno pós-validação), DD-T03-5 (provenance
+  via `_provenance_from`), DD-T03-6 (discriminated union plain),
+  DD-T03-7 (AS-5 via behavioral proxy — Opção A), DD-T03-8 (ordem
+  fail-fast), DD-T03-9 (2 anchors obrigatórios: trinque + assimetria
+  deprecated), DD-T03-10 (loaders de vocabulário em `_envelope.py`,
+  defensive access).
+
+- DD-T03-11 emergente (Fase 1 Code): sync drift 1 escalado para 3
+  ocorrências (compact §5.3 linha 371 descoberta).
+
+- DD-T03-12 emergente (Fase 2.C Code, ratificada via Chat review do
+  diff): `DefinitionalClause` → `not_applicable` como caminho de
+  retorno adicional (5 paths, não 4). Teste de cobertura próprio
+  obrigatório.
+
+- Refinamento técnico (Fase 2.C): `Provenance(TypedDict)` em vez de
+  `dict[str, str]` para `**unpack` em verdict constructors mypy
+  strict.
+
+**Sobre housekeeping pós-T03 (sessão Chat #23 segundo sub-ciclo):**
+
+- DD-T03-11 escalada para 4 sites (compact §5.3 linha 376 descoberta
+  durante leitura adjacente). Sync agora cobre canonical §4.3 bloco
+  YAML + nota prosa, compact §5.3 bloco YAML + nota genérica
+  expandida.
+
+- DD-T03-12 canonical sync — nota inline em canonical §4.3
+  documentando os 3 sub-casos de `not_applicable` (MVP scope +
+  applicability mismatch + definitional clause). Sem subseção
+  dedicada porque §4.3 é prosa contínua, não estruturada por
+  veredito.
+
+- Drift 2 (tasks.md AS-7/AS-8): phrasing Opção (c) escolhida —
+  preservar estrutura original + adicionar parêntese "(per Option B
+  — wire `isError: false`; envelope em `structured_content`)". Mais
+  enxuto que Opção (b) verbosa; preserva legibilidade da ementa da
+  AS.
+
+- Gap `destination`: Opção (ii) escolhida — estender AS-1 brief +
+  setup do teste em vez de criar AS-9 dedicada. Coerente com
+  test-strategy.md "AS exercita contrato, não driver de mais
+  testes". `destination: "external_service"` como valor canônico
+  per canonical §4.3 linha 525 + linha 654.
+
+- AS-5 trinque assertion: aplicar 5º setup ao Anchor 1 cobrindo
+  MVP scope `not_applicable`. Ids ajustados para diferenciar
+  `not_applicable_mismatch` (POL-004) de `not_applicable_mvp_scope`
+  (POL-001 + operation: "use").
+
+- Despachar execução final para Code via prompt versionado em vez
+  de aplicar direto do Chat. Razão: João explicitou "evito
+  substituir arquivo inteiro em cleanup". Solução: `str_replace`
+  cirúrgico com 10 pares verbatim, com 2 versões iterativas (v1 +
+  v2 pós-review do Code aplicando 5 melhorias).
+
+**Sobre o método (cristalizadas nesta sessão):**
+
+- **Multi-instance review com escalation progressiva** — 6 rounds
+  capturaram classes distintas de erros até convergência. Cada
+  round consultou fontes diferentes (specs textuais vs YAMLs reais
+  vs README do pack vs Pydantic ValidationError emergente vs
+  reading adjacent do estado real durante housekeeping).
+
+- **Verificação direta vence inferência (segunda materialização).**
+  v1 do prompt T03 errou DD-T03-2 ao inferir do brief; review #1
+  do Code leu fixtures + README do pack direto e pegou o bug.
+  Pattern reconfirmado em housekeeping: leitura adjacente em
+  compact §5.3 linha 376 descobriu site implícito que enumeração
+  prévia não tinha capturado.
+
+- **Critério DD emergente vs refinamento tactical.** Alteração do
+  set de retornos observáveis pelo caller separa as duas
+  categorias. Aplicado em #23: Provenance TypedDict (tactical, sem
+  cobertura obrigatória); DefinitionalClause path (emergente,
+  cobertura obrigatória via teste).
+
+- **Drift cumulativo é detectado por leitura adjacente ao site de
+  edição, não por enumeração prévia.** DD-T03-11 escalou 2 → 3 →
+  4 sites em rounds sucessivos. Pattern operacional para
+  housekeeping cross-doc.
+
+- **Prompt como artefato auditável.** Versionamento iterativo +
+  review independente entre versões é pattern válido para output
+  narrativo, não só para código. Materializado em #23 com
+  prompt-housekeeping v1 → v2 pós-review do Code.
+
+- **Cirurgia textual via str_replace cirúrgico > substituição de
+  arquivo inteiro para cleanup mecânico cross-doc.** Cada `old_str`
+  funciona como canary de drift. Aplicável quando cleanup é
+  mecânico sem decisões de design.
+
+### Artefatos produzidos
+
+- `prompt-t03-v1.md` (~330 linhas) → `prompt-t03-v2.md` (~430
+  linhas, mais detalhado) → `prompt-t03-v3.md` (~430 linhas, mais
+  enxuto após recuos calibrados). Versionamento iterativo
+  materializa multi-instance review.
+
+- Plano da Fase 1 do Code sancionado em GATE 1 (10 DDs + DD-T03-11
+  emergente + canary pre-flight executado).
+
+- `pr-body-t03.md` (~150 linhas) com 12 DDs tabuladas + drifts
+  pós-T03 + notas metodológicas.
+
+- PR `feat/policy-reader-check-applicability` mergeada em main via
+  squash. Squash hash `<TBD — preencher pós-pull>`. Diff:
+  +509/-98 linhas em 6 arquivos:
+  - `src/mcp_servers/policy_reader/models.py` (+ `StructuredContext`,
+    `VerificationScope`, 4 verdict models, alias `Verdict`).
+  - `src/mcp_servers/policy_reader/_envelope.py` (novo módulo;
+    7 errorCode builders + `_provenance_from` + 2 vocabulary
+    loaders).
+  - `src/mcp_servers/policy_reader/tools.py` (`check_applicability`
+    público + 4 envelope helpers movidos para `_envelope.py` +
+    2 helpers privados de reason template + `_render_verdict_text`).
+  - `src/mcp_servers/policy_reader/server.py` (wrapper substituindo
+    skeleton stub; assinatura corrigida `dict[str, Any] →
+    ToolResult`).
+  - `tests/mcp_servers/policy_reader/conftest.py` (fixture estendida
+    aditivamente para incluir POL-002).
+  - `tests/mcp_servers/policy_reader/test_check_applicability.py`
+    (novo; 8 AS com AS-2 split em AS-2a/AS-2b + 2 anchors + 1 teste
+    para DD-T03-12).
+
+- 16 testes novos em `test_check_applicability.py` (parametrize
+  expandido: 8 funções base + AS-8 ×3 + Anchor 1 ×4 + 1 definitional
+  test). Total da suite: 43/43 (27 prévios + 16 novos).
+
+- `prompt-housekeeping-post-t03-v1.md` → `prompt-housekeeping-post-t03-v2.md`
+  (~620 linhas, com 10 pares verbatim `str_replace`, pre-flight
+  canary, gates pós-edit, PR body draft). v2 incorpora 5 melhorias
+  do review do Code: numeração consistente, shell anotado, Edit 2
+  splitado em 2a + 2b, canary externo CI/scripts, limitação
+  single-line do sanity grep documentada.
+
+### Validações empíricas
+
+- **Gate task-level ADR-0008 §3 cumprido em escala documentada.**
+  pytest 43/43 verde; ruff clean; mypy clean (7 source files); Chat
+  review independente do diff realizado em sessão de Chat persistente
+  com identificação de 2 issues pré-PR (destination ausente,
+  DD-T03-12 sem cobertura) — ambos corrigidos antes da abertura do
+  PR. Diff coerente com plano sancionado.
+
+- **Multi-instance review trend de convergência em 6 rounds.**
+  Severidade dos catches decai monotonicamente:
+  - Review #1 (v1 prompt T03, Code clean): 2 materiais alta
+    (consent token, StructuredContext ambiguidade).
+  - Review #2 (v2 prompt T03, Code clean): 0 materiais; 3 minor
+    textuais.
+  - Review #3 (v2 prompt T03, Code clean independente): 2
+    materiais média (applies_to.operation, isError drift
+    tasks.md).
+  - Fase 1 (Code): 1 emergente construtiva (drift 1 escalado
+    para 3 sítios).
+  - Chat review diff (Fase 2.E): 2 materiais (destination,
+    DD-T03-12 cobertura).
+  - Review prompt-housekeeping v1 (Code clean independente): 5
+    observações classes distintas (numeração, shell, bundle
+    Edit 2, canary externo, limitação grep).
+
+  Seis rounds, cada um capturando classe distinta de erro.
+  Pattern: review independente continua agregando enquanto o
+  redator e o reviewer consultarem fontes diferentes. Convergência
+  empírica até o ponto onde verificação direta sobre o estado real
+  toma lugar de review textual.
+
+- **Pattern "consertar na fonte" vs "workaround no prompt".** Drift
+  `isError: true` em tasks.md foi consertado em v1 pinando como
+  drift cross-doc residual; recuado em v3 quando se reconheceu que
+  Option B está cristalizada em 5 sítios suficientes para o Code
+  reconhecer sem pin. Em vez disso, o pin migrou para body do PR
+  como item de housekeeping cross-doc pós-T03 (sync tasks.md).
+  Materializado: housekeeping executa o sync. Pattern fechado.
+
+- **Verificação direta vence inferência (segunda materialização
+  T03 + terceira materialização housekeeping).** v1 do prompt T03
+  errou ao inferir o algoritmo de `consent_required` a partir do
+  brief; review #1 leu POL-001/POL-004 YAMLs + README do pack
+  diretamente e pegou a comparação contra token canônico `consent`.
+  Pattern reconfirmado em housekeeping: descoberta de compact §5.3
+  linha 376 (4º site do drift 1) durante leitura adjacente, não em
+  enumeração prévia. Three-strike rule materializado — pattern
+  consolidado para o Capítulo de Método.
+
+- **Chat persistente sustentou 14+ sub-eventos sem fresh entre
+  eles.** Maior escala de Chat persistente documentada no projeto.
+  Heurística "Chat persistente por tipo de output narrativo"
+  formalizada em `session-management.md` confirmada empiricamente
+  em escala consideravelmente maior. Critério: o output continua
+  sendo narrativo durante housekeeping (decisões, ratificações,
+  prompt redação) — não há transição para output verificável que
+  exigisse fresh.
+
+- **str_replace cirúrgico viável para cleanup cross-doc mecânico.**
+  Aplicado no workspace Chat durante housekeeping para validar os
+  5 débitos antes de gerar o prompt para Code. 9 substituições
+  (depois 10 no prompt v2 com Edit 2 splitado) executadas sem
+  erro; pytest 43/43 mantido; sintaxe Python do test file
+  validada via `ast.parse`. Validação empírica de que o pattern
+  funciona em escala — não só conceitual.
+
+### Pendências para sessão #24+
+
+**Em execução no momento do fechamento de #23:**
+
+- Code aplicando `prompt-housekeeping-post-t03-v2.md` em branch
+  `docs/housekeeping-post-t03` ramificando de main pós-T03. 10
+  edits cirúrgicos sequenciais + canary greps pré/pós + gate
+  pytest 44/44 esperado (43 prévios + 1 novo do 5º setup do Anchor
+  1). Custo estimado: ~30-45min. Após merge, T03-housekeeping
+  fechada.
+
+**Resolver em sessão #24 (Chat fresh) — prep prompt T04:**
+
+- T04 entrega `policy://catalog` + `policy://vocabularies` + framework
+  swap via vocabulário carregado.
+- Pré-leitura consome canonical §3.1 (`policy://catalog`) + §3.3
+  (`policy://vocabularies`) + SCHEMA §10.3 (troca de framework) +
+  ADR-0005 D3 (vocabulários jurisdicionais) + D4
+  (`policy://vocabularies` como surface canônica).
+- `_envelope.py` herda naturalmente (additive); `_load_*_vocabulary`
+  helpers podem subir para externo se T04 expor via resource.
+- Hipótese: T04 introduz `policy://vocabularies` como resource que
+  expõe vocabulários jurisdicionais via
+  `policy/vocabularies/<framework>/*.yaml`. Cláusulas reais
+  hipotéticas para GDPR podem virar fixture de teste de framework
+  swap.
+- Bonus: canonical §4.3 agora documenta DD-T03-12 (pós-merge do
+  housekeeping); prep T04 pode ler §4.3 sem ruído de drift.
+
+**Resolver pós-T04:**
+
+- **Gate milestone-level Milestone A.** Sessão Chat dedicada
+  ~1-2h. Manual exercise via MCP Inspector exercitando cada RF de
+  `docs/REQUIREMENTS.md` (RFs 004-parcial, 005, 007-parcial,
+  008-parcial, 009) usando Tasks T01-T04 implementadas como
+  referência operacional. Pré-requisito: T04 fechada.
+
+- **Decomposição formal de Milestone B em sessão Chat dedicada.**
+  Após gate milestone-level de A. Decisão Semgrep-on-Windows
+  precede.
+
+### Nota de calibração metodológica (defense candidates de #23)
+
+Onze defense candidates consolidados em #23 para o Capítulo de Método
+do TCC (sete da primeira metade T03 + quatro novos do housekeeping):
+
+1. **Multi-instance review com escalation progressiva — trend
+   empírico de convergência em 6 rounds.** Severidade decai
+   monotonicamente até verificação direta sobre o estado real
+   tomar lugar de review textual. Pattern: review independente
+   continua agregando enquanto o redator e o reviewer consultarem
+   fontes diferentes.
+
+2. **DD emergente vs refinamento tactical — critério de
+   classificação.** Alteração do set de retornos observáveis pelo
+   caller separa as duas categorias. Materializado em #23:
+   Provenance TypedDict (tactical, sem cobertura obrigatória);
+   DefinitionalClause path (emergente, cobertura obrigatória via
+   teste).
+
+3. **Verificação direta vence inferência (terceira materialização
+   após #19 e primeira metade #23).** v1 do prompt T03 errou
+   DD-T03-2 ao inferir do brief; review #1 do Code leu fixtures +
+   README do pack direto e pegou o bug. Housekeeping descobriu 4º
+   site do drift 1 em compact §5.3 linha 376 durante leitura
+   adjacente. Three-strike rule materializado — pattern: leitura
+   textual de spec ≠ leitura direta de fixture; ambas necessárias.
+
+4. **Plan-mode admite refinamento técnico durante execução sem
+   voltar ao Chat.** Critério: preserva contrato observável +
+   resolve fricção real do toolchain + não introduz coupling novo.
+   TypedDict materializa o critério; DefinitionalClause path
+   também, mas com cobertura própria por mudar o set de retornos.
+
+5. **`.claude/rules/` carregadas automaticamente reduzem
+   boilerplate em prompts subsequentes.** v3 do prompt T03 é ~30%
+   menor que v1 porque convoca rules nominalmente em vez de
+   re-explicar. Materializa o ganho do housekeeping pré-T03.
+
+6. **Chat persistente sustentando 14+ sub-eventos sem fresh entre
+   eles.** Escala consideravelmente maior que #22 (6 sub-eventos)
+   e que primeira metade de #23 (7 sub-eventos); pattern por tipo
+   de output confirmado em escala documentada.
+
+7. **Cumulative drift discovery via reviews independentes.**
+   Compact §5.3 linha 371 como terceiro site de drift 1
+   descoberto na Fase 1 do Code; linha 376 como quarto site
+   descoberto em housekeeping. Reviewers independentes capturam o
+   que o redator não enxerga; cumulativo entre rounds.
+
+8. **Drift cumulativo é detectado por leitura adjacente ao site
+   de edição, não por enumeração prévia.** DD-T03-11 escalou
+   2 → 3 → 4 sites em rounds sucessivos. Pattern operacional para
+   housekeeping cross-doc.
+
+9. **Prompt como artefato auditável com mesma rigor que código.**
+   Versionamento iterativo (v1 → v2) com review independente
+   entre versões é pattern válido para output narrativo, não só
+   para código. Materializado em #23 com prompt-housekeeping v1 →
+   v2 pós-review do Code.
+
+10. **Cirurgia textual via str_replace cirúrgico > substituição de
+    arquivo inteiro para cleanup mecânico cross-doc.** Cada
+    `old_str` funciona como canary de drift. Aplicável quando
+    cleanup é mecânico sem decisões de design.
+
+11. **Escolha do mecanismo de edit (substitution vs replacement
+    vs patch) é decisão arquitetural, não detalhe operacional.**
+    Cada um tem signature de auditabilidade diferente. Aplicado
+    explicitamente em housekeeping pós-T03 (str_replace
+    cirúrgico) em contraste com substituição de arquivo inteiro
+    que João explicitou evitar.
+
+O método deste projeto está se estabilizando suficientemente para
+virar contribuição metodológica autônoma do TCC, não só ferramenta
+operacional. Capítulo de Método ganha onze defense candidates
+empíricos desta sessão, mais o registro de DD emergente (TypedDict
+vs DefinitionalClause path) como pattern operacional, mais a
+formalização de prompt como artefato auditável.
+
+### Hashes da sessão #23 (audit trail)
+
+Branches mergeadas em main durante #23:
+
+- `<TBD — preencher pós-pull>` — feat(policy-reader): T03 —
+  check_applicability with 4-verdict enum, provenance trinque,
+  MVP-scope filter (squash de
+  `feat/policy-reader-check-applicability`, PR #<TBD>, #23 primeiro
+  sub-ciclo).
+- `<TBD — preencher pós-merge>` — docs(policy-reader):
+  T03-housekeeping — cross-doc cleanup pós-T03 (squash de
+  `docs/housekeeping-post-t03`, PR #<TBD>, #23 segundo sub-ciclo —
+  em execução no Code no fechamento da sessão Chat).
+
+### Próximo passo
+
+Sessão #24 (Chat fresh) — prep prompt T04 (`policy://catalog` +
+`policy://vocabularies` + framework swap). Pré-requisito: merge da
+PR T03-housekeeping. Quando housekeeping fechar, canonical §4.3
+estará sincronizada (DD-T03-11 sites 1+2 + DD-T03-12 documentada),
+compact §5.3 sincronizada (sites 3+4), tasks.md AS-7/AS-8/AS-1
+sincronizadas, e Anchor 1 do test estendido com 5º setup. Prep T04
+lê §3.1 + §3.3 sem ruído residual.
+
+Custo estimado de T04: ~1-1.5h Chat prep + ~2-3h Code execução.
+Menor que T03 — resources são aditivos sobre o existente; sem 4
+verdict models nem 6 errorCodes a desenhar; mas DD-T04-2
+(`policy://vocabularies` shape: 1 resource vs 4) e framework swap
+têm complexidade própria.

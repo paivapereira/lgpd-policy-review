@@ -4359,3 +4359,397 @@ Menor que T03 — resources são aditivos sobre o existente; sem 4
 verdict models nem 6 errorCodes a desenhar; mas DD-T04-2
 (`policy://vocabularies` shape: 1 resource vs 4) e framework swap
 têm complexidade própria.
+
+# Learning-log entry — sessão #24
+
+**Para aplicar:** apendar este conteúdo ao final de `docs/learning-log.md`, abaixo
+da última entry existente (#23 close). Seções abaixo são literais — copiar
+verbatim, ajustando apenas o hash de squash de T04 quando você fizer `git pull`
+após o merge para popular o `<TBD>` no audit trail.
+
+---
+
+## 2026-05-19 — sessão #24 — T04 (`policy://catalog` + `policy://vocabularies` + framework swap) — prep iterativo v1→v2→v3 + GATE 1 + Fase 2 + Chat review + close
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **GATE com condição de halt explícita parametrizada por outcome empírico.**
+  v3 do prompt T04 introduziu DD-T04-13 (`policy://catalog` return type
+  top-level list vs wrapped dict) como unknown empírico do framework FastMCP
+  3.x — anchor wire-shape de T01 cobria apenas `dict` via
+  `policy://schema-version`. v3 prescreveu smoke test obrigatório com
+  mecanismo operacional concreto (`uv run python -c '...'` ad-hoc, sem
+  artefato persistido) em Fase 1.A, com condição de halt explícita: "se
+  FastMCP rejeitar top-level list, v4 do prompt antes de Fase 2, NÃO
+  improvisar". Resultado: rota A confirmada empiricamente (`OK: [1, 2, 3]`).
+  Materializa exam point "escalation patterns" sob ângulo refinado: gates em
+  planos precisam de **halt condition explícita parametrizada por outcome**,
+  não só de prosseguimento condicional. Defense candidate adicional para o
+  Capítulo de Método.
+
+- **DDs emergentes em GATE 1 + débitos emergentes em Chat review pós-Fase 2
+  como dois exemplos de pause-and-ask.** Code em GATE 1 apresentou DD-T04-14
+  (pattern wire-access alinhado a T01: `server.mcp.read_resource(uri)
+  .to_mcp_result(uri)`) + 2 Observações (drift 2 spirit-satisfied via
+  disambiguation estrutural; `canonical_examples` mínimo 3 do SCHEMA §5.3
+  faltando no stub GDPR proposto) em vez de improvisar. Chat review
+  pós-implementação identificou canonical §3.1 sync emergente (shape de
+  `article_sources_summary` é Code-decision que merece documentação no
+  contrato observável). Ambos materializam o pause-and-ask do plan-mode
+  pattern sobre alternativa de improviso silencioso. Pattern recorrente:
+  planos sancionados em prep deliberativa absorvem DDs adicionais durante
+  leitura direta do código em Fase 1.A, não como falha do prompt, mas como
+  GATE funcionando como projetado.
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **Resource vs Tool distinction operacionalizada.** T04 implementa 2
+  resources (`policy://catalog`, `policy://vocabularies`); zero novos
+  errorCodes em `_envelope.py` porque resources não emitem erros de
+  domínio em runtime (canonical §3.1/§3.3 — I/O failures abortam boot,
+  Nível 1 MCP detectado no startup). Confirma a separação de surfaces
+  registrada em ADR-0005 D4: Classifier consome `policy://vocabularies`
+  como contexto léxico (read-only resource) sem ganhar capacidade de
+  invocar tools de avaliação (`check_applicability` é exclusivo do
+  Matcher). Materializa "MCP tool and resource design — Resources for
+  content catalogs, tools for actions" do exam guide.
+
+- **MCP resource semantics: idempotent reads, URI estática, sem
+  inputSchema.** AS-3/AS-6 de T04 testam idempotência byte-idêntica sobre
+  `result.contents[0].text` (raw JSON string), não sobre dict parsed —
+  asserção mais estrita que pega regression hipotética de key reordering
+  durante serialização JSON. Pattern wire-access do projeto:
+  `server.mcp.read_resource(uri).to_mcp_result(uri)` produzindo
+  `TextResourceContents` com `mimeType: "application/json"` explícito
+  (espelhado de `policy://schema-version` operacional desde T01).
+
+- **Ausência declarada de system errors em runtime como decisão de
+  design.** Canonical §5.4 declara classe `system` vazia: Política
+  carregada só no startup, falhas de I/O abortam boot, runtime livre de
+  domain errors. Pattern transferível: mover transient failures para um
+  momento onde retry é gratuito (startup) e deixar runtime sem casos
+  transientes. Resources de T04 herdam o mesmo pattern: erro de I/O em
+  `policy://vocabularies` aborta boot, runtime é livre de domain errors.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **Path-scoped rule loading via glob frontmatter.**
+  `.claude/rules/test-strategy.md` com `paths: "tests/**/*.py"` no
+  frontmatter carrega só quando Code edita test files casando o glob;
+  economia de contexto cross-cutting sobre file types que CLAUDE.md
+  hierárquico não consegue cobrir bem (test files espalhados em múltiplos
+  diretórios). Materializa Task Statement 3.3 ("path-specific rules for
+  conditional convention loading").
+
+- **Plan-mode + GATE + Fase 2 como deliberação obrigatória para tasks com
+  múltiplas DDs.** T04 com 13 DDs sancionadas no GATE 1 + 1 emergente
+  (DD-T04-14). Materializa Task Statement 3.4 ("plan mode for tasks with
+  multiple design decisions or architectural impact"). Refinamento técnico
+  durante Fase 2 admitido sob 3 critérios (preserva contrato + resolve
+  fricção real + sem coupling novo); em T04 esse mecanismo NÃO foi
+  exercido — a única DD emergente (T04-14) entrou em GATE 1 antes de
+  Fase 2, e os 2 Observations também.
+
+- **Rule auto-loading vs disciplina deliberada no Chat — fragility
+  observada empiricamente.** Bloqueante v2 do prompt T04 (sub-decisão de
+  rename `_format_first_stat_ref` → `_format_stat_ref` violava
+  `.claude/rules/git-conventions.md` §"PR sequencing pattern") só foi
+  capturado por **Reviewer C, em sessão Code com a rule carregada
+  automaticamente em contexto**. Chat tinha a rule no contexto desta
+  sessão via anexação manual mas falhou em aplicá-la em deliberation
+  quando propôs o rename. Pattern: `.claude/rules/` são auto-aplicáveis
+  pelo Code (carregamento automático em qualquer sessão) mas exigem
+  disciplina deliberada de invocação no Chat (carregamento manual via
+  anexação não é o mesmo que aplicação durante raciocínio). Defense
+  candidate metodológico forte: "rules automáticas não substituem
+  disciplina deliberada de invocação em prep de prompt".
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **Validation-retry loop manual via multi-instance review com 3 rounds.**
+  Prompt T04 evoluiu v1 → v2 → v3 com 3 rounds de review:
+  - **v1 → v2:** 2 reviewers independentes em sessões Code separadas
+    convergiram nos 3 bloqueantes (assinatura de `_format_law_reference`
+    quebrava ao receber objeto em vez de 5 posicionais; return type de
+    `policy://catalog` list vs dict não-flagado; anchor 2 não realizável
+    via fixture filesystem porque loader sorta `clauses_dir.glob()` antes
+    de iterar).
+  - **v2 → v3:** 1 reviewer (Reviewer C) com `.claude/rules/git-conventions.md`
+    carregada automaticamente pegou bloqueante adicional (PR sequencing
+    violation no rename embutido em DD-T04-1).
+  - **v3 → GATE 1 sancionado.** 13 DDs ratificadas + DD-T04-14 emergente
+    + 2 Observations.
+  Materializa Task Statement 4.4 ("validation, retry, and feedback loops
+  for extraction quality") aplicado ao prompt-as-artifact.
+
+- **Multi-instance review — convergência em itens críticos + divergência
+  em refinamentos.** v1 → 2 reviewers convergiram em 3 bloqueantes (alta
+  confiança de qualidade). v2 → só 1 reviewer pegou bloqueante novo
+  específico do repo (PR sequencing pattern). Refinamentos não-bloqueantes
+  divergiram entre reviewers (Reviewer A propôs 3 refinos, Reviewer B
+  propôs 5, Reviewer C propôs 6; sobreposição apenas no bloqueante
+  comum). Pattern empírico: **convergência em itens críticos é signal
+  forte de qualidade**; **divergência em refinamentos é signal de
+  cobertura adicional**, não de inconsistência. Refinamento do defense
+  candidate #1 do #23 ("multi-instance review com escalation progressiva
+  — trend empírico de convergência em 6 rounds") — agora com evidência
+  empírica de assimetria entre itens críticos e refinamentos.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **Smoke test FastMCP como pattern para resolução de unknown empírico
+  antes de Fase 2.** DD-T04-13 era unknown empírico — anchor wire-shape
+  de T01 cobria apenas dict via `policy://schema-version`. v3 prescreveu
+  smoke test obrigatório com mecanismo operacional concreto em Fase 1.A
+  + halt condition explícita. Pattern: framework unknown ≠ Code-decision
+  durante implementação. Defense candidate metodológico: "halt-pre-fase-2
+  evita improviso silencioso quando contrato observável depende de
+  comportamento de framework não-coberto por anchors existentes".
+
+- **Verificação direta vence inferência — quinta materialização.**
+  Pattern reconfirmado em 4 momentos durante #24:
+  - **Reviewer 2 de v1 → v2** leu `tools.py` real e identificou que
+    `_format_law_reference(ref)` quebrava — assinatura recebe 5
+    posicionais, não objeto. v3 corrigiu para `_format_first_stat_ref(ref)`.
+  - **Code em Fase 1.A** leu `loader.py` direto para confirmar que
+    `clauses_dir.glob("POL-*.yaml")` é sortado antes de iterar,
+    calibrando design do anchor 2 (DD-T04-10 reescrito como unit test
+    direto sobre função pura).
+  - **Code em GATE 1** leu `test_bootstrap.py:62-67` direto para
+    confirmar pattern wire-access `server.mcp.read_resource(uri)
+    .to_mcp_result(uri)`, originando DD-T04-14 emergente (prompt v3
+    havia prescrito `client.read_resource()` por inferência da API
+    genérica de MCP — não era o pattern operacional do projeto).
+  - **Chat review pós-implementação** leu `tools.py` para confirmar
+    consumo correto de `_format_first_stat_ref` em `get_catalog` e
+    identificar drift de canonical §3.1 sync.
+  Three-strike rule cristalizada como **pattern recorrente** — rule
+  candidate para `.claude/rules/`.
+
+- **Diferimento via §Companion edits cross-doc como pattern operacional
+  de scope discipline.** Em T04 exercido 2x:
+  - **Antecipado em prep:** rename de `_format_first_stat_ref` é
+    "naming inconsistency em helper compartilhado" per
+    `.claude/rules/git-conventions.md`; v3 diferiu como débito anotado
+    em `docs/tasks.md` §Companion edits cross-doc, despachado em PR de
+    housekeeping separada pós-T04 para preservar blame auditability
+    per PR. DD-T04-1 simplificada (sub-decisão de rename removida).
+  - **Emergente pós-implementação:** canonical §3.1 sync sobre shape de
+    `article_sources_summary` identificada por Chat review e anotada
+    como 4º item de §Companion edits cross-doc antes do PR T04 ser
+    aberto, em commit separado (`1acae30`).
+  Materializa `spec-driven-workflow.md` §"Companion edits cross-doc as
+  living debt registry" como mecanismo concreto de preservação de
+  scope. Defense candidate metodológico: "anotar débito emergente
+  imediatamente vs confiar em memória — verificação direta vence
+  inferência aplicada a registro de débito".
+
+### Decisões cristalizadas
+
+- **T04 fechada.** PR #46 mergeada em main; commit squash hash
+  `<TBD — preencher pós-pull>`. Implementação: +558/-19 linhas em 11
+  arquivos (1 commit feat + 1 commit docs annotation).
+- **Milestone A task-level completo.** T01-T04 todas fechadas com gate
+  task-level (function tests + Chat review independente). Pytest cumulativo:
+  53/53 verde (44 herdados T01/T02a/T02b/T03 + 9 novos T04).
+- **`tools.py` pós-T04 = 5 funções públicas** (`get_clause`,
+  `find_clauses_by_law_article`, `check_applicability`, `get_catalog`,
+  `get_vocabularies`). `server.py` puramente decoradores thin wrappers.
+- **`_envelope.py` intocado em T04 — tech debt validada por não-promoção.**
+  Docstring topo de `_envelope.py` (T03) declarava "reavaliar separação se
+  T04 introduzir 3+ helpers não-relacionados a envelope"; T04 confirmou
+  empiricamente que o módulo permanece coeso. Validação retroativa da
+  decisão de coabitação em #23.
+- **`models.py` intocada em T04** — payloads de resource são dict literais,
+  não wrappers Pydantic (DD-T04-12). Materializa princípio "Pydantic models
+  agregam valor para validação semântica/polimorfismo/contrato externo, não
+  para serializações mecânicas".
+- **DD-T04-14 (pattern wire-access) como exemplo de DD emergente em GATE 1.**
+  Espelha DD-T03-11 emergente em GATE 1 do T03 segundo sub-ciclo. Pattern
+  recorrente: planos sancionados em prep deliberativa absorvem DDs
+  adicionais durante leitura direta do código em Fase 1.A do Code, antes
+  de Fase 2.
+- **Smoke test obrigatório com halt condition em Fase 1.A como pattern
+  para unknown empírico.** v3 do prompt T04 introduziu o pattern; rota A
+  confirmada. Pattern transferível para futuras tasks onde contrato
+  observável depende de comportamento de framework não-coberto por anchors
+  existentes.
+- **Quatro débitos em `docs/tasks.md` §Companion edits cross-doc pós-T04**
+  aguardando housekeeping (detalhados em Pendências abaixo).
+
+### Pendências para sessão #25+
+
+**Resolver em sessão Code curta (~1h, não bloqueia gate milestone-level):**
+
+- **Housekeeping cross-doc pós-T04.** 4 débitos em `docs/tasks.md`
+  §Companion edits cross-doc:
+  1. Sync `docs/session-handoff.md` ↔ split Milestone A/B (legado pré-T04).
+  2. Sync canonical.md `structured_context` campos + `evidence`/`reason`
+     em §4.3 (2 sub-itens legado pré-T04 — `evidence`/`reason` é o drift
+     1 do housekeeping pós-T03 que ficou parcial, mais o débito de
+     campos do `structured_context` herdado da Fase 1).
+  3. Rename `_format_first_stat_ref` → `_format_stat_ref` em `tools.py`
+     (3 call sites + 1 novo introduzido por T04; ~7 linhas de
+     `str_replace` cirúrgico).
+  4. Sync canonical.md §3.1 sobre shape de `article_sources_summary`
+     (emergente T04: lista de strings renderizadas via formatter
+     compartilhado, uma string por entrada de `statutory_reference`).
+  Despacho recomendado: PR única `chore/housekeeping-post-t04`
+  consolidando os 4 com commits separados internamente, conforme
+  `.claude/rules/git-conventions.md` admite quando "o diff é clean,
+  verificável por direct Chat review". Custo: ~1h Code. Alternativa: 4
+  PRs separadas — custo ~3-4h, sem yield material adicional.
+
+**Resolver em sessão Chat dedicada (~1-2h):**
+
+- **Gate milestone-level Milestone A.** Manual exercise via MCP
+  Inspector contra cada RF declarada em §"RFs/RNFs cobertas no gate
+  milestone-level" do Milestone A em `docs/tasks.md`:
+  - RF-004-parcial (avaliação de conformidade sobre `collection` —
+    entrega end-to-end requer Matcher subagent em Milestone C, mas T03
+    entrega motor de veredito + filtro de escopo MVP).
+  - RF-005 (veredito `indeterminate` como honestidade epistêmica).
+  - RF-007-parcial (composição intra-jurisdição via
+    `accepted_law_identifiers` no nível do componente).
+  - RF-008-parcial (substituição de framework no nível do componente
+    — exercitada por AS-5 de T04 via fixture synthetic_gdpr).
+  - RF-009 (provenance temporal e jurisdicional em verdicts).
+  Pré-requisito procedural: confirmar MCP Inspector funcional no
+  ambiente Windows do João + Política de teste apontando para
+  `tests/.../fixtures/synthetic_gdpr/` para exercitar RF-008.
+
+**Resolver pós-gate milestone-level Milestone A:**
+
+- **Decomposição formal de Milestone B em sessão Chat dedicada.**
+  Pré-requisito: decisão Semgrep-on-Windows (Docker, pip native, remote
+  worker, CI-only) — afeta forma das tasks de Milestone B.
+- **Migração de convenções novas (#23-#24) para rules/ADR.** Lista
+  cumulativa #23-#24:
+  - DD emergente vs tactical (#23) — critério de classificação por
+    alteração do set de retornos observáveis pelo caller.
+  - Multi-instance review trend (#23, refinado em #24 com assimetria
+    convergência crítica vs divergência refinamento).
+  - Verificação direta vence inferência — quinta materialização
+    cristalizou pattern recorrente (#19, primeira metade #23,
+    housekeeping #23, prep #24, Chat review #24).
+  - Drift cumulativo via leitura adjacente (#23).
+  - Prompt como artefato auditável (#23, refinado em #24 com 3 rounds
+    de versionamento v1→v2→v3).
+  - Cirurgia textual cleanup (#23).
+  - **GATE com halt condition explícita parametrizada por outcome
+    empírico (#24)** — novo.
+  - **Smoke test pre-Fase 2 para framework unknown empírico (#24)** —
+    novo.
+  - **Diferimento via §Companion edits como pattern operacional de
+    scope discipline (#24)** — novo.
+  - **Rule auto-loading vs disciplina deliberada no Chat (#24)** —
+    novo, defense candidate metodológico.
+  Sessão Chat de housekeeping metodológico pós-Milestone A. Custo
+  estimado: ~1h Chat prep + ~30min Code aplicação em ~3 PRs mecânicas.
+
+**Resolver em janela futura sem urgência:**
+
+- **DX residual:** linters (ruff, mypy) como dev deps oficiais em
+  `pyproject.toml`. Workaround `uvx ruff` / `uv run --with mypy mypy`
+  funciona. Sessão Code curta (~15min) em qualquer janela.
+
+### Hashes da sessão #24 (audit trail)
+
+Branches mergeadas em main durante #24:
+
+- `<TBD — preencher pós-pull>` — feat(policy-reader): T04 — resources
+  catalog + vocabularies + framework swap (squash de
+  `feat/policy-reader-resources-t04`, PR #46, #24 ciclo Chat persistente
+  + sequência de sessões Code: prep iterativo v1→v2→v3, Fase 1.A com
+  smoke tests + canary, GATE 1 sancionado, Fase 2 implementação, Chat
+  review com débito emergente anotado, push e merge).
+
+Branches abertas para sessão #25+:
+
+- `chore/housekeeping-post-t04` (sessão Code curta) — 4 débitos
+  cross-doc consolidados em PR única ou 4 PRs separadas, decisão na
+  hora da sessão.
+
+### Onde encontrar detalhes do que #24 cristalizou
+
+- **Prep do prompt T04 — versionamento iterativo:** `prompt-t04-v1.md` →
+  `prompt-t04-v2.md` → `prompt-t04-v3.md` (~530 → ~720 → ~720 linhas;
+  iteração materializa multi-instance review e prompt-as-artifact).
+  Artefatos auditáveis preservados em histórico Chat de #24.
+- **Plano da Fase 1 do Code sancionado em GATE 1:** preservado no
+  histórico Chat de #24. 13 DDs originais + DD-T04-14 emergente + 2
+  Observations (drift 2 spirit-satisfied, canonical_examples mínimo 3).
+- **Body do PR T04:** preservado no histórico Chat de #24 com tabela
+  das 14 DDs ratificadas + gate outputs + 3 débitos anotados em
+  §Companion edits cross-doc (depois 4 com adição do canonical §3.1
+  sync via commit `1acae30`).
+- **Detalhamento metodológico:** este entry — defense candidates #24.
+- **Implementação T04:** +558/-19 linhas em 11 arquivos.
+
+### Nota de calibração metodológica (defense candidates de #24)
+
+Cinco defense candidates novos consolidados em #24 para o Capítulo de
+Método do TCC:
+
+1. **Validation-retry loop manual via multi-instance review com 3 rounds
+   — convergência empírica em bloqueantes críticos, divergência em
+   refinamentos.** v1 → 2 reviewers convergiram em 3 bloqueantes; v2 →
+   1 reviewer (Code com rule carregada automaticamente) pegou bloqueante
+   adicional específico do repo; v3 → sancionado em GATE 1. Pattern:
+   convergência em itens críticos é signal forte de qualidade;
+   divergência em refinamentos é signal de cobertura adicional, não de
+   inconsistência. Refinamento empírico do defense candidate #1 do #23.
+
+2. **GATE com condição de halt explícita parametrizada por outcome
+   empírico (smoke test).** v3 do prompt T04 introduziu DD-T04-13 com
+   smoke test FastMCP obrigatório em Fase 1.A + halt condition explícita
+   ("se rejeitar, v4 antes de Fase 2"). Pattern: gates em planos precisam
+   de halt explícito quando contrato observável depende de comportamento
+   de framework não-coberto por anchors existentes.
+
+3. **Rule auto-loading vs disciplina deliberada no Chat — fragility
+   observada empiricamente.** Bloqueante v2 (PR sequencing violation no
+   rename) só foi capturado por Reviewer C com `git-conventions.md`
+   carregada automaticamente em sessão Code. Chat tinha a rule via
+   anexação manual mas falhou em aplicá-la em deliberation. Pattern:
+   `.claude/rules/` são auto-aplicáveis pelo Code mas exigem disciplina
+   deliberada de invocação no Chat para evitar gap.
+
+4. **Diferimento via §Companion edits cross-doc como pattern operacional
+   de scope discipline.** Em T04 exercido 2x: rename antecipado em prep
+   (DD-T04-1 simplificada via diferimento); canonical §3.1 sync emergente
+   em Chat review pós-implementação. Materializa
+   `spec-driven-workflow.md` §"Companion edits cross-doc as living debt
+   registry" como mecanismo concreto de preservação de scope.
+
+5. **Verificação direta vence inferência — quinta materialização
+   documentada cristaliza pattern recorrente.** Pattern reconfirmado em
+   4 momentos durante #24: leitura de helper real (Reviewer 2 v1→v2),
+   leitura do loader (Code Fase 1.A para anchor 2), leitura de
+   test_bootstrap (Code GATE 1 para DD-T04-14 emergente), leitura de
+   tools.py (Chat review pós-implementação). Rule candidate para
+   `.claude/rules/` — promoção formal pendente em housekeeping
+   metodológico pós-Milestone A.
+
+### Próximo passo
+
+Sessão #25 — duas alternativas válidas:
+
+**Alternativa A (recomendada):** Chat fresh dedicada ~1-2h para **gate
+milestone-level de Milestone A** via MCP Inspector contra RFs 004-parcial
+/ 005 / 007-parcial / 008-parcial / 009. Pré-requisito procedural:
+confirmar MCP Inspector funcional no ambiente Windows do João. Pode
+descobrir débitos adicionais durante manual exercise que merecem entrar
+no housekeeping antes de Milestone B.
+
+**Alternativa B:** Code curta ~1h para housekeeping cross-doc
+consolidando os 4 débitos em PR única `chore/housekeeping-post-t04` (ou
+4 PRs separadas, decisão na hora). Limpa débito de prep antes de
+exercitar funcionalmente.
+
+Ordem recomendada A → B porque gate milestone-level pode revelar
+débitos adicionais que entram no housekeeping consolidado. Mas B → A é
+também válido se você preferir entrar no gate com workspace limpo de
+débitos cosméticos. Decisão na hora.

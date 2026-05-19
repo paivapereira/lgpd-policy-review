@@ -13,8 +13,10 @@ handshake payload (`policy_schema_version`, `policy_version`,
 T02a migrates `get_clause` from an inline skeleton into a thin wrapper that
 delegates to `tools.get_clause` (pure function in `tools.py`); T02b does the
 same for `find_clauses_by_law_article`; T03 does the same for
-`check_applicability`. The remaining resource (`policy://catalog`) is the
-only skeleton stub left, pending T04.
+`check_applicability`. T04 migrates the `get_catalog` skeleton stub
+likewise and introduces `policy://vocabularies` alongside, so every
+resource and tool handler in this module is now a thin wrapper delegating
+to a pure function in `tools.py`.
 """
 from __future__ import annotations
 
@@ -64,20 +66,43 @@ def _reset_state_for_tests() -> None:
 # Resources
 # =============================================================================
 
-@mcp.resource("policy://catalog")
-def get_catalog() -> dict[str, Any]:
-    """Index of all clauses in the current Policy.
+@mcp.resource("policy://catalog", mime_type="application/json")
+def get_catalog() -> list[dict[str, Any]]:
+    """Index of every clause in the loaded Policy (canonical §3.1).
 
-    Each entry carries clause_id, title, status, and article_sources_summary.
-    Deprecated clauses include successors. Use this resource for discovery
-    of available clauses without invoking tools.
+    Returns a top-level JSON list of items ordered naturally by
+    `clause_id` (POL-NNN). Each item carries `clause_id`, `title`,
+    `status`, `article_sources_summary`, and — when
+    `status == "deprecated"` — `successors`. The `successors` key is
+    absent (not `[]`) for active clauses.
 
-    [SKELETON STUB — returns empty list; real loader lands in T04.]
+    Use this resource for discovery of available clauses without
+    invoking tools. See canonical §3.1 for the contract and `tools.py`
+    for the rendering rationale of `article_sources_summary`.
     """
-    return {
-        "_stub": "policy-reader skeleton — get_catalog not yet implemented",
-        "clauses": [],
-    }
+    assert _STATE is not None, "policy-reader bootstrap did not run"
+    return tools.get_catalog(_STATE)
+
+
+@mcp.resource("policy://vocabularies", mime_type="application/json")
+def get_vocabularies() -> dict[str, dict[str, Any]]:
+    """Aggregate of the four jurisdictional vocabularies (canonical §3.3).
+
+    Returns a top-level JSON object keyed by vocabulary name
+    (`operation`, `lawful_basis`, `control`, `out_of_scope`), each value
+    carrying `{schema_version, framework, values[]}` loaded from
+    `policy/vocabularies/<framework>/*.yaml` at startup. The four keys
+    are guaranteed by the loader — startup aborts if any file is
+    missing.
+
+    Framework-agnostic by construction: a Policy declaring
+    `legal_framework: GDPR` with `policy/vocabularies/GDPR/` populated
+    is served identically to one declaring `legal_framework: LGPD`
+    (RF-008 at the component level; ADR-0005 D4 — `policy://vocabularies`
+    is shared between Matcher and Classifier).
+    """
+    assert _STATE is not None, "policy-reader bootstrap did not run"
+    return tools.get_vocabularies(_STATE)
 
 
 @mcp.resource("policy://schema-version", mime_type="application/json")

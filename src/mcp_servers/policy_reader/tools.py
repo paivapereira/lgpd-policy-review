@@ -2,14 +2,20 @@
 
 T02a introduced this module migrating `get_clause` from the inline skeleton
 in `server.py`. T02b added `find_clauses_by_law_article` alongside. T03
-adds `check_applicability`, so this module now carries three public
-functions; envelope helpers + vocabulary loaders + provenance helper were
-extracted to `_envelope.py` co-located here.
+adds `check_applicability`. T04 migrates the `get_catalog` skeleton stub
+from `server.py` and introduces `get_vocabularies` alongside, so this
+module now carries five public functions. Envelope helpers + vocabulary
+loaders + provenance helper remain in `_envelope.py` co-located here;
+T04 does not touch envelope code because resources are not error-emitting
+endpoints (read-only, idempotent, no domain-error envelope produced at
+runtime — I/O failures abort at startup, not runtime).
 
 Functions here are pure: they receive `state: LoadedPolicy` as an argument
-(the same object the loader produces in T01) and return a `ToolResult`
-ready for FastMCP's tool-call path. The `@mcp.tool` decorator lives in
-`server.py` on a thin wrapper that injects `_STATE`.
+(the same object the loader produces in T01) and return either a
+`ToolResult` (tools) or a plain JSON-serialisable structure (resources —
+`list[dict[...]]` for `get_catalog`, `dict[str, dict[...]]` for
+`get_vocabularies`). The `@mcp.tool` / `@mcp.resource` decorators live in
+`server.py` on thin wrappers that inject `_STATE`.
 
 Wire-shape convention (Option B, ratified in T02a session): the envelope
 on errors travels in `structured_content` of the returned `ToolResult`;
@@ -53,6 +59,88 @@ from .models import (
 )
 
 _CLAUSE_ID_PATTERN = re.compile(r"^POL-\d{3}$")
+
+
+# ---------------------------------------------------------------------------
+# Public surface — resources (T04)
+# ---------------------------------------------------------------------------
+
+def get_catalog(state: LoadedPolicy) -> list[dict[str, Any]]:
+    """Index of every clause in the loaded Policy (canonical §3.1).
+
+    Returns a top-level list of items ordered naturally by `clause_id`
+    (POL-NNN lexicographic == numeric for 3-digit zero-padded IDs through
+    POL-999; expansion to POL-NNNN would require a custom key
+    `lambda c: int(c.clause_id.split("-")[1])`). Each item carries the
+    five contractual fields prescribed by canonical §3.1: `clause_id`,
+    `title`, `status`, `article_sources_summary`, and — when
+    `status == "deprecated"` — `successors`.
+
+    `article_sources_summary` is the list of rendered law-reference
+    strings derived from `clause.statutory_reference` via the shared
+    `_format_first_stat_ref` helper (DD-T04-1). The catalog is a
+    discovery surface — strings legíveis are preferred over compacted
+    objects, which would duplicate the shape `get_clause` already
+    exposes for introspection.
+
+    `successors` appears IFF the clause is deprecated; for active
+    clauses the key is absent (not `[]`). The `tombstone` block is
+    guaranteed non-None when `status == "deprecated"` by the
+    `ClauseCommon._tombstone_iff_deprecated` model validator.
+
+    Defensive `sorted()` here is structural: the loader already sorts
+    `clauses_dir.glob("POL-*.yaml")` (see `loader.py`), but the resource
+    path must not rely on dict iteration order to preserve correctness
+    if `state.clauses` is ever constructed by code other than the
+    loader (e.g., hand-crafted in tests — see anchor 2 of T04).
+    """
+    sorted_clauses = sorted(state.clauses.values(), key=lambda c: c.clause_id)
+    items: list[dict[str, Any]] = []
+    for clause in sorted_clauses:
+        item: dict[str, Any] = {
+            "clause_id": clause.clause_id,
+            "title": clause.title,
+            "status": clause.status,
+            "article_sources_summary": [
+                _format_first_stat_ref(ref) for ref in clause.statutory_reference
+            ],
+        }
+        if clause.status == "deprecated":
+            assert clause.tombstone is not None, (  # noqa: S101 — model invariant
+                "ClauseCommon._tombstone_iff_deprecated guarantees this"
+            )
+            item["successors"] = list(clause.tombstone.successors)
+        items.append(item)
+    return items
+
+
+def get_vocabularies(state: LoadedPolicy) -> dict[str, dict[str, Any]]:
+    """Aggregate of the four jurisdictional vocabularies (canonical §3.3).
+
+    Returns a top-level object keyed by vocabulary name (`operation`,
+    `lawful_basis`, `control`, `out_of_scope`), each value carrying the
+    Pydantic-native dump of the corresponding `Vocabulary` model
+    (`schema_version`, `framework`, `values[]`). The four keys are
+    guaranteed by the loader (T01) — startup aborts if any of the four
+    YAML files is missing.
+
+    Pydantic-native serialisation via `model_dump(mode="json")` is the
+    single source of truth for the payload shape — no intermediate
+    helper, no parallel Pydantic wrapper model. The shape contract is
+    governed by `Vocabulary` in `models.py` (SCHEMA §10.2).
+
+    Framework-agnostic by construction (RF-008 at the component level):
+    the resource reads whatever is loaded into `state.vocabularies` at
+    startup, which itself is sourced from
+    `policy/vocabularies/<framework>/*.yaml` per the `legal_framework`
+    declared in the header. A GDPR Policy with `policy/vocabularies/GDPR/`
+    populated and `legal_framework: GDPR` is served identically — no
+    code change required (AS-5 of T04).
+    """
+    return {
+        key: vocab.model_dump(mode="json")
+        for key, vocab in state.vocabularies.items()
+    }
 
 
 # ---------------------------------------------------------------------------

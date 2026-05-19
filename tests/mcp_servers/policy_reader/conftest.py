@@ -21,6 +21,14 @@ PACK_CLAUSES = (
     / "fixtures"
     / "clauses_pack_check_applicability"
 )
+SYNTHETIC_GDPR = (
+    REPO_ROOT
+    / "tests"
+    / "mcp_servers"
+    / "policy_reader"
+    / "fixtures"
+    / "synthetic_gdpr"
+)
 
 
 @pytest.fixture
@@ -63,6 +71,24 @@ def policy_root_with_pack_clauses(tmp_path: Path) -> Path:
             PACK_CLAUSES / f"{pol_id}.yaml",
             root / "clauses" / f"{pol_id}.yaml",
         )
+    return root
+
+
+@pytest.fixture
+def policy_root_with_synthetic_gdpr(tmp_path: Path) -> Path:
+    """Deep copy of the synthetic GDPR fixture into `tmp_path / 'policy'`.
+
+    Exercises framework-agnosticism of `policy://vocabularies` (T04 AS-5):
+    the loader and the resource handler operate identically against a
+    Policy declaring `legal_framework: GDPR` with
+    `policy/vocabularies/GDPR/` populated, without any code change. The
+    synthetic GDPR fixture is a minimal stub — single POL-000
+    `definitional` clause, one entry per vocabulary, names deliberately
+    distinct from LGPD where useful for operative assertions
+    (`consent_gdpr` ≠ LGPD `consent`).
+    """
+    root = tmp_path / "policy"
+    shutil.copytree(SYNTHETIC_GDPR, root)
     return root
 
 

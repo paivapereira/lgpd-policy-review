@@ -1,0 +1,6 @@
+# Synthetic GDPR control vocabulary — test fixture for T04 AS-5.
+schema_version: "0.1.0"
+framework: GDPR
+values:
+  - name: consent_required
+    description: "GDPR test stub control."

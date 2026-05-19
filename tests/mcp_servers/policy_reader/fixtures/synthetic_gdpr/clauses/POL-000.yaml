@@ -1,0 +1,30 @@
+# Synthetic GDPR POL-000 — definitional stub for T04 AS-5.
+# Structurally conformant to SCHEMA §5 (DefinitionalClause); minimum
+# three canonical_examples per SCHEMA §5.3. Single entry is sufficient
+# for AS-5, which only asserts framework-agnosticism of
+# `policy://vocabularies`, not POL-000 surface coverage.
+clause_id: POL-000
+title: "GDPR personal data categories (test stub)"
+clause_type: definitional
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: GDPR
+    artigo: 4
+
+defines:
+  vocabulary_kind: personal_data_categories
+  entries:
+    - name: identification_data
+      definition: "GDPR test stub category — identifying attributes."
+      canonical_examples:
+        - name
+        - surname
+        - date_of_birth
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+      special_category: false
+
+out_of_scope: []

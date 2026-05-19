@@ -1,0 +1,14 @@
+# Synthetic GDPR Policy header — test fixture for T04 AS-5.
+# Exercises framework-agnosticism of `policy://vocabularies` at the
+# component level (RF-008 partial). NOT a real GDPR Policy — minimal stub
+# satisfying loader invariants (PolicyHeader required fields,
+# _dates_ordered validator, accepted_law_identifiers gate for clause
+# statutory_reference validation).
+policy_schema_version: "0.1.0"
+policy_version: "0.1.0"
+legal_framework: GDPR
+accepted_law_identifiers:
+  - GDPR
+policy_owner: "DPO Office (test stub)"
+effective_date: 2026-01-01
+last_revision: 2026-01-01

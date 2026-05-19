@@ -1,0 +1,6 @@
+# Synthetic GDPR out_of_scope vocabulary — test fixture for T04 AS-5.
+schema_version: "0.1.0"
+framework: GDPR
+values:
+  - name: out_of_geographic_scope
+    description: "GDPR test stub out_of_scope reason."

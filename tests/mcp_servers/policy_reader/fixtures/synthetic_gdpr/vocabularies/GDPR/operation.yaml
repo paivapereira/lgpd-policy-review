@@ -1,0 +1,9 @@
+# Synthetic GDPR operation vocabulary — test fixture for T04 AS-5.
+# Single value sufficient for AS-5; distinct from LGPD operation set
+# only by the `framework: GDPR` header (the `collection` name itself is
+# shared across frameworks).
+schema_version: "0.1.0"
+framework: GDPR
+values:
+  - name: collection
+    description: "GDPR test stub operation (collection)."

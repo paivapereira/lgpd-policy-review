@@ -1,0 +1,10 @@
+# Synthetic GDPR lawful_basis vocabulary — test fixture for T04 AS-5.
+# `consent_gdpr` (not the LGPD `consent`) makes AS-5's framework
+# distinction operative rather than cosmetic — a downstream caller
+# observing this resource sees a name not present in the LGPD vocab.
+schema_version: "0.1.0"
+framework: GDPR
+values:
+  - name: consent_gdpr
+    category: personal_data
+    description: "GDPR test stub lawful basis (Art. 6(1)(a) equivalent)."

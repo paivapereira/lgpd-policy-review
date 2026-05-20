@@ -219,8 +219,6 @@ Validação na redação canônica: nomes de categorias substituídos por valore
 
 PRs separados, fora do escopo de implementação Code de Milestone A. Não bloqueantes, mas anotados aqui para não perder o débito.
 
-**Sync `docs/session-handoff.md`.** A entrada "Plano de ação Fase 2" do handoff descreve "Milestone A — MCPs standalone validados (T01-T05)" agrupando policy-reader e semgrep-runner. Este `tasks.md` divide em Milestone A (policy-reader) e Milestone B (semgrep-runner) por capability boundary. Atualizar handoff na mesma PR que promove `tasks.md` para evitar drift.
-
 ---
 
 ## Milestones B, C, D — autoria deferida

@@ -196,7 +196,11 @@ def find_clauses_by_law_article(
     Specification is hierarchical and progressive. `lei` and `artigo` are
     required; `paragrafo`, `inciso`, `alinea` are optional and narrow the
     search. A clause matches when ANY element of its `statutory_reference`
-    list starts hierarchically with the given specification. A query for
+    list starts hierarchically with the given specification. Matching
+    considers only the clause's top-level `statutory_reference` list.
+    References nested inside `defines.entries[]` of definitional clauses
+    are vocabulary metadata, not the clause's regulatory jurisdiction, and
+    are NOT considered for matching. A query for
     `{lei: LGPD, artigo: 7}` returns all active clauses whose
     `statutory_reference` begins with LGPD Art. 7º, regardless of inciso;
     `{lei: LGPD, artigo: 7, inciso: 1}` returns only clauses tied
@@ -236,7 +240,7 @@ def check_applicability(
     (`data_categories`, `operation`, optional `legal_basis`), and need a
     verdict on whether the handling aligns with the clause's prescription.
 
-    Returns one of four verdicts in `structured_content` on success:
+    Returns one of four verdicts in `structuredContent` on success:
       - `compliant`: candidate satisfies the clause requirement; `evidence`
         cites the requirement and the canonical token observed.
       - `violation_candidate`: candidate contradicts a requirement;
@@ -257,7 +261,7 @@ def check_applicability(
     header (ADR-0005 D5; canonical §6.4).
 
     Six error envelopes are possible (wire `isError: false`; envelope in
-    `structured_content` discriminated by presence of `errorCode` per
+    `structuredContent` discriminated by presence of `errorCode` per
     Option B):
       - `INVALID_CLAUSE_ID_FORMAT`: `clause_id` does not match `POL-NNN`.
       - `EMPTY_DATA_CATEGORIES`: `data_categories` is the empty list.

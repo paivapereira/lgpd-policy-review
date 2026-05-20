@@ -219,6 +219,8 @@ Validação na redação canônica: nomes de categorias substituídos por valore
 
 PRs separados, fora do escopo de implementação Code de Milestone A. Não bloqueantes, mas anotados aqui para não perder o débito.
 
+- README pin de Semgrep: documentar `uv tool install semgrep==1.163.0` como prerequisite de setup na seção apropriada do README, conforme ADR-0010 ("Setup" alongside Python 3.12.7 / Node 24).
+
 ---
 
 ## Milestones B, C, D — autoria deferida

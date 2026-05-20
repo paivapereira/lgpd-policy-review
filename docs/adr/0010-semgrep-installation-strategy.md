@@ -6,7 +6,7 @@ Accepted (2026-05-20, session #26).
 
 ## Context
 
-The `semgrep-runner` MCP server (specified in `docs/specs/semgrep-runner/canonical.md`, session #07) invokes Semgrep CLI as a subprocess. The component's initialization (canonical §6) requires Semgrep CLI to be discoverable on PATH and to satisfy a minimum version constraint at server startup.
+The `semgrep-runner` MCP server (specified in `docs/specs/semgrep-runner/canonical.md`, session #07) invokes Semgrep CLI as a subprocess. The component (canonical §8.6) requires Semgrep CLI to be discoverable on PATH at MCP tool invocation time. The spec sets a minimum version constraint (§2.2).
 
 The project's development environment is Windows 11 corporate-restricted: PowerShell 5.1 native (no WSL available), no local admin account, Python 3.12.7 via pyenv-win, Node 24 via npm in user directory, `uv` as Python project manager with `uv.lock` for reproducibility.
 
@@ -34,7 +34,7 @@ Components of the decision:
 
 **3. No Semgrep cloud integration.** `SEMGREP_APP_TOKEN` is not configured. The component operates with Semgrep OSS rules from the public registry (290 rules at the time of the empirical test). This is consistent with §7 of the `semgrep-runner` canonical spec ("Componente opera com Semgrep open-source sem login") and with the project's general posture of not introducing secrets into CI for components that do not require them.
 
-**4. Path discovery semantics unchanged.** The `semgrep-runner` server, per canonical §6, resolves the Semgrep binary via standard PATH resolution. `uv tool install` adds the binary to the user PATH via a uv-managed shim, satisfying this requirement without further indirection in the component code.
+**4. Path discovery semantics unchanged.** The `semgrep-runner` server, per canonical §8.6, resolves the Semgrep binary via standard PATH resolution at MCP tool invocation time. `uv tool install` adds the binary to the user PATH via a uv-managed shim, satisfying this requirement without further indirection in the component code.
 
 ## Consequences
 

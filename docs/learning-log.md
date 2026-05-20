@@ -4753,3 +4753,76 @@ Ordem recomendada A → B porque gate milestone-level pode revelar
 débitos adicionais que entram no housekeeping consolidado. Mas B → A é
 também válido se você preferir entrar no gate com workspace limpo de
 débitos cosméticos. Decisão na hora.
+
+## #25 — 2026-05-19 — Finalização Milestone A: gate milestone-level + housekeeping completa
+
+**Escopo da sessão.** Sessão única consolidando duas atividades inicialmente previstas como #25 (gate) + #26 (housekeeping): gate milestone-level Milestone A via MCP Inspector + PR #47 `chore/housekeeping-post-t04` com 8 débitos consolidados + smoke test pós-merge validando fix #8 em runtime. Encerra Milestone A em todos os níveis (task-level + milestone-level).
+
+**Conceitos da prova exercitados.**
+
+*Domínio 1 — Agentic Architecture (parcial).* Dependency injection via env var no momento de spawn do servidor MCP (`POLICY_READER_ROOT` apontando para Política diferente entre LGPD e GDPR). Equivalente conceitual ao pattern "explicit context passing" cobrado em D1 para subagent context management, aplicado aqui ao nível de processo MCP.
+
+*Domínio 2 — Tool Design & MCP Integration.* Exercitado de forma intensiva: leitura de tool descriptions como o cliente LLM vê (`tools/list`), inspeção de `ReadResourceResult` vs `CallToolResult` shape, distinção semântica tool (verbo, ação, com efeito) vs resource (substantivo, dado, idempotente), MCP Inspector CLI mode como padrão idiomático para CI, env var no `.mcp.json` equivalente como mecanismo de configuração. 4 dos 8 débitos da PR caíram diretamente em D2 (resource names, structuredContent casing, matching scope clarification, tool description quality).
+
+*Domínio 3 — Claude Code Configuration & Workflows.* CLI mode do MCP Inspector análogo ao `claude -p --output-format json` cobrado em D3 — spawn ephemeral, JSON stdout, exit, comando reproduzível. Pattern de gate documentado como sequência de comandos auditáveis.
+
+*Domínio 4 — Prompt Engineering & Structured Output.* Validação contra os 4 vereditos enumerados de `check_applicability` (compliant, violation_candidate, indeterminate, not_applicable) + 2 erros estruturados (CLAUSE_DEPRECATED retryable, INVALID_LAW_IDENTIFIER non-retryable). Cada veredito carrega campo discriminador exclusivo (evidence vs reason vs verification_scope vs contradicted_requirement), exemplificando structured output com discriminator. `text` em `content[0]` como renderização redundante do `structuredContent` para cliente LLM sem capacidade de parsing programático — pattern de "two consumers, one payload".
+
+*Domínio 5 — Context Management & Reliability.* Taxonomia empírica de erros consolidada: wire/schema error (Pydantic, isError true, texto livre) vs domain error non-retryable (INVALID_LAW_IDENTIFIER, envelope estruturado, isRetryable false) vs domain error retryable (CLAUSE_DEPRECATED, envelope com details.successors, isRetryable true). Provenance trinque `(policy_schema_version, policy_version, legal_framework)` em todos os 6 vereditos exercitados. Provenance arquitetural adicional (`reason` citando ADR-0007 D3) — duas camadas de auditabilidade.
+
+**Decisões tomadas.**
+
+- Pivô **MCP Inspector UI → CLI mode** no meio da Fase A.2 (UI v0.21.2 com bug de UX: clicar item de resource não dispara `resources/read`). CLI mode revelou-se superior para gate auditável: spawn ephemeral, JSON puro, comandos arquiváveis como evidência. Decisão aplicada para todo o resto do gate e validada em retrospectiva como melhor para reprodutibilidade defensiva no TCC.
+- Caminho **(a) — copiar POL-001..POL-004 para `policy/clauses/` temporariamente** em vez de montar Política standalone separada para exercitar `check_applicability`. Mais rápido (~10s) que opção (b) ou (c); revertido ao final via `Remove-Item` + verificação `git status` clean.
+- **Ordem A→B confirmada** (gate antes de housekeeping) — gate emergiu 4 débitos novos (#5-#8); housekeeping consolidou os 8 ao final, evitando segunda PR de cleanup.
+- **Atomicidade ADR-0003** preservada — commit 2 do PR #47 sincroniza canonical.md + compact.md examples no mesmo commit que o fix de impl (`_format_law_reference`), respeitando paridade canonical↔compact.
+- **session-handoff.md mantido como diff-log meta-document** — pattern inaugurado em #24 (com blocos editáveis em code-blocks markdown) consolidado em #25; refactor para handoff plano deferido como custo sem yield claro.
+- **PowerShell 5.1 + UTF-8 sem BOM via `[System.IO.File]::WriteAllText(..., UTF8Encoding $false)`** — `Out-File -Encoding utf8` injeta BOM em PS 5.1 nativo; pattern correto para subjects de commit em UTF-8.
+
+**Artefatos produzidos.**
+
+- `docs/milestoneA.md` — gate report Milestone A (5 RFs ancoradas empiricamente, 5 fases A.1-A.5 documentadas, 8 débitos enumerados, insumo metodológico). Commit 6 da PR #47.
+- PR #47 `chore/housekeeping-post-t04` — 7 commits internos, pytest 53/53 verde em cada commit individualmente, 8 débitos consolidados, §Companion edits cross-doc esvaziado.
+- `docs/specs/policy-reader/canonical.md` §3.1 + §4.3 sync (shape `article_sources_summary`, 4 campos de `StructuredContext`, discriminação evidence/reason/verification_scope).
+- `docs/specs/policy-reader/canonical.md` §4.1/§4.2/§4.3 + `docs/specs/policy-reader/compact.md` §5.2/§5.3 — examples renderizados sincronizados com fix de ordinal condicional.
+- `src/mcp_servers/policy_reader/tools.py` — `_format_first_stat_ref` → `_format_stat_ref` (rename semântico); `_format_law_reference` corrigido para ordinal condicional N≤9.
+- `src/mcp_servers/policy_reader/server.py` — 3 decorators `@mcp.resource` com `name=` explícito (Policy Clause Catalog / Jurisdictional Vocabularies / Policy Schema Handshake); 2 typos corrigidos em docstring de `check_applicability` (`structured_content` → `structuredContent`); 1 clarificação adicionada em docstring de `find_clauses_by_law_article` (matching scope top-level apenas).
+
+**Defense candidates emergentes (cumulativos a migrar para `.claude/rules/` ou ADR em sessão metodológica pós-Milestone A).**
+
+- **Gate manual exercise produz débito que automated test não pega.** Empirizado: 4 débitos #5-#8 descobertos em #25 contra 53/53 pytest verde pré-gate. Confirma decisão ADR-0008 amended (separação task-level vs milestone-level).
+- **CLI mode supera UI quando reproducibilidade é critério.** Empirizado pelo pivô no meio do gate. Gate como sequência de comandos arquiváveis vs cliques perdidos no tempo. Defense candidate forte para Capítulo de Método do TCC.
+- **Multi-instance review escala via complementaridade de trajetória de leitura.** Empirizado em 5 instâncias independentes sobre o prompt do Code em 3 iterações (v1→v2→v3→v4): 10 achados não-triviais disjuntos detectados. Cada instância nova percorreu trajetória diferente (review-T04 = contexto vivido, review-clean = rigor procedural, review-2-models = auditoria semântica de models.py, review-2-canonical = canonical examples, review-3-compact = paridade canonical↔compact). Cobertura conjunta dominou cobertura individual. Refinamento do pattern de #23-#24 ("convergência crítica vs divergência refinamento") para nova dimensão: **direcionar reviewers para fatiamentos diferentes do mesmo artefato escala mais que N instâncias indiferenciadas**.
+- **Verificação direta vence inferência — sexta materialização.** Materializada novamente nesta sessão: (a) inferi structure do repositório do handoff sem listar (paths errados); (b) inferi 3 campos de `StructuredContext` em vez de pedir `models.py` — review pegou o 4º campo (`destination`); (c) confiei em memória de bordas de docstring sem ler — review pegou typo de `structured_content` em 2 lugares. Pattern operacional consolidado: **ler antes de inferir, em todas as etapas**.
+- **Atomicidade de débito atravessa paridade de specs (operacionalização ADR-0003).** Quando débito afeta documentação em arquivos com paridade prescrita, sync deve ocorrer no mesmo commit que a impl. Sair sem o sync introduz drift novo na própria PR que existia para fechar drift.
+- **session-handoff.md como diff-log meta-document — pattern consolidado.** Inaugurado #24, replicado #25 sem fricção. Diff blocks aplicáveis em code-blocks markdown preservam blame-traceability cross-sessão. Vale tornar explícito num `.claude/rules/session-handoff-format.md` ou ADR breve.
+- **PowerShell 5.1 + UTF-8 puro para commit messages.** `Out-File -Encoding utf8` injeta BOM em PS 5.1 nativo (comportamento corrigido apenas em PS 7+ com `utf8NoBOM`). Pattern correto: `[System.IO.File]::WriteAllText($path, $body, [System.Text.UTF8Encoding]::new($false))`. Vale virar nota em `.claude/rules/windows-tooling.md` ou similar.
+
+**Débitos resolvidos nesta sessão (mergeados via PR #47).**
+
+8 débitos consolidados:
+1. Sync session-handoff.md ↔ split Milestone A/B (pré-existente)
+2. Sync canonical.md §4.3 `structured_context` + `evidence`/`reason`/`verification_scope` (pré-existente)
+3. Rename `_format_first_stat_ref` → `_format_stat_ref` (pré-existente)
+4. Sync canonical.md §3.1 shape de `article_sources_summary` (pré-existente)
+5. Explicit `name=` em decorators de resource (emergente do gate)
+6. `structured_content` casing em docstring de `check_applicability` (emergente do gate)
+7. Matching scope clarification em docstring de `find_clauses_by_law_article` (emergente do gate)
+8. Ordinal condicional `º` apenas para artigos/parágrafos ≤9 + sync canonical/compact examples (emergente do gate, jurídico-defensivo)
+
+**Métricas operacionais.**
+
+- pytest cumulativo: 53/53 verde antes e depois da PR; verde em cada commit individual da PR
+- Cobertura RFs Milestone A: 5/5 ancoradas empiricamente (RF-004-parcial, RF-005, RF-007-parcial, RF-008-parcial, RF-009)
+- §Companion edits cross-doc em tasks.md: esvaziado (4 bullets removidos cumulativamente nos commits 5 e 7)
+- Smoke test pós-merge: POL-002 catalog rendering `"LGPD Art. 12, §2º"` confirmado (cardinal no 12, ordinal preservado no §2) — fix #8 validado end-to-end
+
+**Próximo passo.**
+
+Sessão #26 Chat dedicada. Dois temas independentes (ordem A→B recomendada):
+
+A. **Migração de defense candidates cumulativos para `.claude/rules/` e/ou ADRs breves** — 11 candidates acumulados de #19-#24 + 7 novos de #25 = 18 candidates totais. Sessão metodológica retrospectiva ~1h Chat + ~30min Code aplicando em PRs mecânicas.
+
+B. **Decomposição formal de Milestone B em Chat dedicada.** Pré-requisito procedural: **decisão Semgrep-on-Windows precede** (Docker, pip native, remote worker, CI-only) — afeta forma das tasks de Milestone B. ~1-1.5h Chat se decisão Semgrep já tomada; +30min se precisar decidir antes.
+
+Não-bloqueio: A pode rodar antes de B sem custo; B requer Semgrep decision precedendo.

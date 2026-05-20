@@ -90,3 +90,36 @@ Não-bloqueio: A pode rodar antes de B sem custo; B requer Semgrep decision prec
 - (sessão #25) **Atomicidade de débito atravessa paridade de specs.** Operacionalização do ADR-0003: quando débito afeta documentação em arquivos com paridade prescrita (canonical↔compact), sync deve ocorrer no mesmo commit que a impl. Sair sem o sync introduz drift novo na própria PR que existia para fechar drift. Empirizado no commit 2 da PR #47 (canonical §4.1-§4.3 + compact §5.2-§5.3 syncados atomicamente com fix `_format_law_reference`).
 - (sessão #25) **session-handoff.md como diff-log meta-document — pattern consolidado.** Inaugurado #24, replicado #25 sem fricção. Diff blocks aplicáveis em code-blocks markdown preservam blame-traceability cross-sessão. Materialização para `.claude/rules/session-handoff-format.md` ou ADR breve em sessão metodológica futura.
 ```
+
+## Diff aplicável pós-Chat #26 (encerramento)
+
+### Bloco 1: Atualizar item B de "Resolver em sessão #26" com pré-requisito procedural resolvido
+
+**Locate:**
+
+```markdown
+B. **Decomposição formal de Milestone B em Chat dedicada.** Pré-requisito procedural: **decisão Semgrep-on-Windows precede** (Docker, pip native, remote worker, CI-only) — afeta forma das tasks de Milestone B. ~1-1.5h Chat se Semgrep decision já tomada; +30min se precisar decidir antes.
+```
+
+**Substitute by:**
+
+```markdown
+B. **Decomposição formal de Milestone B em Chat dedicada.** Pré-requisito procedural satisfeito em sessão #26: decisão Semgrep-on-Windows fechada via ADR-0010 (`semgrep==1.163.0` via `uv tool install`, validado por smoke test em ambiente corporativo Windows). Tema B atacável sem fricção em sessão Chat futura; ~1-1.5h Chat.
+```
+
+### Bloco 2: Registrar fechamento de Tema A (migração defense candidates → `.claude/rules/`)
+
+**Add** logo após o último bullet da lista "**Concluído em sessão #25:**" (dentro do Bloco 1 da seção "Diff aplicável pós-merge PR #47") como uma nova sub-lista:
+
+```markdown
+**Concluído em sessão #26:**
+- Tema A — migração de defense candidates cumulativos (#19-#25) para `.claude/rules/`. PR `feat/rules/method-consolidation` mergeada (7 commits, 7 rules em `.claude/rules/`). DD-6 (`/memory` verifica carregamento das 7 rules) satisfeita na própria sessão #26 antes do fechamento.
+```
+
+### Bloco 3: Registrar fechamento de Tema B (decisão Semgrep-on-Windows) e destravamento de Milestone B authoring
+
+**Add** como segundo item da lista "**Concluído em sessão #26:**" introduzida no Bloco 2:
+
+```markdown
+- Tema B (procedural) — decisão Semgrep-on-Windows fechada via ADR-0010 (`semgrep==1.163.0` via `uv tool install`). Smoke test em ambiente corporativo Windows confirmou: 290 rules sobre 9 files, 0 findings, exit clean. Pré-requisito procedural de decomposição formal de Milestone B agora satisfeito; sessão Chat dedicada futura pode atacar Milestone B authoring sem fricção.
+```

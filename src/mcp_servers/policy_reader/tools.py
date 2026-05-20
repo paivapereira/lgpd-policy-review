@@ -78,7 +78,7 @@ def get_catalog(state: LoadedPolicy) -> list[dict[str, Any]]:
 
     `article_sources_summary` is the list of rendered law-reference
     strings derived from `clause.statutory_reference` via the shared
-    `_format_first_stat_ref` helper (DD-T04-1). The catalog is a
+    `_format_stat_ref` helper (DD-T04-1). The catalog is a
     discovery surface — strings legíveis are preferred over compacted
     objects, which would duplicate the shape `get_clause` already
     exposes for introspection.
@@ -102,7 +102,7 @@ def get_catalog(state: LoadedPolicy) -> list[dict[str, Any]]:
             "title": clause.title,
             "status": clause.status,
             "article_sources_summary": [
-                _format_first_stat_ref(ref) for ref in clause.statutory_reference
+                _format_stat_ref(ref) for ref in clause.statutory_reference
             ],
         }
         if clause.status == "deprecated":
@@ -376,7 +376,7 @@ def _verdict_for_control(
     MVP to the two above. The assertion fails loudly rather than silently
     falling through.
     """
-    law_ref = _format_first_stat_ref(clause.statutory_reference[0])
+    law_ref = _format_stat_ref(clause.statutory_reference[0])
     provenance = _provenance_from(state)
 
     if clause.control == "consent_required":
@@ -563,8 +563,12 @@ def _format_law_reference(
     distinct while guaranteeing the rendering stays consistent by construction.
 
     Brazilian legal-citation convention applied:
-      - `artigo` carries the masculine ordinal indicator (`Art. 7º`).
-      - `paragrafo` likewise (`§ 2º` rendered as `§2º` for compactness).
+      - `artigo` carries the masculine ordinal indicator for numbers ≤ 9
+        (`Art. 7º`); ≥ 10 renders as cardinal (`Art. 12`), per Brazilian
+        legal-citation convention; cardinal also idiomatic in GDPR/English
+        legal citation.
+      - `paragrafo` likewise — `§2º` for numbers ≤ 9, `§10` cardinal for
+        ≥ 10 (compactness retained: no space after `§`).
       - `inciso` is stored as an integer but rendered as a Roman numeral
         (`inciso: 1` → `I`); SCHEMA §5.1 line 116 prescribes this explicitly.
       - `alinea` is a lowercase Latin letter (`alínea a`).
@@ -573,9 +577,11 @@ def _format_law_reference(
     inciso 1-50 inclusive; out-of-range values trigger `KeyError` deliberately
     (LGPD does not approach this range).
     """
-    parts = [f"{lei} Art. {artigo}º"]
+    artigo_ordinal = "º" if artigo <= 9 else ""
+    parts = [f"{lei} Art. {artigo}{artigo_ordinal}"]
     if paragrafo is not None:
-        parts.append(f", §{paragrafo}º")
+        paragrafo_ordinal = "º" if paragrafo <= 9 else ""
+        parts.append(f", §{paragrafo}{paragrafo_ordinal}")
     if inciso is not None:
         parts.append(f", {_ROMAN_NUMERALS[inciso]}")
     if alinea is not None:
@@ -583,9 +589,9 @@ def _format_law_reference(
     return "".join(parts)
 
 
-def _format_first_stat_ref(entry: StatutoryReferenceEntry) -> str:
-    """Render the first statutory_reference entry of a stored clause via the
-    shared `_format_law_reference` helper.
+def _format_stat_ref(entry: StatutoryReferenceEntry) -> str:
+    """Render a statutory_reference entry of a stored clause via the shared
+    `_format_law_reference` helper.
 
     Invariant relied on by `_render_clause_text` for active clauses: every
     loaded clause carries at least one entry — `ClauseCommon.statutory_reference`
@@ -613,7 +619,7 @@ def _render_clause_text(clause: Clause) -> str:
     first_ref = clause.statutory_reference[0]
     return (
         f"{clause.clause_id}: {clause.title} "
-        f"({_format_first_stat_ref(first_ref)})."
+        f"({_format_stat_ref(first_ref)})."
     )
 
 

@@ -94,13 +94,18 @@ Status global de Milestone A:
 - **T04** (`policy://catalog` + `policy://vocabularies` + framework swap)
   — **fechada** (PR #46, squash hash `<TBD — preencher pós-pull>`, #24
   ciclo Chat persistente + sequência Code).
-- **Gate milestone-level Milestone A** — sessão Chat dedicada pendente,
-  ~1-2h, manual exercise via MCP Inspector exercitando cada RF
-  declarada de Milestone A.
+- **Gate milestone-level Milestone A** — **fechada** (#25, manual
+  exercise via MCP Inspector CLI mode contra RFs 004-parcial / 005 /
+  007-parcial / 008-parcial / 009; evidence pack em
+  `docs/milestoneA.md`).
 
-Quatro débitos cross-doc residuais em `docs/tasks.md` §Companion edits
-cross-doc aguardando housekeeping pós-T04 (detalhados em Pendências).
-Não bloqueiam gate milestone-level.
+**Oito débitos consolidados em PR `chore/housekeeping-post-t04`** (sessão
+#26, em curso): 4 pré-existentes (sync handoff A/B split, sync canonical
+§3.1/§4.3, rename `_format_first_stat_ref` → `_format_stat_ref`, sync
+canonical article_sources_summary shape) + 4 emergentes do gate #25
+(explicit resource names, structuredContent casing, matching scope
+clarification, conditional ordinal rendering + canonical/compact examples
+sync).
 ```
 
 ---
@@ -113,32 +118,26 @@ de resolução)` inteira por:
 ```markdown
 ## Pendências cross-sessão (organizado por horizonte de resolução)
 
-**Resolver em sessão #25:**
+**Concluído em sessão #25:**
 
-- Alternativa A (recomendada): **Gate milestone-level Milestone A** via
-  MCP Inspector contra RFs 004-parcial / 005 / 007-parcial / 008-parcial
-  / 009. Pré-requisito procedural: confirmar MCP Inspector funcional no
-  ambiente Windows do João + Política de teste apontando para fixture
-  synthetic_gdpr para exercitar RF-008.
-- Alternativa B: **Housekeeping cross-doc pós-T04** consolidando 4
-  débitos em PR única `chore/housekeeping-post-t04` (ver detalhamento
-  abaixo).
+- Gate milestone-level Milestone A via MCP Inspector CLI mode. Todas
+  as 5 RFs ancoradas empiricamente. Evidence pack em
+  `docs/milestoneA.md`.
 
-**Resolver em sessão Code curta (~1h, não bloqueia gate milestone-level):**
+**Em curso em sessão #26 (PR `chore/housekeeping-post-t04`):**
 
-- **Housekeeping cross-doc pós-T04.** 4 débitos em `docs/tasks.md`
-  §Companion edits cross-doc:
-  1. Sync `docs/session-handoff.md` ↔ split Milestone A/B (legado pré-T04).
-  2. Sync canonical.md `structured_context` campos + `evidence`/`reason`
-     em §4.3 (2 sub-itens legado pré-T04).
-  3. Rename `_format_first_stat_ref` → `_format_stat_ref` em `tools.py`
-     (3 call sites + 1 novo introduzido por T04; ~7 linhas de
-     `str_replace` cirúrgico).
-  4. Sync canonical.md §3.1 sobre shape de `article_sources_summary`
-     (emergente T04: lista de strings renderizadas via formatter
-     compartilhado, uma string por entrada de `statutory_reference`).
-  Despacho recomendado: PR única `chore/housekeeping-post-t04` com
-  commits separados internamente. Custo: ~1h Code.
+- Consolidação de 8 débitos (4 pré-existentes do handoff §Companion
+  edits cross-doc + 4 emergentes do gate #25) em PR única com 7
+  commits internos. Inclui gate report novo e este sync.
+
+**Resolver em sessão #27 (Chat dedicada):**
+
+- Decomposição formal de Milestone B. Pré-requisito: decisão
+  Semgrep-on-Windows (Docker, pip native, remote worker, CI-only)
+  precede — afeta forma das tasks de Milestone B.
+- Atualização de `docs/learning-log.md` para sessão #25 (closure de
+  milestone) + consolidação de defense candidates cumulativos
+  pós-Milestone A.
 
 **Resolver pós-gate milestone-level Milestone A:**
 
@@ -163,6 +162,27 @@ de resolução)` inteira por:
   - Diferimento via §Companion edits como pattern operacional de scope
     discipline (#24).
   - Rule auto-loading vs disciplina deliberada no Chat (#24).
+  - (sessão #25) **Gate manual exercise produz débito que automated
+    test não pega** — empirizado por 4 débitos descobertos em #25
+    contra 53/53 pytest verde. Materialização para `.claude/rules/`
+    em sessão metodológica futura.
+  - (sessão #25) **CLI mode supera UI quando reproducibilidade é
+    critério** — decisão de pivô do MCP Inspector UI para CLI mode no
+    meio do gate; gate como comandos auditáveis vs cliques perdidos no
+    tempo. Defense candidate para Capítulo de Método do TCC.
+  - (sessão #25-26) **Multi-instance review escala via
+    complementaridade de trajetória de leitura** — refinamento
+    adicional do pattern já catalogado em #23-#24. Empirizado em 5
+    instâncias sobre o prompt da PR #26 ao longo de 3 iterações
+    (v1→v2→v3→v4): cada instância nova detectou subconjunto disjunto
+    de 10 achados não-triviais totais; cobertura conjunta dominou
+    cobertura individual de qualquer uma. Trajetórias materializadas:
+    review-T04 (contexto vivido do código), review-clean (rigor
+    procedural), review-2-models (auditoria semântica de models.py),
+    review-2-canonical (auditoria de canonical examples),
+    review-3-compact (auditoria de paridade canonical↔compact). Lição
+    operacional: direcionar reviewers para fatiamentos diferentes do
+    mesmo artefato escala mais que rodar N instâncias indiferenciadas.
   Sessão Chat metodológica pós-Milestone A. Custo estimado: ~1h Chat
   prep + ~30min Code aplicação em ~3 PRs mecânicas.
 

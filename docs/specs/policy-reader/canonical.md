@@ -65,6 +65,8 @@ O componente expõe três resources, todos sob o scheme `policy://`. O scheme cu
 - `article_sources_summary` — lista compacta de referências aos artigos da lei que a cláusula invoca, em forma sumarizada (forma exata definida em `policy/SCHEMA.md`). Estrutura completa de `statutory_reference` vive na cláusula em si, recuperável via `get_clause`.
 - `successors` — lista de `clause_id` sucessores, **presente apenas quando** `status: deprecated`. Ausente para cláusulas ativas.
 
+**Shape de `article_sources_summary`.** `list[str]` — uma string renderizada por entrada de `statutory_reference` da cláusula, produzida pelo formatter compartilhado `_format_stat_ref` (canonical §4.1). A ordem das strings preserva a ordem das entries no YAML da cláusula. Cláusulas com múltiplas entries no `statutory_reference` produzem múltiplas strings.
+
 A ordem dos itens segue ordem natural do `clause_id` (POL-001, POL-002, ...). Não há paginação na v0.1.0 — escala assumida da Política do MVP é < 200 cláusulas.
 
 **Semântica de leitura.** Idempotente. Reflete o estado atual da Política versionada. Reload da Política é disparado exclusivamente por restart do server (decisão MVP — ver §6.5). Hot reload é deferimento registrado em ADR-0002. Dentro de uma sessão de server, o conteúdo do catálogo é imutável.
@@ -469,7 +471,7 @@ Output: {
   "isError": false,
   "structuredContent": { "clauses": [] },
   "content": [
-    { "type": "text", "text": "Nenhuma cláusula referencia LGPD Art. 50º." }
+    { "type": "text", "text": "Nenhuma cláusula referencia LGPD Art. 50." }
   ]
 }
 ```
@@ -524,6 +526,15 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
 | `structured_context.legal_basis` | string | não | Base legal declarada pelo código (quando presente). Valor textual livre — não vocabulário fechado. Ausência sinaliza que o código não declara base. |
 | `structured_context.destination` | string | não | Destino do dado quando relevante (ex: `external_service`, `internal_database`, `client_browser`). Ausência sinaliza não-aplicabilidade. |
 
+**Semântica de campos do `structured_context`.** O input é validado contra o modelo `StructuredContext` (`models.py`):
+
+- `data_categories: list[str]` — **obrigatório**. Lista não-vazia de categorias canônicas de POL-000 (vocabulário lido em runtime via `_load_data_categories_vocabulary`).
+- `operation: str` — **obrigatório**. Token canônico de `vocabularies.operation` (vocabulário lido em runtime via `_load_operation_vocabulary`).
+- `legal_basis: str | None` — **opcional**. Free-form string semanticamente comparada contra o token canônico `consent` (do vocabulário `lawful_basis`) em cláusulas com `control: consent_required`. Validação contra o vocabulário completo é responsabilidade do Classifier upstream, não da tool. Ausência produz `violation_candidate` em cláusulas `consent_required`; valor não-canônico (string ≠ `consent`) também produz `violation_candidate` com `evidence` diferenciada.
+- `destination: str | None` — **opcional**. Free-form string (e.g., `external_service`, `internal_database`); não consumido pelo motor de veredito no MVP v0.1.0, mas validado quanto à shape pelo Pydantic e preservado para evolução pós-MVP.
+
+`StructuredContext` declara `model_config = ConfigDict(extra='forbid')`, portanto campos adicionais no `structured_context` produzem `ValidationError` no parsing — o contrato é estrito quanto à shape de entrada. Expansão futura do contexto requer adição explícita ao modelo Pydantic.
+
 **Paralelismo com `applies_to` em cláusulas substantivas.** Os campos `structured_context.data_categories` e `structured_context.operation` no input desta tool são paralelos a `applies_to.personal_data_categories` e `applies_to.operation` no campo `applies_to` de cláusulas substantivas retornadas por `get_clause` (§4.1) e `find_clauses_by_law_article` (§4.2). O paralelismo é deliberado: o `structured_context` descreve o handling concreto observado em código; `applies_to` descreve o escopo de aplicabilidade declarado pela cláusula. A avaliação de `check_applicability` casa um contra o outro (cf. §2.2 e ADR-0005).
 
 **Output em sucesso.** Objeto com veredito e estrutura associada. A estrutura varia conforme o veredito:
@@ -564,6 +575,12 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
 ```
 
 **Nota sobre `evidence`, `reason` e `verification_target`.** Os campos de prosa (`evidence` em `compliant` e `violation_candidate`; `reason` em `not_applicable`; `verification_target` em `indeterminate`) são gerados pelo componente como parte do veredito. Mecanismo de geração é decisão de implementação livre para evoluir (template, geração por modelo, híbrido) sem mudar a interface — ver §7.1. Caller não fornece esses campos.
+
+**Discriminadores por veredito (mutuamente exclusivos).** Três campos compõem o output em sucesso, exclusivos por veredito:
+
+- `evidence` — presente em `compliant` e `violation_candidate`. Cita o requirement codificado (e.g., `R1`), o token canônico observado no context, e o sub-caso da violação quando aplicável (omissão vs. valor não-canônico).
+- `reason` — presente em `not_applicable` apenas. Texto explicando o boundary: escopo MVP (ADR-0007 D3) ou applicability mismatch entre o `applies_to` da cláusula e o context.
+- `verification_scope` — presente em `indeterminate` apenas. Estrutura com 3 sub-campos (`dimension`, `prescribed_treatment`, `verification_target`) nomeando a dimensão que análise estática não decide e a ação que cabe ao reviewer humano (canonical §7.3, RF-005).
 
 **Nota sobre `not_applicable` e clauses definitional.** O veredito `not_applicable` cobre três sub-casos: (i) escopo MVP — `operation` fora de `collection` retorna `not_applicable` antes de invocar matching (ADR-0007 Decision 3); (ii) applicability mismatch — `clause.applies_to` não intersecta com o context declarado em pelo menos uma dimensão; (iii) cláusula definitional — quando `clause_id` aponta para uma cláusula `definitional` (e.g., POL-000), `check_applicability` retorna `not_applicable` com `reason` explicando que cláusulas definitional declaram vocabulário, não governam contextos operacionais; cláusulas definitional não prescrevem `control` e portanto não têm aplicabilidade no sentido do veredito.
 
@@ -630,7 +647,7 @@ Output: {
   "structuredContent": {
     "verdict": "violation_candidate",
     "policy_clause_ref": "POL-031",
-    "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11º.",
+    "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11.",
     "contradicted_requirement": "R1",
     "policy_schema_version": "0.1.0",
     "policy_version": "0.1.0",
@@ -639,7 +656,7 @@ Output: {
   "content": [
     {
       "type": "text",
-      "text": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11º."
+      "text": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11."
     }
   ]
 }

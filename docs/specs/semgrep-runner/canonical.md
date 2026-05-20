@@ -56,9 +56,8 @@ do ambiente de execução. Funcionalidade nativa de diff-aware scan via
 `--baseline-commit` é o mecanismo central usado pela tool exposta — o
 componente não reimplementa diferenciação de findings, delega ao Semgrep.
 
-Versão mínima aceita do binário: `semgrep` 1.x. Versão exata validada
-durante implementação (semana 4-5); pin ou floor formal fica para a fase
-de implementação.
+Versão mínima aceita do binário: `semgrep` 1.x. Pin formal:
+`semgrep==1.163.0`, instalado via `uv tool install` conforme ADR-0010.
 
 Token Semgrep AppSec Platform (`SEMGREP_APP_TOKEN`) **não é requerido**.
 Componente opera com Semgrep open-source sem login — ver §7.

@@ -563,8 +563,12 @@ def _format_law_reference(
     distinct while guaranteeing the rendering stays consistent by construction.
 
     Brazilian legal-citation convention applied:
-      - `artigo` carries the masculine ordinal indicator (`Art. 7º`).
-      - `paragrafo` likewise (`§ 2º` rendered as `§2º` for compactness).
+      - `artigo` carries the masculine ordinal indicator for numbers ≤ 9
+        (`Art. 7º`); ≥ 10 renders as cardinal (`Art. 12`), per Brazilian
+        legal-citation convention; cardinal also idiomatic in GDPR/English
+        legal citation.
+      - `paragrafo` likewise — `§2º` for numbers ≤ 9, `§10` cardinal for
+        ≥ 10 (compactness retained: no space after `§`).
       - `inciso` is stored as an integer but rendered as a Roman numeral
         (`inciso: 1` → `I`); SCHEMA §5.1 line 116 prescribes this explicitly.
       - `alinea` is a lowercase Latin letter (`alínea a`).
@@ -573,9 +577,11 @@ def _format_law_reference(
     inciso 1-50 inclusive; out-of-range values trigger `KeyError` deliberately
     (LGPD does not approach this range).
     """
-    parts = [f"{lei} Art. {artigo}º"]
+    artigo_ordinal = "º" if artigo <= 9 else ""
+    parts = [f"{lei} Art. {artigo}{artigo_ordinal}"]
     if paragrafo is not None:
-        parts.append(f", §{paragrafo}º")
+        paragrafo_ordinal = "º" if paragrafo <= 9 else ""
+        parts.append(f", §{paragrafo}{paragrafo_ordinal}")
     if inciso is not None:
         parts.append(f", {_ROMAN_NUMERALS[inciso]}")
     if alinea is not None:

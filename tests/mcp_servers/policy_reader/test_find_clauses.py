@@ -271,7 +271,7 @@ async def test_as4_empty_list_is_not_error(
     assert payload == {"clauses": []}
 
     text = result.content[0].text
-    assert text == "Nenhuma cláusula referencia LGPD Art. 50º."
+    assert text == "Nenhuma cláusula referencia LGPD Art. 50."
 
 
 # ---------------------------------------------------------------------------

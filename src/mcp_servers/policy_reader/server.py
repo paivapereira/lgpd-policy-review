@@ -66,7 +66,11 @@ def _reset_state_for_tests() -> None:
 # Resources
 # =============================================================================
 
-@mcp.resource("policy://catalog", mime_type="application/json")
+@mcp.resource(
+    "policy://catalog",
+    name="Policy Clause Catalog",
+    mime_type="application/json",
+)
 def get_catalog() -> list[dict[str, Any]]:
     """Index of every clause in the loaded Policy (canonical §3.1).
 
@@ -84,7 +88,11 @@ def get_catalog() -> list[dict[str, Any]]:
     return tools.get_catalog(_STATE)
 
 
-@mcp.resource("policy://vocabularies", mime_type="application/json")
+@mcp.resource(
+    "policy://vocabularies",
+    name="Jurisdictional Vocabularies",
+    mime_type="application/json",
+)
 def get_vocabularies() -> dict[str, dict[str, Any]]:
     """Aggregate of the four jurisdictional vocabularies (canonical §3.3).
 
@@ -105,7 +113,11 @@ def get_vocabularies() -> dict[str, dict[str, Any]]:
     return tools.get_vocabularies(_STATE)
 
 
-@mcp.resource("policy://schema-version", mime_type="application/json")
+@mcp.resource(
+    "policy://schema-version",
+    name="Policy Schema Handshake",
+    mime_type="application/json",
+)
 def get_schema_version() -> dict[str, Any]:
     """Dual handshake (structural + jurisdictional) for the consumer.
 

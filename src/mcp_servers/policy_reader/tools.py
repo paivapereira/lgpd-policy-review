@@ -78,7 +78,7 @@ def get_catalog(state: LoadedPolicy) -> list[dict[str, Any]]:
 
     `article_sources_summary` is the list of rendered law-reference
     strings derived from `clause.statutory_reference` via the shared
-    `_format_first_stat_ref` helper (DD-T04-1). The catalog is a
+    `_format_stat_ref` helper (DD-T04-1). The catalog is a
     discovery surface — strings legíveis are preferred over compacted
     objects, which would duplicate the shape `get_clause` already
     exposes for introspection.
@@ -102,7 +102,7 @@ def get_catalog(state: LoadedPolicy) -> list[dict[str, Any]]:
             "title": clause.title,
             "status": clause.status,
             "article_sources_summary": [
-                _format_first_stat_ref(ref) for ref in clause.statutory_reference
+                _format_stat_ref(ref) for ref in clause.statutory_reference
             ],
         }
         if clause.status == "deprecated":
@@ -376,7 +376,7 @@ def _verdict_for_control(
     MVP to the two above. The assertion fails loudly rather than silently
     falling through.
     """
-    law_ref = _format_first_stat_ref(clause.statutory_reference[0])
+    law_ref = _format_stat_ref(clause.statutory_reference[0])
     provenance = _provenance_from(state)
 
     if clause.control == "consent_required":
@@ -583,9 +583,9 @@ def _format_law_reference(
     return "".join(parts)
 
 
-def _format_first_stat_ref(entry: StatutoryReferenceEntry) -> str:
-    """Render the first statutory_reference entry of a stored clause via the
-    shared `_format_law_reference` helper.
+def _format_stat_ref(entry: StatutoryReferenceEntry) -> str:
+    """Render a statutory_reference entry of a stored clause via the shared
+    `_format_law_reference` helper.
 
     Invariant relied on by `_render_clause_text` for active clauses: every
     loaded clause carries at least one entry — `ClauseCommon.statutory_reference`
@@ -613,7 +613,7 @@ def _render_clause_text(clause: Clause) -> str:
     first_ref = clause.statutory_reference[0]
     return (
         f"{clause.clause_id}: {clause.title} "
-        f"({_format_first_stat_ref(first_ref)})."
+        f"({_format_stat_ref(first_ref)})."
     )
 
 

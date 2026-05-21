@@ -4826,3 +4826,67 @@ A. **Migração de defense candidates cumulativos para `.claude/rules/` e/ou ADR
 B. **Decomposição formal de Milestone B em Chat dedicada.** Pré-requisito procedural: **decisão Semgrep-on-Windows precede** (Docker, pip native, remote worker, CI-only) — afeta forma das tasks de Milestone B. ~1-1.5h Chat se decisão Semgrep já tomada; +30min se precisar decidir antes.
 
 Não-bloqueio: A pode rodar antes de B sem custo; B requer Semgrep decision precedendo.
+
+## #27 — 2026-05-21 — Autoria formal de Milestone B em Chat dedicada
+
+**Escopo da sessão.** Sessão Chat dedicada decompondo Milestone B em Provisões A+B (pré-implementação) + tasks T05/T06/T07 (implementação) + gate milestone-level (placeholder), conforme governance ADR-0008 amended. Resultado materializado em diff aplicável de 4 blocos para `docs/tasks.md`; aplicação via PR mecânica subsequente. Sessão também resolveu 2 achados load-bearing do Chat review independente pós-aplicação dos blocos.
+
+**Conceitos da prova exercitados.**
+
+*Domínio 1 — Agentic Architecture & Orchestration.* D1.6 task decomposition aplicada a um segundo milestone, replicando padrão calibrado em ADR-0008 §1 (1-3h por task, 8-12 tasks agrupadas em milestones). Boundary deliberada entre Provisão A (canonical-sync-C + compact sync + README + ADR-0001 amendment, consolidados) vs Provisão B (fixture pack BR, independente) vs T05 (skeleton+loader, sem fricção bloqueante) vs T06 (scan_diff mechanics completo) vs T07 (content layer: six BR recognizers). Padrão "mechanics vs content" análogo a Milestone A (T01 loader + T02-T04 mechanics + POL-001..004 pack content). D1.7 session state management: close limpo desta sessão Chat com diff aplicável endereçável + handoff explicitando próximas trilhas independentes.
+
+*Domínio 2 — Tool Design & MCP Integration.* D2 Resource vs Tool exercitado como caso-teste empírico: semgrep-runner expõe APENAS tool (`scan_diff`), zero resources, em assimetria deliberada vs policy-reader (3+3). Princípio "rule set é insumo interno do server, não conteúdo navegável pelo caller" materializa o critério de discriminação. D2 isError flag + Option B amendment + empty error class: drift sistêmico canonical/compact detectado em #27 (4 vs 6 errorCodes, classes erradas, retryability invertida, runtime vs startup do BINARY_UNAVAILABLE, wire format pre-amendment) — Provisão A cobre o sync cirúrgico. D2 tool description quality: T05 AS-7 valida que description em `list_tools` é byte-idêntica ao texto canonical §4.2.
+
+*Domínio 3 — Claude Code Configuration & Workflows.* D3 `.claude/rules/` como contrato decisional consumível em runtime de implementação: referência nominal a `windows-tooling.md` (T06 gate Chat review), `mcp-testing.md` (T05 gate), `privacy-safety.md` (T07 gate + Provisão B), `verification-before-inference.md` (todos os gates) como pontos onde Code deve consultar a rule durante a sessão. Rules consolidadas em #26 ganham segunda materialização em #27 sem fricção.
+
+*Domínio 5 — Context Management & Reliability.* D5 Provenance via citation chain preservada: REQUIREMENTS.md (RF-001, RF-002) → Milestone B (capability) → T05-T07 (tasks) → commits futuros. D5 Error propagation: 6 errorCodes do canonical §5 com retryability discriminada por classe (business non-retryable em GIT_REF_NOT_FOUND/INSUFFICIENT_GIT_HISTORY; system retryable em SCAN_TIMEOUT/SEMGREP_EXECUTION_FAILED; system non-retryable em SEMGREP_BINARY_UNAVAILABLE/INVALID_RULE_SET). D5 escalation pattern aplicado em estilo Chat: cinco drifts load-bearing detectados via leitura cruzada de docs autoritativos (canonical, compact, ADR-0002, ADR-0003, loader.py, uv.lock) — escalation honesta de "não posso inferir, preciso ler" forçou descoberta em vez de propagação silenciosa para tasks.
+
+**Decisões tomadas.**
+
+- **Milestone B = Provisões A+B + T05+T06+T07 + gate milestone-level.** Estrutura ratificada após deliberação 4-rounds entre Chat e usuário. Custo estimado ~13-14h totais (~5h pré-implementação + ~6.5-7.5h implementação + ~1h gate).
+- **Python only no MVP, JS adiado para janela 15/06-30/06** (entre entrega e defesa). RF-001 declara linguagem parametrizável pelo rule set; provar arquitetura em uma linguagem é suficiente; demonstração empírica em segunda linguagem é evolução opcional fortalecendo narrativa defensiva sem inflar escopo do MVP. ~6-7h estimadas para JS pós-MVP, registradas em §"Pós-Milestone B aberto" do tasks.md.
+- **`rules_version` = hash determinístico do diretório `rules/`.** Decisão fechada em T05 entre as três alternativas listadas em canonical §6 (hash, semver manual, combinação). Hash é mais simples, sem manutenção manual, alinha com pattern de constantes hardcoded em `policy_reader/loader.py` (`_VOCABULARY_FILES` é fixo no design).
+- **T06 unificada (não split T06a/T06b).** 13 ASes, ~3h estimado, borda superior do range ADR-0008 §1, com nota explícita. Split artificial deixaria scan_diff em estado intermediário ruim — happy path implementado e error envelope pendente significaria caminho de erro accidental que T06b precisaria refatorar.
+- **canonical-sync-C escopo: cirúrgico, não re-derivação total.** ADR-0003 Decision 1 prescreve paridade restrita a contract surfaces (tool descriptions, output schemas, error codes, anti-uses, when-to-use guidance), não prose. Compact sync atinge contract surfaces drifted; prose intacta. Reduz custo da Provisão A de re-derivação total (~2.5h) para sync cirúrgico (~2h Chat + ~1.5h Code = ~3.5h).
+- **ADR-0001 Decision 2 amendment in-place, não sucessor.** Espelha pattern de ADR-0008 (2026-05-16). Decision 2 original foi authorada como sugestão de stack ainda sem deliberação técnica (canonical package recomendado, não decisão deliberada); pivô Presidio→Semgrep e pins reais (`uv.lock`: FastMCP 3.2.4, Pydantic 2.13.4, MCP 1.27.1) emergiram durante implementação e nunca foram amended. Companion edit dentro do próprio ADR.
+- **Provisão A consolidada em PR única com 4 commits internos** (canonical sync + compact sync + README pin + ADR-0001 amendment), conforme `.claude/rules/git-conventions.md` admite quando diff é clean e Chat-revisable. Bloqueia T06; não bloqueia T05.
+- **Provisão B como PR independente** (fixture pack BR). Não bloqueia T05 nem T06 (ambos usam placeholder rule de T05); bloqueia T07. Análogo ao pack POL-001..004 de Milestone A em estrutura e governance.
+
+**Artefatos produzidos.**
+
+- `docs/tasks.md` reescrito (237 → 414 linhas; +177 linhas líquidas): §Status atualizado para refletir #25 close + #27 authoring; §Milestone B novo com Capacidade entregue + RFs cobertas + Gate milestone-level placeholder + Pré-implementação (Provisões A e B) + T05/T06/T07 completas; §Companion edits cross-doc reorganizado em "consolidados em Provisão A" + "resolver pós-T07"; §Pós-Milestone B aberto novo (pendência JS); §Milestones C, D — autoria deferida atualizada (B removido da lista).
+- Diff aplicável de 4 blocos posteriormente materializado em PR mecânica `docs/tasks-milestone-b-decomposition` (Code ~30-40min).
+- Chat review independente pós-aplicação produziu 2 achados load-bearing: typo aspas em §Status header (linha 3) + §Source-of-truth desatualizada (linha 7 não incluía `docs/specs/semgrep-runner/`). Ambos cosméticos no esforço de fix mas load-bearing na consistência.
+
+**Defense candidates emergentes (cumulativos a migrar para `.claude/rules/` ou ADR breve em sessão metodológica futura).**
+
+- **Sessão de autoria de novo milestone é gatilho natural para sweep de drift em documentação adjacente.** Empirizado em #27: cinco drifts load-bearing detectados que sessões anteriores (#21+) não capturaram — quatro no contract surface canonical/compact do semgrep-runner (errorCodes, classes, retryability, BINARY_UNAVAILABLE timing) + um fundacional em ADR-0001 (Presidio→Semgrep + pins de stack). Pattern: drift se acumula linearmente em silos não-revisitados, em proporção à atividade não-tocada na superfície. Defense candidate forte para Capítulo de Método.
+- **uv.lock como fonte autoritativa secundária para reconciliar ADRs de stack.** Empirizado em #27: grep direto do `uv.lock` confirmou pins reais (FastMCP 3.2.4, Pydantic 2.13.4, MCP 1.27.1) e ausência de Presidio. Reconciliou ADR-0001 (sugestão de stack pré-deliberação) com realidade implementada. Pattern: para qualquer ADR que cita stack, `uv.lock` é evidence pack auditável; drift entre ADR e `uv.lock` é débito fundacional que merece amendment in-place quando emergente. Materialização: nota em `.claude/rules/spec-driven-workflow.md` ou em nova rule `adr-stack-reconciliation.md`.
+- **Headers metadocumentais (Source-of-truth, Status, Convenção de IDs) drifta junto com autoria de conteúdo novo.** Achado do Chat review #27: §Source-of-truth continuou apontando apenas para `docs/specs/policy-reader/` mesmo após autoria de Milestone B introduzir referências ativas a `docs/specs/semgrep-runner/`. Pattern: blocos de cabeçalho escapam da varredura quando o foco de autoria está em conteúdo novo. Sweep explícito de headers como item final de qualquer sessão de autoria de milestone — materialização em `.claude/rules/spec-driven-workflow.md` ou check-list de close.
+- **Sync cirúrgico vs re-derivação total em paridade canonical↔compact: escolha governada por ADR-0003 Decision 1.** Empirizado em #27: drift sistêmico detectado no compact poderia justificar re-derivação total, mas ADR-0003 prescreve paridade restrita a contract surfaces (não prose), tornando sync cirúrgico a operação correta. Pattern: extensão da operação de sync vinculada ao tipo de drift (contract vs prose), não à severidade aparente. Materialização: nota em `.claude/rules/spec-driven-workflow.md`.
+
+**Métricas operacionais.**
+
+- Documentos consultados/lidos diretamente na sessão: 15 (canonical+compact do semgrep-runner; tasks.md; REQUIREMENTS.md; architecture-overview.md §4.2+§4.4+§5.3; ADR-0001, ADR-0002 §3 amendment, ADR-0003, ADR-0008, ADR-0010; loader.py do policy-reader; server.py do policy-reader; uv.lock — grep; pack POL-001..004 + README do pack; print de listagem de .claude/rules/).
+- Drifts load-bearing detectados via verificação direta: 5 (4 contract surface canonical/compact + 1 fundacional ADR-0001).
+- Tamanho final de tasks.md: 414 linhas (de 237; +177 líquidas para Milestone B).
+- Estimativa de custo Milestone B: ~13-14h totais; comparable a Milestone A (10-14h declaradas em #18).
+- Chat review pós-autoria: 2 achados load-bearing, 0 substantivos estruturais. Fix time ~1 min combinado.
+
+**Próximo passo.**
+
+Trilhas independentes a partir desta sessão #27 fechada. Ordem natural: PR mecânica primeiro (cristaliza o plano), Provisão A e Provisão B em paralelo (Chat dedicadas), T05 destrava após PR mecânica fechar.
+
+A. **PR mecânica `docs/tasks-milestone-b-decomposition`.** Sessão Code curta (~30-40min) aplicando os 4 fixes do Chat review pós-autoria (typo aspas Status + sync §Source-of-truth) + integração final dos 4 blocos do diff aplicável. Não bloqueia T05 mas deve fechar primeiro para cristalizar referência.
+
+B. **Provisão A — `chore/canonical-sync-C-semgrep-runner` em sessão Chat dedicada (~3.5h total).** Deliberação dos 4 commits internos: canonical sync (Option B amendment §3 + §6/§8.6 alignment + §5.1 título se ainda drifted); compact sync cirúrgico (errorCodes, classes, retryability, BINARY_UNAVAILABLE timing, wire format); README pin Semgrep; ADR-0001 Decision 2 amendment in-place (stack real: Semgrep+FastMCP 3.2.4+Pydantic 2.13.4+MCP 1.27.1). **Bloqueia T06.**
+
+C. **Provisão B — `feat/fixtures/recognizers-pack-br` em sessão Chat dedicada (~2-2.5h total).** Deliberação dos snippets/padrões + redação dos seis snippets positivos + negativos + README. Não bloqueia T05 nem T06.
+
+D. **T05 (Code, ~1.5-2h)** — server skeleton + rule set loader. Destrava após (A) fechar.
+
+E. **T06 (Code, ~3h)** — `scan_diff` completo. Destrava após (D) done + (B) mergeada.
+
+F. **T07 (Code, ~2-2.5h)** — six recognizers brasileiros. Destrava após (E) done + (C) mergeada.
+
+G. **Gate milestone-level Milestone B (Chat dedicada, ~1h)** — manual exercise via MCP Inspector contra RF-001 + RF-002. Destrava após T05-T07 fecharem gate task-level.

@@ -1,10 +1,10 @@
 # Tasks — Implementação Fase 2
 
-**Status.** Milestone A v1.1 (sessão #18, Chat authoring; v0 → v1 absorveu auditoria Code + avaliação Chat; v1 → v1.1 absorve terceira passada Code em sessão limpa). Pronto para implementação Code. Milestones B-D referenciados nominalmente; autoria deferida para após gate milestone-level de Milestone A completar.
+**Status.** Milestone A fechado em sessão #25 (gate milestone-level via MCP Inspector CLI mode; evidence pack em docs/milestoneA.md). Milestone B autorado em sessão #27 (Chat). Milestones C, D referenciados nominalmente; autoria deferida para após gate milestone-level do milestone anterior completar.
 
 **Governance.** ADR-0008 amended (2026-05-16) — granularidade de 8-12 tasks de 1-3h agrupadas em milestones; gate task-level (function tests + revisão Chat independente) e gate milestone-level (manual exercise contra RFs). Tasks neste documento ancoram função; milestones ancoram capability declarada em `docs/REQUIREMENTS.md`.
 
-**Source-of-truth.** `docs/REQUIREMENTS.md` (RFs/RNFs sob §2 do ADR-0008); specs canonical+compact em `docs/specs/policy-reader/`; `docs/architecture-overview.md`; `policy/SCHEMA.md`; `policy/policy.yaml`; `policy/clauses/POL-000.yaml`. Em divergência entre canonical.md e SCHEMA.md/YAML real, este documento adota o lado dos artefatos reais e anota o débito (ver §Companion edits cross-doc no fim).
+**Source-of-truth.** `docs/REQUIREMENTS.md` (RFs/RNFs sob §2 do ADR-0008); specs canonical+compact em `docs/specs/policy-reader/` e `docs/specs/semgrep-runner/`; `docs/architecture-overview.md`; `policy/SCHEMA.md`; `policy/policy.yaml`; `policy/clauses/POL-000.yaml`. Em divergência entre canonical.md e SCHEMA.md/YAML real, este documento adota o lado dos artefatos reais e anota o débito (ver §Companion edits cross-doc no fim).
 
 **Convenção de IDs.** T01-T0NN sequencial cross-milestone (não reinicia por milestone). Cada task carrega cinco subseções: Função entregue, Dependências, Files previstos (sugestão — Code organiza o resto), Acceptance scenarios task-level (function-specific, não RF-shaped), Gate task-level.
 
@@ -215,21 +215,199 @@ Validação na redação canônica: nomes de categorias substituídos por valore
 
 ---
 
-## Companion edits cross-doc
+## Milestone B — semgrep-runner standalone validado
 
-PRs separados, fora do escopo de implementação Code de Milestone A. Não bloqueantes, mas anotados aqui para não perder o débito.
+**Capacidade entregue.** Servidor MCP `semgrep-runner` operacional como artefato standalone: carrega conjunto curado de regras Semgrep no startup, expõe uma tool (`scan_diff`) que executa Semgrep diff-aware sobre refs Git de um pull request e retorna findings estruturados com provenance completa, conforme `docs/specs/semgrep-runner/canonical.md`. Recognizers brasileiros — CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde — implementados como regras Semgrep YAML em `mcp_servers/semgrep_runner/rules/`. Validável end-to-end via MCP Inspector, sem dependência de outros componentes do sistema.
 
-- README pin de Semgrep: documentar `uv tool install semgrep==1.163.0` como prerequisite de setup na seção apropriada do README, conforme ADR-0010 ("Setup" alongside Python 3.12.7 / Node 24).
+**RFs/RNFs cobertas no gate milestone-level.** RF-001 (detecção de coleta de dados pessoais com localização, snippet e `rule_id` em PR sob escopo), RF-002 (cobertura empírica dos seis identificadores brasileiros canônicos via regras de detecção e fixture pack sintético).
+
+**RNF-001 não bound a Milestone B.** Reprodutibilidade é propriedade sistêmica observável em CI cross-system (Milestone D). Loader determinístico + `rules_version` estável são precondições implícitas atendidas pelos AS de T05, mas não constituem critério de gate milestone-level próprio.
+
+**Gate milestone-level.** A redigir em sessão Chat dedicada após T05-T07 completarem gate task-level. Mecanismo conforme ADR-0008 §3: manual exercise via MCP Inspector exercitando RF-001 e RF-002 sobre série de seis pull requests sintéticos (um por identificador BR), validando cada Dado/Quando/Então. Pré-requisito procedural: binário `semgrep==1.163.0` instalado via `uv tool install` no ambiente do gate, conforme ADR-0010. Placeholder neste documento; detalhamento em sessão futura.
+
+### Pré-implementação Milestone B — provisões a fechar fora deste documento
+
+Duas provisões precedem o início de tasks específicas. Nenhuma bloqueia T05 — Code pode começar Milestone B pelo topo enquanto Provisão B é deliberada em paralelo.
+
+**Provisão A — PR `chore/canonical-sync-C-semgrep-runner` (consolidada).** Bloqueia T06. Não bloqueia T05. Consolida quatro débitos cross-doc em PR única com commits internos separados, conforme `.claude/rules/git-conventions.md` admite quando o diff é clean e Chat-revisable.
+
+Commits internos propostos:
+
+1. **canonical sync.** `docs/specs/semgrep-runner/canonical.md` migrado para Option B do amendment §3 do ADR-0002: §4.3 exemplos com wire `isError: false` em sucesso E erro (drift atual: exemplo de SCAN_TIMEOUT mostra `"isError": true`); §8.5 wire format bullets atualizados para refletir discriminação por presença de `errorCode` em `structuredContent`, não por wire flag; §8.<final> review pass contra prosa, eliminando referências remanescentes a wire `isError: true` em erros de domínio. Adicionalmente, §6 da spec é alinhada a §8.6: a frase "version checked against minimum (see ADR-0001). Failure: server fails to start" é removida ou reescrita para refletir verificação per-call em T06 (canonical §8.6 + ADR-0010 são autoritativos). Drift análogo no título de §5.1 ("Casos que parecem erro mas não são"): verificar diretamente se o texto atual ainda diverge do `_template.md`; se sim, sync.
+
+2. **compact sync cirúrgico.** `docs/specs/semgrep-runner/compact.md` recebe edits dirigidos aos contract surfaces drifted, não re-derivação total — ADR-0003 Decision 1 prescreve paridade restrita a contract surfaces (tool descriptions, output schemas, error codes, anti-uses, when-to-use guidance), não prose. Drifts a sincronizar: (a) §3 tabela de errorCodes — substituir os 4 atuais (`INVALID_BASE_REF`, `INVALID_HEAD_REF`, `SCAN_TIMEOUT`, `SEMGREP_EXECUTION_FAILED`) pelos 6 do canonical §5 (`GIT_REF_NOT_FOUND`, `INSUFFICIENT_GIT_HISTORY`, `SCAN_TIMEOUT`, `SEMGREP_BINARY_UNAVAILABLE`, `SEMGREP_EXECUTION_FAILED`, `INVALID_RULE_SET`); (b) classes — `validation+system` → `business+system` (validation é vazio neste componente por declaração positiva, ADR-0002 Decision 4); (c) retryability — `SCAN_TIMEOUT` non-retryable → retryable, `SEMGREP_EXECUTION_FAILED` non-retryable → retryable (alinha com ADR-0002 Decision 3 "system — isRetryable: true in almost all cases"); (d) timing de `SEMGREP_BINARY_UNAVAILABLE` — caught at startup → per-call (canonical §8.6 + ADR-0010 são autoritativos); (e) wire format em §3 e §5 — alinhar a Option B amended.
+
+3. **README pin de Semgrep.** Seção "Setup" do README documenta `uv tool install semgrep==1.163.0` como prerequisite alongside Python 3.12.7 via pyenv-win e Node 24, conforme ADR-0010 §"Consequences" item negativo (mitigação).
+
+4. **ADR-0001 Decision 2 amendment in-place.** Espelha o pattern de amendment de ADR-0008 (2026-05-16). Adicionar bloco "Amendment scope (data)" no topo do ADR, declarando que Decision 2 foi atualizada para refletir o pivô Presidio → Semgrep formalizado em ADR-0010 e os pins reais de `uv.lock` (FastMCP 3.2.4, Pydantic 2.13.4, MCP 1.27.1). Rationale do amendment in-place: ADR-0001 Decision 2 foi authorada como sugestão de stack ainda sem deliberação (canonical package recomendado), não como decisão técnica deliberada; o pivô para Semgrep e os pins explícitos emergiram durante implementação e nunca foram amended retroativamente, gerando drift fundacional na documentação técnica do TCC. Decision 2 reescrita com a stack real; demais decisões intactas. Companion edits dentro do próprio ADR para aplicar.
+
+Custo estimado: ~2h Chat de deliberação dos quatro commits + ~1.5h Code aplicando = ~3.5h total.
+
+**Provisão B — PR `feat/fixtures/recognizers-pack-br`.** Bloqueia T07. Não bloqueia T05 nem T06 (ambos usam regra placeholder simples de T05). Análogo ao pack POL-001..004 da Fase 1.5 de Milestone A.
+
+Pacote mínimo proposto: seis snippets positivos sintéticos (um por identificador BR canônico), cada um cobrindo padrão representativo de coleta em Python — parameter naming (`def f(cpf: str)`), dict key access (`payload['cpf']`), attribute assignment (`user.cpf = ...`), log payload structured (`logger.info(msg, cpf=...)`). Pelo menos uma cobertura para cada um dos seis identificadores; combinações alternativas (e.g., variações com e sem máscara, com e sem hífen, formatos válidos vs inválidos do check digit) deliberadas em sessão Chat dedicada. Adicionalmente, snippets negativos (false positive control) — strings que casariam regex ingênuo mas não são identificador real, e.g., `version="123.456.789-00"`. README do pack documenta AS coverage por arquivo, análogo ao README de POL-001..004.
+
+Decisão de escopo registrada: linguagem do MVP é Python apenas. Cobertura JS é pendência de evolução documentada em §"Pós-Milestone B aberto"; o argumento arquitetural de RF-008 generalizado para detecção sintática é defensável pela propriedade de "expandir cobertura sem refactor de código", validada em uma linguagem; demonstração empírica em segunda linguagem é evolução opcional, não invariante do MVP.
+
+Identificadores SINTÉTICOS apenas — algoritmicamente válidos (passam check digit) mas fictícios; nunca personagens reais ou dados pessoais reais coletados. Conferir convenção em `.claude/rules/privacy-safety.md` durante a redação dos snippets.
+
+Custo estimado: ~1.5-2h Chat de deliberação dos snippets/padrões + ~30min Code aplicando = ~2-2.5h total.
 
 ---
 
-## Milestones B, C, D — autoria deferida
+### T05 — Server skeleton + rule set loader
 
-Estrutura e tasks dos milestones subsequentes são autoradas em sessões Chat dedicadas após o gate milestone-level de Milestone A completar. Razão metodológica: ADR-0008 §1 calibra tarefas a 1-3h sob escopo de capability estabilizada — pré-autoria de milestones futuros corre o risco de drift contra learnings emergentes da implementação de Milestone A.
+**Função entregue.** Estrutura `src/mcp_servers/semgrep_runner/` em FastMCP 3.2.x, mirror estrutural de `src/mcp_servers/policy_reader/`. Loader que lê arquivos de regra Semgrep YAML de `mcp_servers/semgrep_runner/rules/` no startup, valida que cada arquivo é YAML sintaticamente parseável (validação semântica das regras é responsabilidade do Semgrep em runtime — `INVALID_RULE_SET` é detectado em T06 quando subprocess executa, não no loader). Calcula `rules_version` como hash determinístico do diretório `rules/`, decisão fechada nesta task entre as três alternativas listadas em canonical §6 (hash determinístico vs semver manual vs combinação): hash determinístico é mais simples, não exige manutenção manual no rule set, alinha com o pattern de constantes hardcoded em `loader.py` do `policy-reader` (`_VOCABULARY_FILES` é fixo no design). Tool `scan_diff` registrada como stub que retorna envelope `NOT_IMPLEMENTED` em sucesso — desaparece em T06. Per canonical §8.6, ausência do binário `semgrep` no PATH NÃO aborta o startup; verificação per-call vive em T06.
+
+**Dependências.** Nenhuma upstream. Pré-implementação ratificada: ADR-0004 (FastMCP 3.x + uv) ✓; ADR-0010 (Semgrep 1.163.0 via `uv tool install`) ✓.
+
+**Files previstos** (sugestão; Code organiza o resto):
+- `src/mcp_servers/semgrep_runner/__init__.py` (novo)
+- `src/mcp_servers/semgrep_runner/loader.py` (novo — `load_rules`, `compute_rules_version`, `resolve_runner_root`)
+- `src/mcp_servers/semgrep_runner/errors.py` (novo — `RulesLoadError` exception, análogo a `PolicyLoadError`)
+- `src/mcp_servers/semgrep_runner/models.py` (novo — Pydantic placeholder `LoadedRules`)
+- `src/mcp_servers/semgrep_runner/server.py` (novo — FastMCP instance, `_bootstrap`, registro do `scan_diff` stub via `@mcp.tool`)
+- `mcp_servers/semgrep_runner/rules/_placeholder.yaml` (novo — regra Semgrep que casa literal de teste, removida em T07)
+- `tests/mcp_servers/semgrep_runner/test_bootstrap.py` (novo)
+
+**Acceptance scenarios task-level.**
+
+- **AS-1 — Startup OK em diretório `rules/` populado.** Dado o estado de `mcp_servers/semgrep_runner/rules/` contendo ao menos um arquivo YAML válido (no mínimo o `_placeholder.yaml`), quando o servidor é iniciado, então `mcp.run()` é alcançado sem exceção e o estado interno carrega lista de arquivos de regra e `rules_version` computado.
+
+- **AS-2 — Startup aborta com diretório `rules/` ausente.** Dado fixture com root parametrizado apontando para diretório sem subdir `rules/`, quando o servidor é iniciado, então o processo termina com exit code não-zero antes de `mcp.run()` ser chamado, com mensagem descritiva no stderr identificando o diretório ausente.
+
+- **AS-3 — Startup aborta com arquivo YAML sintaticamente inválido em `rules/`.** Dado fixture com root parametrizado e `rules/broken.yaml` contendo conteúdo não-parseável (chave duplicada ou indentação inválida), quando o servidor é iniciado, então o processo termina com exit code não-zero antes de `mcp.run()`, com mensagem citando o arquivo e o erro de parsing.
+
+- **AS-4 — Startup aborta com `rules/` vazio.** Dado fixture com root parametrizado e diretório `rules/` existente mas sem arquivos YAML, quando o servidor é iniciado, então o processo termina com exit code não-zero com mensagem citando "Rule set vazio é configuração inválida". Análogo ao AS-6 de T01 (Política sem cláusulas).
+
+- **AS-5 — `rules_version` determinístico.** Dado fixture com `rules/` populado e estável, quando `compute_rules_version` é invocado duas vezes em sequência sem alteração no diretório, então os dois retornos são byte-idênticos.
+
+- **AS-6 — `rules_version` muda com conteúdo.** Dado `rules_version` v1 computado contra fixture inicial, quando um novo arquivo YAML é adicionado em `rules/` (ou um existente é editado), `compute_rules_version` é re-invocado, e o retorno difere de v1.
+
+- **AS-7 — Tool `scan_diff` registrada com description final.** Dado servidor iniciado em AS-1, quando o cliente MCP invoca `list_tools`, então a lista carrega `scan_diff` com a description exatamente conforme canonical §4.2 (texto em inglês, sem markdown), independentemente de a implementação ainda ser stub.
+
+- **AS-8 — Stub de `scan_diff` retorna envelope claro.** Dado servidor iniciado em AS-1, quando `scan_diff` é invocada com refs válidos, então (per Option B — wire `isError: false`) retorna envelope `{errorCode: "NOT_IMPLEMENTED", message, isRetryable: false, details: {task: "T05"}}` em `structuredContent`, sinalizando que a tool aguarda implementação completa em T06.
+
+**Gate task-level.**
+
+*Automated.* AS-1 a AS-8 em `tests/mcp_servers/semgrep_runner/test_bootstrap.py`; passam sob `uv run pytest`. AS-2 a AS-6 usam fixtures temporárias com root parametrizado via `tmp_path`, isoladas — não alteram `mcp_servers/semgrep_runner/rules/` real do repo.
+
+*Chat review.* Sessão Chat independente verifica: o loader segue o pattern de `policy_reader/loader.py` em organização (helpers privados `_read_yaml`, `_load_*` + orquestrador público `load_rules`) e exception handling (`RulesLoadError` análogo a `PolicyLoadError`; bootstrap em `server.py` traduz para `sys.exit(1)` antes de `mcp.run()`); resolução de root via env var `SEMGREP_RUNNER_ROOT` análoga a `POLICY_READER_ROOT`; `compute_rules_version` documenta em docstring a decisão de hash determinístico citando as três alternativas de canonical §6 e a justificativa pela escolhida; registro de `scan_diff` em `server.py` via decorator `@mcp.tool` da FastMCP 3.2.x retornando `ToolResult`; ausência de qualquer verificação de PATH do binário `semgrep` no startup (canonical §8.6 prescreve per-call); consulta a `.claude/rules/mcp-testing.md` durante o desenho dos testes para padrões corretos de exercício MCP via Inspector ou direct call.
+
+---
+
+### T06 — Tool `scan_diff`: contrato completo (subprocess + 6 errorCodes + wire format)
+
+**Função entregue.** Implementação completa de `scan_diff(base_ref, head_ref)` substituindo o stub de T05. Invoca subprocess Semgrep com flag `--baseline-commit` para diff-aware scan. Parseia output JSON do Semgrep. Monta payload `{scan_metadata, findings}` conforme canonical §4.2-4.3. Implementa os seis errorCodes do canonical §5 com retryability conforme tabela §5 e ADR-0002 Decision 3. Timeout via env `SEMGREP_RUNNER_TIMEOUT_SECONDS` (default 300s) com SIGTERM + grace period + SIGKILL (Windows equivalente via `subprocess.Popen.kill()` — sem signal POSIX nativo). Per canonical §8.6, verificação de disponibilidade do binário `semgrep` no PATH ocorre per-call no entry point da tool, emitindo `SEMGREP_BINARY_UNAVAILABLE` se ausente; não aborta processo. Wire format conforme ADR-0002 amendment §3 Option B: sucesso e erro ambos com wire `isError: false`; envelope em `structuredContent` discriminado pela presença de `errorCode`.
+
+**Dependências.** T05 (bootstrap, rule set loader, `rules_version`). **Pré-implementação obrigatória.** Provisão A (canonical-sync-C + README pin + ADR-0001 amendment + drift residuais) mergeada antes do início desta task. Sem isso, T06 implementa contra spec drifted pré-Option B.
+
+**Files previstos** (sugestão):
+- `src/mcp_servers/semgrep_runner/tools.py` (novo — `scan_diff` implementation, subprocess management, timeout handling)
+- `src/mcp_servers/semgrep_runner/models.py` (modificar — Pydantic de `ScanMetadata`, `Finding`, `Location`, error envelopes)
+- `src/mcp_servers/semgrep_runner/server.py` (modificar — substituir delegação ao stub de T05 por delegação a `tools.scan_diff`)
+- `tests/mcp_servers/semgrep_runner/test_scan_diff.py` (novo)
+
+**Acceptance scenarios task-level.**
+
+- **AS-1 — Caso normal: findings emitidos.** Dado fixture Git repo construído em `tmp_path` com diff entre `base_ref` e `head_ref` contendo snippet que casa a regra `_placeholder.yaml` carregada por T05, quando a tool é invocada, então `structuredContent` carrega `{scan_metadata, findings}` com `findings` não-vazia; cada finding tem `rule_id`, `rule_severity` em `{info, warning, error}`, `rule_message`, `location` com `path` relativo ao repo root, `start_line/start_col/end_line/end_col` inteiros 1-indexed, e `snippet` string preenchida; wire `isError: false`.
+
+- **AS-2 — Empty findings é estado normal.** Dado fixture Git repo com diff entre refs válidos que não casa nenhuma regra carregada, quando a tool é invocada, então retorno carrega `scan_metadata` completo e `findings: []`, wire `isError: false`.
+
+- **AS-3 — Diff vazio.** Dado `base_ref == head_ref` (commits idênticos), quando a tool é invocada, então retorno é `{scan_metadata: {...}, findings: []}`, wire `isError: false`, sem erro.
+
+- **AS-4 — `GIT_REF_NOT_FOUND`.** Dado `base_ref` ou `head_ref` sintaticamente válido mas inexistente no repo (e.g., commit hash que nunca existiu), quando a tool é invocada, então (per Option B) `structuredContent` carrega `{errorCode: "GIT_REF_NOT_FOUND", message, isRetryable: false, details: {ref_param, ref_value, hint}}`, wire `isError: false`.
+
+- **AS-5 — `INSUFFICIENT_GIT_HISTORY`.** Dado fixture Git repo shallow (clone com `--depth=1`) ou condição equivalente mockada, quando a tool é invocada com refs que exigiriam merge-base resolution, então retorno carrega `errorCode: "INSUFFICIENT_GIT_HISTORY"`, `isRetryable: false`, `details: {hint: "increase actions/checkout fetch-depth"}`.
+
+- **AS-6 — `SCAN_TIMEOUT`.** Dado `SEMGREP_RUNNER_TIMEOUT_SECONDS=1` no env e fixture com diff que ultrapassa 1s (ou regra com sleep injection), quando a tool é invocada, então retorno carrega `errorCode: "SCAN_TIMEOUT"`, `isRetryable: true` (alinha com ADR-0002 Decision 3), `details: {timeout_seconds: 1, elapsed_seconds, partial_findings_discarded: true}`.
+
+- **AS-7 — `SEMGREP_BINARY_UNAVAILABLE` per-call.** Dado servidor iniciado em condições normais (PATH contém `semgrep` no startup), e em seguida o PATH é manipulado in-test para remover `semgrep`, quando a tool é invocada após a manipulação, então retorno carrega `errorCode: "SEMGREP_BINARY_UNAVAILABLE"`, `isRetryable: false`, `details: {searched_paths}`. Este AS valida o pin de canonical §8.6: verificação per-call, não startup; ausência não aborta o processo.
+
+- **AS-8 — `SEMGREP_EXECUTION_FAILED`.** Dado mock do subprocess Semgrep retornando exit code 2 (Semgrep fatal error não-categorizado) com stderr não-vazio, quando a tool é invocada, então retorno carrega `errorCode: "SEMGREP_EXECUTION_FAILED"`, `isRetryable: true`, `details: {exit_code: 2, stderr_excerpt}`.
+
+- **AS-9 — `INVALID_RULE_SET`.** Dado fixture com regra em `rules/broken_rule.yaml` que é YAML parseável (passou T05 AS-3) mas semanticamente inválida para Semgrep (pattern com sintaxe Semgrep inválida que dispara exit 4 ou 5), quando a tool é invocada, então retorno carrega `errorCode: "INVALID_RULE_SET"`, `isRetryable: false`, `details: {exit_code, stderr_excerpt}`.
+
+- **AS-10 — Provenance em `scan_metadata`.** Dado qualquer retorno em sucesso (AS-1, AS-2, AS-3), quando o payload é inspecionado, então `scan_metadata` carrega `rules_version` (matching o valor computado por T05), `semgrep_version` (string da versão do binário invocado), `base_ref` e `head_ref` como commits hashes 40-char hex resolvidos (não branch names ou tags), e `elapsed_seconds` (float não-negativo).
+
+- **AS-11 — Wire format Option B amended.** Dado sucesso (AS-1) e erros (AS-4 a AS-9), quando os payloads protocolares são inspecionados, então: em sucesso, `structuredContent` carrega `{scan_metadata, findings}` sem campo `errorCode`, e `content[0].text` é prosa em português resumindo o resultado; em erro, `structuredContent` carrega `{errorCode, message, isRetryable, details}`, e `content[0].text` reproduz `message`; em ambos os casos, wire `isError: false` no nível do `CallToolResult` protocolar.
+
+- **AS-12 — `--baseline-commit` em uso (filtro diff-aware).** Dado fixture Git repo onde `base_ref` é commit pré-existente e `head_ref` é HEAD após adicionar arquivo NOVO que casa a regra, E onde existe arquivo PRÉ-EXISTENTE (committado em `base_ref` ou antes) que também casaria a regra, quando a tool é invocada, então `findings` carrega apenas o finding do arquivo NOVO; o finding pré-existente NÃO aparece, confirmando uso de `--baseline-commit` e não scan completo (canonical §8.6).
+
+- **AS-13 — Subprocess limpo após timeout.** Dado AS-6 disparou SCAN_TIMEOUT, quando psutil é consultado no teardown do teste, então não há processos zumbis com binário `semgrep` rodando — SIGTERM + grace period + SIGKILL (ou equivalente Windows via `Popen.kill()`) completaram a terminação do subprocess.
+
+**Gate task-level.**
+
+*Automated.* AS-1 a AS-13 em `tests/mcp_servers/semgrep_runner/test_scan_diff.py`; passam sob `uv run pytest`. AS-1, AS-2, AS-3, AS-12 usam fixture Git repo real construído em `tmp_path` via `git init/add/commit`; AS-4 usa fixture com commit válido + ref inexistente; AS-5 usa shallow clone fixture ou mock; AS-7 usa monkeypatching de PATH; AS-8 e AS-9 usam mocking de subprocess com exit codes específicos; AS-6 e AS-13 usam timeout curto em env + regra com sleep injection.
+
+*Chat review.* Sessão Chat independente verifica: tool description em `server.py` segue exatamente o texto canonical §4.2 (não paráfrase, não modificação); contrato de erro em código consome a tabela canonical §5 sem hardcoding duplicado de errorCodes em strings literais (enum ou constantes em `models.py`); per-call binary check em `tools.py` ocorre antes de qualquer operação que dependa do binário; SIGTERM precede SIGKILL no path de timeout com grace period explícito (configurável ou hardcoded com rationale documentado); wire format Option B é padrão (wire `isError: false` em todos os retornos); subprocess está garantidamente terminado em todos os paths; `--baseline-commit` é flag obrigatório passado ao subprocess; consulta a `.claude/rules/windows-tooling.md` para padrões corretos de subprocess invocation em PowerShell 5.1 sem WSL — encoding de stdout/stderr, path handling de fixture Git, signal semantics em Windows (SIGKILL não existe nativo; equivalente é `subprocess.Popen.kill()`).
+
+---
+
+### T07 — Six recognizers brasileiros
+
+**Função entregue.** Substituir o `rules/_placeholder.yaml` de T05 por seis regras Semgrep YAML em `mcp_servers/semgrep_runner/rules/`, uma por identificador brasileiro canônico de RF-002: `br_cpf.yaml`, `br_cnpj.yaml`, `br_cnh.yaml`, `br_nis_pis.yaml`, `br_titulo_eleitor.yaml`, `br_cns_saude.yaml`. Cada regra cobre padrões representativos de coleta em Python — parameter naming, dict key access, attribute assignment, log payload structured — capturados pelo fixture pack BR (Provisão B). Validação empírica de cada regra contra positivos e negativos do pack. Linguagem do MVP: Python (RF-001 declara linguagem parametrizável pelo rule set; restringir a Python no MVP é decisão de escopo registrada em §"Pós-Milestone B aberto" como pendência de evolução conhecida).
+
+**Dependências.** T06 (tool `scan_diff` funcional). **Pré-implementação obrigatória.** Provisão B (fixture pack BR mergeado em `tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/`).
+
+**Files previstos** (sugestão):
+- `mcp_servers/semgrep_runner/rules/br_cpf.yaml` (novo)
+- `mcp_servers/semgrep_runner/rules/br_cnpj.yaml` (novo)
+- `mcp_servers/semgrep_runner/rules/br_cnh.yaml` (novo)
+- `mcp_servers/semgrep_runner/rules/br_nis_pis.yaml` (novo)
+- `mcp_servers/semgrep_runner/rules/br_titulo_eleitor.yaml` (novo)
+- `mcp_servers/semgrep_runner/rules/br_cns_saude.yaml` (novo)
+- `mcp_servers/semgrep_runner/rules/_placeholder.yaml` (deletar — sai do rule set ao final desta task)
+- `tests/mcp_servers/semgrep_runner/test_recognizers_br.py` (novo)
+
+**Acceptance scenarios task-level.**
+
+- **AS-1 a AS-6 — Detecção positiva por identificador.** Uma AS por identificador BR. Dado fixture pack BR com snippet positivo para o identificador X (e.g., `recognizers_pack_br/br_cpf_function_param.py`), quando `scan_diff` é invocada com refs Git que introduzem esse snippet, então `findings` carrega exatamente um finding com `rule_id: "br-X"` (slug correspondente à regra), `location.path` apontando para o arquivo do snippet, `snippet` contendo o trecho casado. Variações cobertas conforme Provisão B README: ao menos uma variação por padrão sintático (parameter, dict key, attribute, log payload) para cada um dos seis identificadores.
+
+- **AS-7 — Negativos não disparam (false positive control).** Dado fixture pack BR com snippets negativos (strings que casariam regex ingênuo mas não são identificador real, e.g., `version_string_looks_like_cpf.py`), quando `scan_diff` é invocada com refs que introduzem esses snippets, então `findings: []` — nenhuma das 6 regras BR dispara contra os negativos.
+
+- **AS-8 — Removida regra placeholder, sem ruído.** Dado `rules/_placeholder.yaml` deletado, quando `scan_diff` é invocada sobre o fixture pack BR completo, então `findings` carrega apenas findings das 6 regras BR (rule_ids no conjunto `{br-cpf, br-cnpj, br-cnh, br-nis-pis, br-titulo-eleitor, br-cns-saude}`); zero findings com `rule_id` começando em `_placeholder` ou similar (validates that the placeholder is fully out of the rule set).
+
+- **AS-9 — Idempotência cross-invocations.** Dado fixture pack BR estável, quando `scan_diff` é invocada duas vezes em sequência com os mesmos refs, então os dois retornos têm `findings` byte-idênticos (mesma ordem, mesmos campos, mesmo conteúdo). Confirma que o ordering `(file_path, line_start)` ascending de compact §5.1 ("Findings list semantics") é implementado.
+
+**Gate task-level.**
+
+*Automated.* AS-1 a AS-9 em `tests/mcp_servers/semgrep_runner/test_recognizers_br.py`; passam sob `uv run pytest`. Fixtures consomem o pack mergeado em `tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/` via pattern de fixture root assembly análogo ao POL pack de Milestone A.
+
+*Chat review.* Sessão Chat independente verifica: cada regra YAML segue convenção de naming `br-<identifier>` em `rule_id` (kebab-case, prefixo `br-` para identificadores brasileiros, slug coerente com `data_categories` que RF-003 vai consumir no Classifier em Milestone C); `languages: [python]` declarado explicitamente em cada regra; padrões Semgrep são pattern-based ou pattern-either, não regex-only (regex puro é anti-pattern em Semgrep, perde AST awareness); cada regra tem `severity` declarado com rationale (warning para identificadores comuns; error apenas se houver razão semântica forte, e.g., dados de saúde sob LGPD Art. 11 sensíveis); `metadata.category` consistente cross-regras para auditabilidade futura; `rule_message` em português conforme convenção de outputs ao usuário (ADR-0001 Decision 3); consulta a `.claude/rules/privacy-safety.md` durante construção do fixture pack confirma uso de identificadores SINTÉTICOS algoritmicamente válidos mas fictícios, sem personagens reais nem dados pessoais reais coletados.
+
+---
+
+## Companion edits cross-doc
+
+PRs separados ou commits internos de PRs principais, fora do escopo de implementação Code de uma task específica. Não bloqueantes para a task à qual estão anexados, anotados aqui para não perder o débito.
+
+**Consolidados em Provisão A de Milestone B** (PR `chore/canonical-sync-C-semgrep-runner`, ver §Milestone B § Pré-implementação):
+
+- canonical sync do `semgrep-runner` (Option B amendment §3 ADR-0002 + §6 vs §8.6 alignment + §5.1 título se ainda drifted).
+- compact sync cirúrgico do `semgrep-runner` (6 errorCodes, classes, retryability, runtime vs startup do BINARY_UNAVAILABLE, wire format).
+- README pin de Semgrep: documenta `uv tool install semgrep==1.163.0` como prerequisite na seção Setup, alongside Python 3.12.7 via pyenv-win e Node 24, conforme ADR-0010.
+- ADR-0001 Decision 2 amendment in-place: alinha stack canônica à realidade — Semgrep (substitui Presidio menção); FastMCP 3.2.4 pin formal; Pydantic 2.13.4 pin formal; MCP 1.27.1 pin formal. Espelha pattern de amendment in-place de ADR-0008 (2026-05-16).
+
+**Resolver pós-T07 ou em PR mecânica dedicada:**
+
+- `docs/architecture-overview.md` §4.4 hedge removal: o texto atual "Regras Semgrep ou módulos equivalentes" reflete decisão em aberto. Após T07 fechar com escolha definitiva por regras Semgrep YAML, sync para "Regras Semgrep em formato YAML". Companion edit pequena, viaja com próxima PR que tocar `architecture-overview.md` por outro motivo, ou PR mecânica dedicada se nenhuma outra emergir.
+
+---
+
+## Pós-Milestone B aberto
+
+Pendências de evolução conhecidas que NÃO bloqueiam progresso para Milestone C nem fazem parte do escopo formal do MVP, mas que estão registradas para serem endereçadas dentro da janela 15/06 (entrega) — 30/06 (defesa) caso haja capacidade. Materialização nessa janela fortalece a narrativa defensiva do TCC ao demonstrar empiricamente capacidade de evolução do sistema sem ampliar escopo do que foi entregue.
+
+- **Cobertura de detecção em JavaScript/TypeScript.** Adicionar `languages: [javascript, typescript]` a regras BR existentes ou criar regras paralelas, com fixture pack JS análogo ao Python (positivos cobrindo destructuring, dot/bracket access, JSX form fields, payload schemas estilo Segment/AEP, Node req handlers; negativos para false positive control). ~6-7h totais (3h regras + 2h fixture pack JS + 1.5h tests + 1h gate análogo). Demonstra empiricamente RF-008 generalizada para detecção sintática (a propriedade arquitetural "expandir cobertura sem refactor de código" provada em duas linguagens), fortalecendo argumento de Capítulo de Resultados do TCC. Pré-requisito procedural: Milestone B gate milestone-level fechado.
+
+---
+
+## Milestones C, D — autoria deferida
+
+Estrutura e tasks dos milestones subsequentes são autoradas em sessões Chat dedicadas após o gate milestone-level do milestone imediatamente anterior completar. Razão metodológica: ADR-0008 §1 calibra tarefas a 1-3h sob escopo de capability estabilizada — pré-autoria de milestones futuros corre o risco de drift contra learnings emergentes da implementação do milestone corrente.
 
 Escopo proposto a seguir é estrutura preliminar, não normativa até autoria formal. Boundaries entre tasks dentro de cada milestone ficam para a sessão de autoria correspondente:
-
-- **Milestone B — semgrep-runner standalone validado.** RFs: 001, 002. Loader + tool `scan_diff` + recognizers dos seis identificadores brasileiros. Decomposição em duas ou mais tasks (boundaries a calibrar em autoria — server core vs recognizers BR é uma divisão plausível, mas não fechada aqui). Pré-implementação: decisão Semgrep-on-Windows (Docker, pip native, remote worker, CI-only) precede e afeta forma das tasks.
 
 - **Milestone C — Pipeline multi-agente operacional local.** RFs: 003, 004-pleno, 006, 008-pleno. Decomposição tentativa: cinco AgentDefinitions com `mcp_servers` e `allowed-tools` por papel + `.mcp.json` do projeto; custom tool `emit_report` + Reporter; coordinator com Task tool dispatch, scratchpad para handoff entre subagentes, error propagation.
 

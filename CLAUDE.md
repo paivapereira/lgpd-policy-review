@@ -17,10 +17,9 @@ The repository is in early development. Most directories described in the long-t
 - **Language:** Python 3.12.7 (pinned via `.python-version`).
 - **Dependency manager:** uv (`uv.lock` versioned in repo, `uv_build` build backend, `uv sync` for setup). See ADR-0004.
 - **Agent runtime:** Claude Agent SDK (`claude-agent-sdk`), Claude Code CLI, Model Context Protocol (MCP).
-- **MCP framework:** FastMCP 3.x (`>=3.2.0,<4.0`) for any custom MCP server in this repo. See ADR-0004.
-- **Static analysis:** Semgrep, invoked through the `semgrep-runner` MCP server.
-- **PII detection:** Microsoft Presidio with custom Brazilian recognizers (CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde).
-- **Schema validation:** Pydantic 2.5+.
+- **MCP framework:** FastMCP 3.2.4 (pinned in `uv.lock`; `pyproject.toml` constraint `>=3.2.0,<4.0`) for any custom MCP server in this repo. See ADR-0004 and ADR-0001 Decision 2 (amended 2026-05-21) for the rationale of the formal pin.
+- **Static analysis + Brazilian recognizers:** Semgrep 1.163.0 (via `uv tool install`, per ADR-0010), invoked through the `semgrep-runner` MCP server. Brazilian recognizers (CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde) authored as Semgrep YAML rules under `mcp_servers/semgrep_runner/rules/`. Pre-pivot the recognizers were a separate Microsoft Presidio layer; post-ADR-0010 they are part of the curated Semgrep rule set. See ADR-0001 Decision 2 (amended 2026-05-21) for the stack realignment rationale.
+- **Schema validation:** Pydantic 2.13.4 (pinned in `uv.lock`; `pyproject.toml` declares `>=2.13.4` as lower bound, no upper bound).
 - **Lint/format:** Ruff (replaces black, flake8, isort, pyupgrade).
 - **Type check:** mypy in strict mode.
 - **Tests:** pytest with `pytest-asyncio` for async tests.

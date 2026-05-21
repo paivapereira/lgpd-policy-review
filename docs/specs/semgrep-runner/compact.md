@@ -19,16 +19,18 @@ All `CallToolResult` returns use hybrid placement: structured payload in `struct
 
 ## 3. Error contract
 
-Three error classes (see ADR-0002 §3 for class semantics). Empty `findings` list is **not an error** — returns `isError: false`.
+Two error classes are non-empty in this component — **business** and **system**. Validation class is intentionally empty (positive declaration per ADR-0002 Decision 4): `base_ref` and `head_ref` are validated as non-empty strings by the FastMCP runtime via `inputSchema` before reaching component code. **See canonical §5 if:** implementing input validation beyond FastMCP runtime checks.
+
+Empty `findings` list is **not an error** — returns wire `isError: false` with `{scan_metadata, findings: []}` in `structuredContent`. Wire format follows Option B per ADR-0002 §3 amendment 2026-05-17: wire `isError: false` on all returns from this component; discrimination by presence of `errorCode` in `structuredContent`. **See canonical §4.2 if:** unsure why wire `isError: true` is not used for domain-class errors.
 
 | `errorCode` | Class | Retryable | Emitting tool | Condition | `details` shape |
 |---|---|---|---|---|---|
-| `INVALID_BASE_REF` | validation | false | `scan_diff` | `base_ref` cannot be resolved to a commit by the host repo | `{provided, error}` |
-| `INVALID_HEAD_REF` | validation | false | `scan_diff` | `head_ref` cannot be resolved to a commit by the host repo | `{provided, error}` |
-| `SCAN_TIMEOUT` | system | false | `scan_diff` | Scan exceeded `SEMGREP_RUNNER_TIMEOUT_SECONDS` (default 300s) | `{timeout_seconds, partial_findings_discarded: true, files_scanned_before_timeout}` |
-| `SEMGREP_EXECUTION_FAILED` | system | false | `scan_diff` | Semgrep CLI returned non-zero exit code other than findings-found, or produced unparseable output | `{exit_code, stderr_excerpt, files_attempted}` |
-
-**Empty error class declaration:** the system error class is intentionally narrow. Binary discovery failures (`semgrep` not in PATH, version below minimum) are caught at server **startup**, not at request runtime — server fails to start. See canonical §6 if implementing alternative discovery paths.
+| `GIT_REF_NOT_FOUND` | business | false | `scan_diff` | `base_ref` or `head_ref` is syntactically valid but does not exist in the current repo | `{ref_param, ref_value, hint}` |
+| `INSUFFICIENT_GIT_HISTORY` | business | false | `scan_diff` | Shallow clone prevents Semgrep from resolving merge-base between refs for diff-aware scan | `{hint: "increase actions/checkout fetch-depth"}` |
+| `SCAN_TIMEOUT` | system | true | `scan_diff` | Scan exceeded `SEMGREP_RUNNER_TIMEOUT_SECONDS` (default 300s); subprocess terminated with SIGKILL after grace period | `{timeout_seconds, elapsed_seconds, partial_findings_discarded: true}` |
+| `SEMGREP_BINARY_UNAVAILABLE` | system | false | `scan_diff` | Binary `semgrep` not on PATH at tool invocation time (per-call check, canonical §8.6) | `{searched_paths}` |
+| `SEMGREP_EXECUTION_FAILED` | system | true | `scan_diff` | Semgrep terminated with fatal exit code (2) without categorized cause | `{exit_code, stderr_excerpt}` |
+| `INVALID_RULE_SET` | system | false | `scan_diff` | Project-curated rules have syntactic bug (Semgrep exit 4 or 5) | `{exit_code, stderr_excerpt}` |
 
 **Error payload shape (all errorCodes):**
 
@@ -40,6 +42,8 @@ Three error classes (see ADR-0002 §3 for class semantics). Empty `findings` lis
   details: <object>       # shape per errorCode (see table)
 }
 ```
+
+The envelope ships inside `structuredContent` with wire `isError: false` per Option B (canonical §4.2; ADR-0002 §3 amendment 2026-05-17). Binary discovery is NOT a startup concern — `SEMGREP_BINARY_UNAVAILABLE` is emitted per-call at tool invocation (canonical §8.6; ADR-0010).
 
 ## 4. Resources
 
@@ -101,7 +105,7 @@ One tool. Naming convention: `mcp__semgrep-runner__scan_diff` (runtime-generated
 
 **Findings list semantics:** ordered by `(file_path, line_start)` ascending. Empty list (`findings: []`) is a valid success — means Semgrep ran successfully and found no matches in the diff. This is **not** an error.
 
-**Errors:** `INVALID_BASE_REF`, `INVALID_HEAD_REF`, `SCAN_TIMEOUT`, `SEMGREP_EXECUTION_FAILED` (see table §3).
+**Errors:** `GIT_REF_NOT_FOUND`, `INSUFFICIENT_GIT_HISTORY`, `SCAN_TIMEOUT`, `SEMGREP_BINARY_UNAVAILABLE`, `SEMGREP_EXECUTION_FAILED`, `INVALID_RULE_SET` (see table §3).
 
 **Example — caso normal, two findings:**
 
@@ -164,41 +168,38 @@ Output: {
 }
 ```
 
-**Example — timeout (system error, partial discarded):**
+**Example — SCAN_TIMEOUT (system error, retryable):**
 
 ```json
 Input: {"base_ref": "main", "head_ref": "feature/large-refactor"}
 Output: {
-  "isError": true,
+  "isError": false,
   "structuredContent": {
     "errorCode": "SCAN_TIMEOUT",
-    "message": "Scan excedeu 300s. Findings parciais descartados — semântica all-or-nothing.",
-    "isRetryable": false,
+    "message": "Scan excedeu o limite de 300 segundos. Subprocess Semgrep terminado após grace period.",
+    "isRetryable": true,
     "details": {
       "timeout_seconds": 300,
-      "partial_findings_discarded": true,
-      "files_scanned_before_timeout": 47
+      "elapsed_seconds": 312.4,
+      "partial_findings_discarded": true
     }
   },
-  "content": [{"type": "text", "text": "scan_diff timeout em 300s; 47 arquivos parcialmente escaneados, descartados."}]
+  "content": [{"type": "text", "text": "Scan excedeu o limite de 300 segundos. Subprocess Semgrep terminado após grace period."}]
 }
 ```
 
-**Semantic note on timeout:** `partial_findings_discarded: true` is always set when `SCAN_TIMEOUT` fires. The component **does not** return partial findings — all-or-nothing semantics. Caller cannot retry with same input expecting partial; retry would require splitting the diff (caller's responsibility).
+**Semantic note on timeout retryability.** `isRetryable: true` for `SCAN_TIMEOUT` indicates the transient nature of timeout per the system-class default of ADR-0002 Decision 3 — a retry under unchanged input within the same timeout budget may succeed if the underlying cause was intermittent (kernel scheduler jitter, disk cache state, transient I/O contention). It does NOT indicate that callers should expect partial findings on retry: `partial_findings_discarded: true` is always set when `SCAN_TIMEOUT` fires (all-or-nothing semantics). Caller-side retry strategy may also legitimately split the diff to reduce per-scan duration below the timeout budget, which is the caller's responsibility, not the component's.
 
-**See canonical §5.3 if:** unsure why `SCAN_TIMEOUT` is non-retryable. The reasoning chain involves all-or-nothing semantics + assumption that timeout configuration is stable.
-
-**See canonical §5.4 if:** unsure how `SEMGREP_EXECUTION_FAILED` distinguishes from `SCAN_TIMEOUT`. Both are system errors; the distinction matters for caller-side telemetry.
+**See canonical §5 if:** unsure how the six `errorCode` values map to classes (business vs system) and retryability — the table in §5 is authoritative. **See canonical §7 if:** unsure why partial findings are never returned even when the timeout could in principle yield a partial scan (the all-or-nothing rationale lives there).
 
 ## 6. Initialization
 
 At server startup:
-- Semgrep CLI binary discovered in PATH; version checked against minimum (see ADR-0001). Failure: server fails to start.
-- Curated rule set loaded from project-bundled directory; `rules_version` computed and held for the session lifetime.
-- `SEMGREP_RUNNER_TIMEOUT_SECONDS` read from environment (default: 300).
+- Curated rule set loaded from project-bundled directory `mcp_servers/semgrep_runner/rules/`; `rules_version` computed as deterministic hash of directory contents and held for the session lifetime.
+- `SEMGREP_RUNNER_TIMEOUT_SECONDS` read from environment (default: 300s).
+
+The Semgrep CLI binary is **NOT** discovered at startup. Binary availability is checked per-call at tool invocation time (canonical §8.6; ADR-0010); a missing binary surfaces as the `SEMGREP_BINARY_UNAVAILABLE` errorCode (system class, non-retryable) rather than aborting the server. Rationale: runtime resilience in CI environments where the binary may be installed asynchronously to server startup, plus auditability — a per-call failure mode is observable as a structured error in the agent loop rather than as a silent server crash. Version pinning is enforced via README + `uv tool install` per ADR-0010, not via runtime check.
 
 No `policy/SCHEMA.md`-equivalent vocabulary load — `semgrep-runner` has no external schema artifact. Rule content is the artifact, and is server-internal (see §4).
-
-**See canonical §6 if:** considering alternative binary discovery paths or rule set hot-reload. Both are explicit deferrals for the MVP.
 
 **Per-client rule set.** MVP loads a single project-bundled rule set with Brazilian recognizers as pilot. Per-client rule set — separate directories governed by client identity, analogous to how `policy-reader` is per-client via Policy swap under `policy/` (ADR-0005 Decision 1) — is deferred to a future ADR, when the first non-LGPD-Brazilian client materializes. See canonical §2.1 and §7.

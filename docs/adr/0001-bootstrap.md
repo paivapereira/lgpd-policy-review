@@ -2,7 +2,18 @@
 
 ## Status
 
-Accepted — 2026-05-01.
+Accepted — 2026-05-01; Decision 2 amended in-place 2026-05-21 (session #28) to reflect stack realignment formalized in ADR-0010 (Presidio → Semgrep) and the introduction of formal version pins (`fastmcp==3.2.4`, `pydantic==2.13.4`, `mcp==1.27.1`, `semgrep==1.163.0`).
+
+## Amendment scope (2026-05-21)
+
+Decision 2 is amended in-place. The original formulation, authored 2026-05-01 in session #01, recorded the canonical stack as the recommended package for Claude-Agent-SDK-aligned Python projects at the start of the bootstrap phase, without formal version pins and listing Microsoft Presidio with custom Brazilian recognizers as the static-analysis layer. Two subsequent decisions in later sessions invalidated the original wording without retroactive sync:
+
+1. ADR-0010 (session #26, 2026-05-20) replaced Presidio with Semgrep as the static-analysis engine, after empirical validation in the Windows corporate-restricted environment showed Semgrep's native Windows GA (Fall 2025) made it installable without WSL or admin while Presidio's AST-aware regex+context-window model was a poorer architectural fit than Semgrep's pattern-based rules for the curated Brazilian recognizer set.
+2. The empirical resolution of `uv sync` against `pyproject.toml` produced concrete version pins for FastMCP, Pydantic, and MCP runtime (the latter as transitive dependency of FastMCP), which were never formalized in this ADR. The wire-format Option B adopted in ADR-0002 §3 amendment 2026-05-17 was calibrated against the FastMCP 3.2.4 source code observed in `uv.lock`; the pin therefore carries normative weight beyond mere reproducibility — migrating off this minor version would reopen ADR-0002 §3.
+
+Amendment landed in-place rather than as a successor ADR because (a) the original Decision 2 was framed as canonical-package adoption ("the path of lowest pedagogical friction toward the exam") rather than as a deliberated technical comparison — there is no original comparison to preserve as historical record; (b) the substantive replacements (Presidio → Semgrep, formal pins) are first-class deliberated decisions documented elsewhere (ADR-0010 + uv.lock), not novel commitments of this ADR; this amendment is a sync, not an independent decision. The pattern follows ADR-0008's in-place amendment (2026-05-16), which used the same rationale.
+
+The original wording survives in the git history at the pre-amendment commit. Decisions 1, 3, 4, 5, and 6 are intact.
 
 ## Context
 
@@ -85,21 +96,31 @@ placeholder during private development.
 
 ### 2. Canonical stack
 
-Pinned to: Python 3.12.7 (managed by pyenv-win), `claude-agent-sdk`,
-FastMCP for any custom MCP server, Microsoft Presidio with custom
-Brazilian recognizers, Ruff (lint + format), mypy in strict mode, pytest
-with pytest-asyncio, GitHub Actions for CI/CD. The full canonical list
-lives in `CLAUDE.md` under section "Stack (canonical)" and is the
-authoritative reference; this ADR records *why* it was chosen, not what
-it is.
+Pinned to: Python 3.12.7 (via pyenv-win), `claude-agent-sdk`, FastMCP
+3.2.4 for custom MCP servers, MCP 1.27.1 runtime (transitive via
+FastMCP), Pydantic 2.13.4 for structured payload validation, Semgrep
+1.163.0 (via `uv tool install`, per ADR-0010) with project-curated
+Brazilian recognizers authored as Semgrep rules, Ruff (lint + format),
+mypy in strict mode, pytest with pytest-asyncio, GitHub Actions for
+CI/CD. Authoritative pin sources: `pyproject.toml` (declarative
+ranges; `[project].name = "mcp-servers"` is the package identifier
+of the root project, not a subdirectory path), `uv.lock` (resolved
+versions), and ADR-0010 for Semgrep (external CLI, not in the
+project's lockfile). The full canonical list lives in `CLAUDE.md`
+under section "Stack (canonical)"; this ADR records *why* it was
+chosen.
 
 **How this set was assembled.** The stack was not built element by
 element through isolated comparisons. It was adopted as the canonical
 package recommended for Python multi-agent systems aligned with the
 Claude Agent SDK and the certification exam scope. The package travels
 together: `claude-agent-sdk`, FastMCP, Pydantic for schemas, pytest +
-pytest-asyncio for async testing, Ruff for tooling consolidation. This
-is the path of lowest pedagogical friction toward the exam.
+pytest-asyncio for async testing, Ruff for tooling consolidation.
+Static analysis sits adjacent to this core via Semgrep — separately
+versioned per ADR-0010 and installed user-scope via `uv tool install`
+to keep its transitive dependency graph (67 packages) isolated from
+the project's `uv.lock`. This is the path of lowest pedagogical
+friction toward the exam.
 
 **Rationale per element.**
 
@@ -112,15 +133,38 @@ is the path of lowest pedagogical friction toward the exam.
   trio, and precisely the surface tested by the certification exam.
   Choosing alternatives (LangChain, LlamaIndex, raw Anthropic API)
   would make the project pedagogically misaligned with the exam goal.
-- **FastMCP.** Adopted as part of the canonical Python package above,
-  not as the winner of an isolated FastMCP-vs-raw-MCP-SDK comparison.
-  A more detailed evaluation against raw SDK is deferred to the moment
-  real friction surfaces (if it does).
-- **Presidio with custom Brazilian recognizers.** Presidio is the
-  de-facto open-source PII analyzer; its plugin model accepts custom
-  recognizers, which is exactly the architectural seam needed for
-  CPF/CNPJ/CNH support — the gap that justifies the academic
-  contribution.
+- **FastMCP 3.2.4.** Adopted as part of the canonical Python package
+  above, not as the winner of an isolated FastMCP-vs-raw-MCP-SDK
+  comparison. The 3.x line is pinned because the project's wire-format
+  contract (Option B per ADR-0002 §3 amendment 2026-05-17) was
+  calibrated against `fastmcp/tools/base.py` as observed at this
+  version. Migration off FastMCP or to a major-version-incompatible
+  successor would reopen ADR-0002 §3.
+- **MCP 1.27.1.** MCP protocol runtime arrives transitively via
+  FastMCP; not a direct dependency in `pyproject.toml`. Pinned in
+  `uv.lock` for reproducibility. The wire-level error semantics
+  (Option B per ADR-0002 §3 amendment) live at this layer.
+- **Pydantic 2.13.4.** Structured payload validation for tool inputs
+  and outputs; the schemas in `models.py` of each MCP server are
+  Pydantic models. Pin matches `pyproject.toml` lower bound exactly
+  (no looser version was resolved during initial `uv sync`).
+- **Semgrep 1.163.0 + Brazilian recognizers as curated rule set.**
+  Semgrep was chosen over Microsoft Presidio after empirical validation
+  on the Windows corporate-restricted environment (ADR-0010, session
+  #26). Recognizers for CPF/CNPJ/CNH and analogous Brazilian
+  identifiers are authored as Semgrep YAML rules under
+  `mcp_servers/semgrep_runner/rules/`, leveraging Semgrep's AST-aware
+  pattern matching rather than Presidio's regex+context-window
+  architecture. The shift was driven by (a) Semgrep's native Windows
+  GA (Fall 2025) removing the WSL/Docker requirement that Presidio
+  did not need but that the original Presidio adoption masked as a
+  non-issue; (b) the project's framing of detection as static
+  analysis primitive (not text-classification NER) being a more
+  natural fit for Semgrep's rule paradigm; (c) installation via
+  `uv tool install` keeping Semgrep's transitive dependency graph
+  (67 packages) isolated from the project's `uv.lock`. Per-call
+  binary availability check at tool invocation, not startup check —
+  see `docs/specs/semgrep-runner/canonical.md` §8.6 + ADR-0010.
 - **Ruff.** Replaces black + flake8 + isort + pyupgrade with a single
   Rust binary. Lower setup friction and faster feedback on a Windows
   machine where Python tool startup is a tax.
@@ -135,11 +179,13 @@ is the path of lowest pedagogical friction toward the exam.
   cost; exam Scenario 5 ("Claude Code for CI/CD") assumes this exact
   CI surface.
 
-**Consequences.** Moderate ecosystem lock-in to Python + Anthropic. Any
-future shift (rewriting subagents in TypeScript, swapping FastMCP for a
-different MCP framework, replacing Presidio) requires an explicit ADR.
-This is a feature, not a bug: the lock-in is the point — alignment with
-the exam stack is the priority.
+**Consequences.** Moderate ecosystem lock-in to Python + Anthropic.
+Any future shift (rewriting subagents in TypeScript, swapping FastMCP
+for a different MCP framework, swapping Semgrep for an alternative
+static analyzer) requires an explicit ADR. The Presidio → Semgrep pivot
+itself was an instance of this discipline materialized as ADR-0010;
+this amendment is the retroactive sync of this ADR to that decision.
+The lock-in is the point: alignment with the exam stack is the priority.
 
 ### 3. Languages: English for code, Portuguese for legal content
 

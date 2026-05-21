@@ -140,9 +140,20 @@ o diff não introduziu candidatos detectáveis pelas regras curadas. Não
 indica falha de scan. `scan_metadata` está sempre presente, mesmo quando
 `findings` é vazio, para manter provenance auditável.
 
-**Convenção de wire format.** Sucesso retorna `isError: false` no
-`CallToolResult` protocolar. Placement híbrido `structuredContent` +
-`content[0].text` conforme ADR-0002 §1.
+**Convenção de wire format.** Wire `isError: false` em TODOS os retornos
+do componente — sucesso, empty result, e erros de domínio (classes
+business/system). Discriminação semântica opera por presença do campo
+`errorCode` em `structuredContent`: sucesso carrega `scan_metadata` +
+`findings` sem `errorCode`; erro carrega `{errorCode, message,
+isRetryable, details}` sem `findings` ou `scan_metadata`. Wire
+`isError: true` fica reservado para falhas de protocolo MCP emitidas
+pelo framework FastMCP — input sintaticamente inválido rejeitado por
+`inputSchema`, tool inexistente, transport-level errors — não pelo
+componente. Convenção segue ADR-0002 Decision 1 (placement híbrido
+`structuredContent` + `content[0].text`) e ADR-0002 §3 amendment
+2026-05-17 (Option B — discriminador implícito por `errorCode` adotado
+para acomodar limitação framework-vs-spec do FastMCP 3.2.4 confirmada
+em sessão #20).
 
 **Condições de erro específicas.** Ver §5.
 
@@ -229,13 +240,13 @@ Output: {
 }
 ```
 
-*Erro modal — scan excedeu `SEMGREP_RUNNER_TIMEOUT_SECONDS` (default 300s). `isError: true` no nível protocolar; payload categorizado em `structuredContent`; prosa em `content[0].text`.*
+*Erro de classe system — scan excedeu `SEMGREP_RUNNER_TIMEOUT_SECONDS` (default 300s). Wire `isError: false` (Option B); discriminação por presença de `errorCode` em `structuredContent`; prosa em `content[0].text` reproduz `message`.*
 
 ```
 Input: { "base_ref": "main", "head_ref": "feat/large-refactor" }
 
 Output: {
-  "isError": true,
+  "isError": false,
   "structuredContent": {
     "errorCode": "SCAN_TIMEOUT",
     "message": "Scan excedeu o limite de 300 segundos. Subprocess Semgrep terminado após grace period.",
@@ -255,20 +266,56 @@ Output: {
 }
 ```
 
+*Erro de classe business — `base_ref` resolveu sintaticamente como ref mas não existe no repositório atual. Wire `isError: false`; envelope discriminado por presença de `errorCode`; `isRetryable: false` porque o caller precisa corrigir o ref antes de tentar novamente.*
+
+```
+Input: { "base_ref": "abc123nonexistent", "head_ref": "feat/onboarding-cpf" }
+
+Output: {
+  "isError": false,
+  "structuredContent": {
+    "errorCode": "GIT_REF_NOT_FOUND",
+    "message": "Ref 'abc123nonexistent' não encontrada no repositório atual.",
+    "isRetryable": false,
+    "details": {
+      "ref_param": "base_ref",
+      "ref_value": "abc123nonexistent",
+      "hint": "Verifique o valor passado; commits removidos por force-push, refs órfãs após cleanup de branches, ou shallow clone sem o histórico necessário são causas comuns."
+    }
+  },
+  "content": [
+    {
+      "type": "text",
+      "text": "Ref 'abc123nonexistent' não encontrada no repositório atual."
+    }
+  ]
+}
+```
+
 ## 5. Contrato de erro
 
-`isError` é o sinal protocolar do MCP — boolean nativo do `CallToolResult`.
+`isError` é o boolean nativo do `CallToolResult` no protocolo MCP. Per
+Option B (canonical §4.2; ADR-0002 §3 amendment 2026-05-17), wire
+`isError: false` em TODOS os retornos deste componente — sucesso, empty
+result, e erros de domínio (classes business/system). Wire `isError: true`
+fica reservado para falhas de protocolo emitidas pelo framework FastMCP
+(input rejeitado por `inputSchema`, tool inexistente, transport-level
+errors), não por este componente. Discriminação semântica sucesso-vs-erro
+opera por **presença do campo `errorCode` em `structuredContent`**: sucesso
+nunca carrega `errorCode`; erro carrega o envelope
+`{errorCode, message, isRetryable, details}` em `structuredContent`.
 Cada `errorCode` listado abaixo materializa cenário de falha de domínio do
 `semgrep-runner` e vive dentro do payload, não no nível protocolar.
-Estrutura do payload de erro segue ADR-0002 §1 (placement híbrido) e §3
-(três classes). `isError: false` nunca carrega `errorCode`; sucesso retorna
-o payload definido em §4.
+Estrutura do payload segue ADR-0002 Decision 1 (placement híbrido
+`structuredContent` + `content[0].text`) e Decision 3 (três classes).
 
 Validation errors de domínio são **vazios** neste componente. Os dois
 inputs (`base_ref`, `head_ref`) são strings não-vazias declaradas em
 `inputSchema`; o runtime FastMCP rejeita inputs sintaticamente inválidos
-antes de chegar ao código do componente. Ausência de validation errors é
-declaração positiva, não omissão.
+antes de chegar ao código do componente (essa rejeição emite wire
+`isError: true` per a reserva acima, não erro de domínio classe
+validation). Ausência de validation errors classe-domínio neste componente
+é declaração positiva, não omissão, per ADR-0002 Decision 4.
 
 | `errorCode` | Classe | `isRetryable` | Quando ocorre | `details` |
 |---|---|---|---|---|
@@ -402,12 +449,12 @@ observável, verificável por teste automatizado ou inspeção direta.
 - [ ] `rules_version` é estável entre execuções consecutivas quando o rule set não foi alterado — duas chamadas seguidas sem mudança em `mcp_servers/semgrep_runner/rules/` retornam o mesmo valor.
 - [ ] `rules_version` muda quando o conteúdo de `mcp_servers/semgrep_runner/rules/` é alterado (regra adicionada, removida ou modificada).
 
-### 8.5 Wire format (placement híbrido)
+### 8.5 Wire format (placement híbrido + Option B discriminator)
 
 - [ ] Em sucesso: `structuredContent` carrega `{scan_metadata, findings}`; `content[0]` é um `TextContent` cuja chave `text` é prosa em português resumindo o resultado.
-- [ ] Em erro: `structuredContent` carrega `{errorCode, message, isRetryable, details}`; `content[0].text` reproduz `message`.
-- [ ] `isError` no nível protocolar do `CallToolResult` é `true` em erros, `false` em sucessos (incluindo empty result).
-- [ ] Sucesso nunca carrega `errorCode`; erro nunca carrega `findings` ou `scan_metadata`.
+- [ ] Em erro de domínio (business ou system): `structuredContent` carrega `{errorCode, message, isRetryable, details}`; `content[0].text` reproduz `message`.
+- [ ] Wire `isError: false` em TODOS os retornos do componente — sucesso, empty result, e erros de domínio. Wire `isError: true` fica reservado para falhas de protocolo emitidas pelo framework FastMCP (input rejeitado por `inputSchema`, tool inexistente, transport-level), não pelo componente.
+- [ ] Discriminação semântica sucesso-vs-erro opera por presença de `errorCode` em `structuredContent`: sucesso nunca carrega `errorCode`; erro nunca carrega `findings` ou `scan_metadata`. Convenção alinhada a ADR-0002 §3 amendment 2026-05-17 (Option B).
 
 ### 8.6 Implementação
 

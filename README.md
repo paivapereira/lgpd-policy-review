@@ -2,7 +2,7 @@
 
 Sistema de code review automatizado em pull requests que verifica conformidade do tratamento de dados pessoais com uma Política versionada derivada da LGPD, construído sobre Claude Agent SDK, Claude Code e Model Context Protocol (MCP).
 
-> **Status:** Repositório em desenvolvimento. Documentação completa, arquitetura detalhada e instruções de execução serão publicadas após a defesa.
+> **Status:** Repositório em desenvolvimento. Documentação completa e arquitetura detalhada do sistema multi-agente serão publicadas após a defesa. Instruções de setup do ambiente de desenvolvimento estão em §Setup; execução do sistema multi-agente em pull requests reais é parte da arquitetura ainda não exposta neste repositório.
 
 ## Contexto
 
@@ -26,7 +26,47 @@ A visão sistêmica completa, com fluxo de execução, contratos de subagente e 
 
 ## Stack
 
-Python 3.12, Claude Agent SDK, FastMCP, Semgrep, Microsoft Presidio com recognizers brasileiros customizados, Pydantic, Inspect AI, GitHub Actions.
+Python 3.12.7, Claude Agent SDK, FastMCP 3.2.4, Pydantic 2.13.4, MCP 1.27.1 (transitivo via FastMCP), Semgrep 1.163.0 com regras de recognizers brasileiros customizadas, Inspect AI, GitHub Actions. Pins formais em `pyproject.toml` (constraints declarativas) + `uv.lock` (versões resolvidas) na raiz do repositório; Semgrep pinado conforme [ADR-0010](docs/adr/0010-semgrep-installation-strategy.md) (binário externo, fora do `uv.lock` do projeto).
+
+## Setup (desenvolvimento)
+
+Pré-requisitos do ambiente de desenvolvimento. Estas instruções cobrem reprodução de builds e execução de testes; orquestração do sistema multi-agente em PRs reais será documentada após a defesa.
+
+**Dependências de runtime:**
+
+- **Python 3.12.7** via [pyenv-win](https://github.com/pyenv-win/pyenv-win), pinado em `.python-version`.
+- **Node 24** via npm em diretório de usuário (não requer admin local).
+- **Semgrep 1.163.0** via `uv tool install`, isolado do `uv.lock` do projeto ([ADR-0010](docs/adr/0010-semgrep-installation-strategy.md)).
+
+**Instalação em PowerShell 5.1 (Windows 11 sem admin local):**
+
+```powershell
+# Executar na raiz do repositório.
+
+# 1. Python 3.12.7 via pyenv-win (assume pyenv-win já instalado)
+pyenv install 3.12.7
+pyenv local 3.12.7
+
+# 2. uv (project manager Python)
+pip install uv
+
+# 3. Dependências do projeto (pyproject.toml + uv.lock na raiz)
+uv sync
+
+# 4. Semgrep CLI (user-scope, isolado)
+uv tool install semgrep==1.163.0
+
+# 5. Verificação
+semgrep --version  # esperado: 1.163.0
+```
+
+**Fontes autoritativas dos pins:**
+
+- `pyproject.toml` na raiz — constraints declarativas (lower/upper bounds aceitáveis). A chave `[project].name = "mcp-servers"` é o identificador lógico do pacote do projeto, não path de subdiretório.
+- `uv.lock` na raiz — versões determinísticas resolvidas (`uv sync` cristaliza aqui).
+- ADR-0010 — pin de Semgrep (não está em `uv.lock` por ser binário externo via `uv tool install`).
+
+Em caso de divergência entre versões instaladas localmente e o que `uv.lock` registra, `uv.lock` é fonte determinística — sincronize com `uv sync`.
 
 ## Metodologia
 

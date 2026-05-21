@@ -1,125 +1,76 @@
-## Diff aplicável pós-merge PR #47 (sessão #25 close)
+## Diff aplicável pós-Chat #27 (encerramento)
 
-### Bloco 1: Corrigir seção "Pendências cross-sessão (organizado por horizonte de resolução)"
-
-**Substituir** o bloco escrito no commit 7 da PR #47 que dizia "Em curso em sessão #26" — toda a housekeeping aconteceu na própria #25, esse texto ficou desatualizado no momento em que foi escrito.
-
-**Substituir:**
-
-```markdown
-**Concluído em sessão #25:**
-- Gate milestone-level Milestone A via MCP Inspector CLI mode. Todas as 5 RFs ancoradas empiricamente. Evidence pack em `docs/milestoneA.md`.
-
-**Em curso em sessão #26 (PR `chore/housekeeping-post-t04`):**
-- Consolidação de 8 débitos (4 pré-existentes do handoff §Companion edits cross-doc + 4 emergentes do gate #25) em PR única com 7 commits internos. Inclui gate report novo e este sync.
-
-**Resolver em sessão #27 (Chat dedicada):**
-- Decomposição formal de Milestone B. Pré-requisito: decisão Semgrep-on-Windows (Docker, pip native, remote worker, CI-only) precede — afeta forma das tasks de Milestone B.
-- Atualização de `docs/learning-log.md` para sessão #25 (closure de milestone) + consolidação de defense candidates cumulativos pós-Milestone A.
-```
-
-**Por:**
-
-```markdown
-**Concluído em sessão #25:**
-- Gate milestone-level Milestone A via MCP Inspector CLI mode. Todas as 5 RFs ancoradas empiricamente. Evidence pack em `docs/milestoneA.md`.
-- PR #47 `chore/housekeeping-post-t04` mergeada — 7 commits internos, pytest 53/53 verde em cada, 8 débitos consolidados (4 pré-existentes do handoff §Companion edits cross-doc + 4 emergentes do gate). §Companion edits cross-doc agora vazia. Smoke test pós-merge confirmou fix #8 em runtime (POL-002 catalog rendering: `"LGPD Art. 12, §2º"` — cardinal no 12, ordinal preservado no §2).
-- Entry sessão #25 adicionada ao `docs/learning-log.md` (closure cumulativa de Milestone A).
-
-**Resolver em sessão #26 (Chat dedicada) — ordem A→B recomendada:**
-
-A. **Migração de defense candidates cumulativos para `.claude/rules/` e/ou ADRs breves.** 18 candidates totais acumulados (11 de #19-#24 + 7 de #25). Sessão metodológica retrospectiva ~1h Chat + ~30min Code aplicando em PRs mecânicas.
-
-B. **Decomposição formal de Milestone B em Chat dedicada.** Pré-requisito procedural: **decisão Semgrep-on-Windows precede** (Docker, pip native, remote worker, CI-only) — afeta forma das tasks de Milestone B. ~1-1.5h Chat se Semgrep decision já tomada; +30min se precisar decidir antes.
-
-Não-bloqueio: A pode rodar antes de B sem custo; B requer Semgrep decision precedendo.
-
-**Resolver pós-Milestone B aberto:**
-
-- Decomposição formal de Milestones C e D em sessões Chat dedicadas sequenciais.
-```
-
-### Bloco 2: Atualizar entry de status global de Milestone A
-
-**Localizar** a entry de Milestone A status global e **substituir**:
-
-```markdown
-- **Gate milestone-level Milestone A** — **fechada** (#25, manual exercise via MCP Inspector CLI mode contra RFs 004-parcial / 005 / 007-parcial / 008-parcial / 009; evidence pack em `docs/milestoneA.md`).
-```
-
-**Por:**
-
-```markdown
-- **Gate milestone-level Milestone A** — **fechada** (#25, manual exercise via MCP Inspector CLI mode contra RFs 004-parcial / 005 / 007-parcial / 008-parcial / 009; evidence pack em `docs/milestoneA.md`).
-- **Housekeeping cross-doc pós-T04** — **fechada** (#25, PR #47, 7 commits internos squash-preservados, 8 débitos consolidados, smoke test runtime validado).
-- **Milestone A** — **encerrada em todos os níveis** (task-level T01-T04 + milestone-level + housekeeping cross-doc).
-```
-
-### Bloco 3: Atualizar narrativa histórica do bloco "Oito débitos consolidados"
-
-**Substituir:**
-
-```markdown
-**Oito débitos consolidados em PR `chore/housekeeping-post-t04`** (sessão #26, em curso): 4 pré-existentes ... + 4 emergentes do gate #25 ...
-```
-
-**Por:**
-
-```markdown
-**Oito débitos consolidados em PR #47 `chore/housekeeping-post-t04`** (sessão #25, mergeada): 4 pré-existentes (sync handoff A/B split, sync canonical §3.1/§4.3, rename `_format_first_stat_ref` → `_format_stat_ref`, sync canonical `article_sources_summary` shape) + 4 emergentes do gate #25 (explicit resource names, structuredContent casing, matching scope clarification, conditional ordinal rendering + canonical/compact examples sync).
-```
-
-### Bloco 4: Atualizar defense candidates list
-
-**Localizar** o item adicionado no commit 7 da PR #47:
-
-```markdown
-- (sessão #25-26) **Multi-instance review escala via complementaridade de trajetória de leitura** — refinamento adicional do pattern já catalogado em #23-#24. Empirizado em 5 instâncias sobre o prompt da PR #26 ao longo de 3 iterações (v1→v2→v3→v4): ...
-```
-
-**Substituir o tag de sessão de "#25-26" para "#25" apenas:**
-
-```markdown
-- (sessão #25) **Multi-instance review escala via complementaridade de trajetória de leitura** — refinamento adicional do pattern já catalogado em #23-#24. Empirizado em 5 instâncias sobre o prompt da PR #47 ao longo de 3 iterações (v1→v2→v3→v4): cada instância nova detectou subconjunto disjunto de 10 achados não-triviais totais; cobertura conjunta dominou cobertura individual de qualquer uma. Trajetórias materializadas: review-T04 (contexto vivido do código), review-clean (rigor procedural), review-2-models (auditoria semântica de `models.py`), review-2-canonical (auditoria de canonical examples), review-3-compact (auditoria de paridade canonical↔compact). Lição operacional: direcionar reviewers para fatiamentos diferentes do mesmo artefato escala mais que rodar N instâncias indiferenciadas.
-```
-
-**Adicionar** dois defense candidates novos não-capturados no commit 7 (emergiram nas notas de execução do Code + smoke test pós-PR):
-
-```markdown
-- (sessão #25) **PowerShell 5.1 + UTF-8 puro para commit messages.** `Out-File -Encoding utf8` injeta BOM em PS 5.1 nativo. Pattern correto: `[System.IO.File]::WriteAllText($path, $body, [System.Text.UTF8Encoding]::new($false))`. Materialização para `.claude/rules/windows-tooling.md` ou similar em sessão metodológica futura.
-- (sessão #25) **Atomicidade de débito atravessa paridade de specs.** Operacionalização do ADR-0003: quando débito afeta documentação em arquivos com paridade prescrita (canonical↔compact), sync deve ocorrer no mesmo commit que a impl. Sair sem o sync introduz drift novo na própria PR que existia para fechar drift. Empirizado no commit 2 da PR #47 (canonical §4.1-§4.3 + compact §5.2-§5.3 syncados atomicamente com fix `_format_law_reference`).
-- (sessão #25) **session-handoff.md como diff-log meta-document — pattern consolidado.** Inaugurado #24, replicado #25 sem fricção. Diff blocks aplicáveis em code-blocks markdown preservam blame-traceability cross-sessão. Materialização para `.claude/rules/session-handoff-format.md` ou ADR breve em sessão metodológica futura.
-```
-
-## Diff aplicável pós-Chat #26 (encerramento)
-
-### Bloco 1: Atualizar item B de "Resolver em sessão #26" com pré-requisito procedural resolvido
+### Bloco 1: Atualizar item B de "Resolver em sessão #26" para refletir conclusão em #27
 
 **Locate:**
-
-```markdown
-B. **Decomposição formal de Milestone B em Chat dedicada.** Pré-requisito procedural: **decisão Semgrep-on-Windows precede** (Docker, pip native, remote worker, CI-only) — afeta forma das tasks de Milestone B. ~1-1.5h Chat se Semgrep decision já tomada; +30min se precisar decidir antes.
-```
-
-**Substitute by:**
 
 ```markdown
 B. **Decomposição formal de Milestone B em Chat dedicada.** Pré-requisito procedural satisfeito em sessão #26: decisão Semgrep-on-Windows fechada via ADR-0010 (`semgrep==1.163.0` via `uv tool install`, validado por smoke test em ambiente corporativo Windows). Tema B atacável sem fricção em sessão Chat futura; ~1-1.5h Chat.
 ```
 
-### Bloco 2: Registrar fechamento de Tema A (migração defense candidates → `.claude/rules/`)
-
-**Add** logo após o último bullet da lista "**Concluído em sessão #25:**" (dentro do Bloco 1 da seção "Diff aplicável pós-merge PR #47") como uma nova sub-lista:
+**Substitute by:**
 
 ```markdown
-**Concluído em sessão #26:**
-- Tema A — migração de defense candidates cumulativos (#19-#25) para `.claude/rules/`. PR `feat/rules/method-consolidation` mergeada (7 commits, 7 rules em `.claude/rules/`). DD-6 (`/memory` verifica carregamento das 7 rules) satisfeita na própria sessão #26 antes do fechamento.
+B. **Decomposição formal de Milestone B em Chat dedicada.** **Fechado em sessão #27.** `docs/tasks.md` v1.2 autorado contendo Milestone B com Capacidade entregue + RFs cobertas (RF-001, RF-002) + Provisões A e B pré-implementação + tasks T05/T06/T07 + gate milestone-level placeholder. Estimativa final: ~13-14h totais (~5h pré-implementação + ~6.5-7.5h implementação + ~1h gate). Decisões substantivas: Python only no MVP (JS adiado para janela 15/06-30/06 em §"Pós-Milestone B aberto"); `rules_version` = hash determinístico do diretório `rules/`; T06 unificada não-splitada; canonical-sync-C cirúrgico não re-derivação (per ADR-0003 D1); ADR-0001 Decision 2 amendment in-place reconciliando stack real (FastMCP 3.2.4 / Pydantic 2.13.4 / MCP 1.27.1 / Semgrep substituindo Presidio). Materializado em diff aplicável de 4 blocos para `docs/tasks.md`, com 2 fixes adicionais do Chat review pós-autoria (typo aspas em §Status + sync §Source-of-truth para incluir `docs/specs/semgrep-runner/`). Aplicação via PR mecânica subsequente, ~30-40min Code.
 ```
 
-### Bloco 3: Registrar fechamento de Tema B (decisão Semgrep-on-Windows) e destravamento de Milestone B authoring
+### Bloco 2: Registrar artefatos de sessão #27 na lista "Concluído em sessão #26"
 
-**Add** como segundo item da lista "**Concluído em sessão #26:**" introduzida no Bloco 2:
+**Add** como nova sub-lista logo após os bullets de "Concluído em sessão #26" (introduzidos pelo Bloco 2 do Diff aplicável pós-Chat #26):
 
 ```markdown
-- Tema B (procedural) — decisão Semgrep-on-Windows fechada via ADR-0010 (`semgrep==1.163.0` via `uv tool install`). Smoke test em ambiente corporativo Windows confirmou: 290 rules sobre 9 files, 0 findings, exit clean. Pré-requisito procedural de decomposição formal de Milestone B agora satisfeito; sessão Chat dedicada futura pode atacar Milestone B authoring sem fricção.
+**Concluído em sessão #27:**
+- Autoria formal de Milestone B em `docs/tasks.md` v1.2 — diff aplicável de 4 blocos + 2 fixes pós-Chat-review. Aplicação via PR mecânica `docs/tasks-milestone-b-decomposition` (Code ~30-40min).
+- Cinco drifts load-bearing detectados via verificação direta cruzando canonical+compact+ADR-0001+uv.lock — quatro no contract surface canonical/compact do semgrep-runner (errorCodes 4 vs 6, classes validation+system vs business+system, retryability SCAN_TIMEOUT/SEMGREP_EXECUTION_FAILED, timing de BINARY_UNAVAILABLE startup vs per-call, wire format pre-amendment) + um fundacional em ADR-0001 (Presidio menção drifted vs Semgrep real + ausência de pins de stack na decisão). Quatro deles consolidados como commits internos da Provisão A; o ADR-0001 amendment como quarto commit interno da mesma PR.
+- Entry de sessão #27 adicionada ao `docs/learning-log.md` com defense candidates emergentes incluindo "sessão de autoria de milestone como gatilho natural para sweep de drift adjacente" e "uv.lock como fonte autoritativa secundária para reconciliar ADRs de stack".
+```
+
+### Bloco 3: Atualizar status global — Milestone B sai de "deferido" e entra em "autorado"
+
+**Localizar** a entry que diz "Milestone B autoria deferida" (ou equivalente; depende do estado atual do session-handoff) e **substituir** por:
+
+```markdown
+- **Milestone B (semgrep-runner standalone validado)** — **autorado** (#27, `docs/tasks.md` v1.2, Provisões A+B + T05/T06/T07 + gate milestone-level placeholder). Implementação destrava após PR mecânica de tasks.md mergear + Provisão A mergear (bloqueia T06) + Provisão B mergear (bloqueia T07). Custo total estimado: ~13-14h.
+```
+
+### Bloco 4: Atualizar "Resolver pós-Milestone B aberto" para refletir authoring de B + acrescentar pendência JS
+
+**Locate:**
+
+```markdown
+**Resolver pós-Milestone B aberto:**
+
+- Decomposição formal de Milestones C e D em sessões Chat dedicadas sequenciais.
+```
+
+**Substitute by:**
+
+```markdown
+**Resolver após Milestone B fechar (gate milestone-level):**
+
+- Decomposição formal de Milestone C (pipeline multi-agente operacional local) em sessão Chat dedicada.
+- Decomposição formal de Milestone D (CI/CD + validação empírica) em sessão Chat dedicada, sequencial a C.
+- (Opcional, janela 15/06 entrega → 30/06 defesa) **Cobertura JS/TS para recognizers BR**: adicionar `languages: [javascript, typescript]` a regras BR existentes ou criar regras paralelas, com fixture pack JS análogo ao Python. ~6-7h totais. Materialização nessa janela fortalece narrativa defensiva do TCC ao demonstrar empiricamente RF-008 generalizada para detecção sintática sem ampliar escopo do MVP. Detalhes em `docs/tasks.md` §"Pós-Milestone B aberto".
+```
+
+### Bloco 5: Adicionar trilhas próximas como pendências organizadas por horizonte
+
+**Add** como nova seção logo após o Bloco 4:
+
+```markdown
+**Resolver em sessões subsequentes a #27 (ordem natural — A precede E/F/G; B pode rodar antes ou em paralelo a C; D destrava após A):**
+
+A. **PR mecânica `docs/tasks-milestone-b-decomposition`** (Code, ~30-40min). Aplica 4 blocos do diff aplicável de #27 + 2 fixes do Chat review. Não bloqueia T05 mas cristaliza referência.
+
+B. **Provisão A — `chore/canonical-sync-C-semgrep-runner`** (Chat dedicada, ~3.5h total: ~2h Chat + ~1.5h Code). 4 commits internos: canonical sync Option B + compact sync cirúrgico + README pin Semgrep + ADR-0001 Decision 2 amendment in-place. **Bloqueia T06.**
+
+C. **Provisão B — `feat/fixtures/recognizers-pack-br`** (Chat dedicada, ~2-2.5h total). Seis snippets positivos + negativos para os identificadores BR + README com AS coverage. Não bloqueia T05 nem T06. **Bloqueia T07.**
+
+D. **T05 (Code, ~1.5-2h)** — server skeleton + rule set loader. Destrava após A.
+
+E. **T06 (Code, ~3h)** — `scan_diff` completo: subprocess + 6 errorCodes + wire format Option B. Destrava após D + B.
+
+F. **T07 (Code, ~2-2.5h)** — six recognizers brasileiros + validação contra fixture pack BR. Destrava após E + C.
+
+G. **Gate milestone-level Milestone B** (Chat dedicada, ~1h). Manual exercise via MCP Inspector contra RF-001 + RF-002 sobre série de seis PRs sintéticos. Destrava após T05-T07 fecharem gate task-level. Pré-requisito procedural: binário `semgrep==1.163.0` instalado via `uv tool install` no ambiente do gate.
 ```

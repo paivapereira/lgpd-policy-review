@@ -5125,3 +5125,66 @@ Débitos cross-doc catalogados (3 PRs propostas, não urgentes antes de T06
 exceto F1): docs/refresh-stale-state, docs/adr-foundational-amendments,
 docs/canonical-sync-E-policy-reader. Sweep regras imutáveis (ADR-0001 D4 ↔
 CLAUDE.md §Immutable domain rules) crítico antes de Milestone C arrancar.
+
+## 2026-05-22 — sessão #30 — housekeeping consolidated pós-Milestone A (PR #55) + multi-round review (3 rounds) sobre artefato-prompt
+
+**Foco.** Sessão Chat persistente longa de ~6h efetiva cobrindo: (i) inventário e priorização dos 15 débitos catalogados nos dois rounds de cross-doc review pós-#28 (achados anexados por João); (ii) redação do prompt T30-Hk v1 → v2 → v3 sob 2 rounds de Chat review independente entre versões; (iii) GATE 1 do Code com 10 DDs + 2 escalações (DD-7 ajuste numérico, DD-8 confirmação semântica); (iv) execução Code em 3 commits internos sob 1 PR consolidada (PR #55); (v) gates pós-merge + reporte. Padrão verification-before-inference materializou em 3 escalas: snapshot vs main (pre-flight), `wc -l` vs claim numérico (DD-7), e empirical vs estimativa (count de tokens em new_str).
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1 multi-instance review com escalation progressiva sobre artefato-prompt — 3 rounds com classes distintas de bug por round.** Round 1 (v1 review): 4 bugs estruturais — ADR-0001 status format inexistente assumido como `**Status.** Accepted.\n**Date.** ...` quando ADR-0001 usa heading H2 `## Status`; proposta-tcc2 §7 new_str gramaticalmente quebrada por old_str truncado; backtick em PS 5.1 dentro de aspas duplas tratado como escape; filename ADR-0003 errado. Round 2 (v2 review): 2 bugs finos — Edit 2.A.7 old_str sem markdown `**Note (MVP):**`+ backticks em `not_applicable` (defeito reproduzido em v1+v2 sem ser detectado); contagens de regressão erradas pós-Amendment scope porque blocks H2 preservam tokens como audit trail intencional. Round 3 (v3 GATE 1): 0 bugs estruturais; apenas DD-7 ajuste numérico (959 vs 960) pego empiricamente por Code via `wc -l`. Severidade decai monotonicamente; verificação empírica direta toma lugar de review textual. **Defense candidate forte** — pattern documentado em learning-log #21+, agora materializado em escala maior (3 rounds + 17 sites + 2 reviewers independentes).
+
+- **D1 Task decomposition cross-PR — escopo de auditoria como limite descritivo, não normativo.** Cross-doc review original (#29) cobriu `docs/` apenas. Code descobriu na #30 que `src/mcp_servers/policy_reader/models.py:11` tem docstring stale citando "compact spec still writes article_source in places". Drift escapou as duas rodadas de auditoria porque não estavam no escopo declarado. **Defense candidate**: auditoria não é teorema de completude, é amostragem disciplinada. Próximas auditorias devem declarar escopo explicitamente; ciclos paralelos cobrindo `src/` (docstrings, comments) podem virar prática.
+
+- **D1.6 PR consolidada com N commits internos pre-squash — terceira materialização do pattern.** Provisão A em #28, T05 skeleton em #29, PR #55 housekeeping em #30. Pattern admitido por `.claude/rules/git-conventions.md` quando diff é clean e Chat-revisable. Blame por commit some no squash, audit trail vive em PR description. **Defense candidate sobre granularidade adaptativa de PR**: 1 PR para 3 categorias homogêneas de cleanup (refresh stale state + ADR amendments + canonical-sync-E) com cross-doc review numa pegada só vs 3 PRs separadas — trade-off ratificado por escopo homogêneo (mecânico, sem deliberação).
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2 tool description quality preservada por canonical-sync-E.** Edit 2.C.6 (G13) verificou empiricamente que `_format_stat_ref` REALMENTE existe em `src/mcp_servers/policy_reader/tools.py:592` como wrapper Pydantic-aware sobre `_format_law_reference` (linha 550, ADR-0009). Achado original do cross-doc review classificou G13 como "INCERTO" pendendo leitura direta de `tools.py`. Esta sessão materializou a verificação direta — o nome no canonical §3.1 estava correto; o que estava errado era só a ref cruzada `(canonical §4.1)` dangling. **Defense candidate sobre verification-before-inference em diagnóstico**: marker "INCERTO" pode resolver para "naming drift" OU "ref dangling com naming correto" — Code lê o arquivo antes de concluir.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%)**
+
+- **D3 `.claude/rules/` autoritativos pós-housekeeping — segunda materialização do pattern.** Primeira em prep T03 (#23). Aqui em prep T30-Hk: `windows-tooling.md` (commit messages ASCII), `git-conventions.md` (PR consolidada com N commits), `spec-driven-workflow.md` (plan-mode + GATE 1 + pause-and-ask), `verification-before-inference.md` (DD-7 materialização), `review-patterns.md` (multi-instance review independente). Cinco rules invocadas nominalmente sem re-explicar conteúdo. Materializa o benefício de rules como contrato decisional consumível em runtime de implementação. **Defense candidate**: cristalização canônica de convenções em rules permite redação subsequente mais enxuta — o prompt v3 (803 linhas) seria proporcionalmente maior sem essa cristalização prévia.
+
+- **D3 CLAUDE.md status flags como source-of-truth — refresh pós-Milestone A.** Edit 2.A.1 atualizou §"Status flags" de "Milestone A in progress (T01, T02a, T02b operational; T03, T04 pending) / Tests: 27 passing" para "Milestone A closed in session #25 (...); Tests: 64 passing (...)". Cada sessão a partir desta lê o estado correto sem inferir das frases-fonte fixas. **Defense candidate sobre cadência de refresh**: §"Status flags" tem semi-vida curta (cada milestone fecha em ~5-8 sessões); refresh mecânico como housekeeping dedicada (não acoplado a feature work) preserva o status flags como autoridade.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4 off-by-one em estimativa de contagem em new_str narrativo.** Chat (prep) estimou que Amendment scope de ADR-0005 conteria 3 ocorrências de `article_source`; Code contou empiricamente 4 (Chat não contou a menção "the field name `article_source` was a residue of a pre-#16 envelope sketch"). Pequeno mas registrável. **Defense candidate menor**: estimativas em prosa multilingual densa onde o token é citado em múltiplos contextos sintáticos são facilmente off-by-one; preferir contar empiricamente ao redigir gates de regressão em vez de inferir do new_str. Adicionalmente, gates qualitativos `git grep -c` que reportam o número visto são robustos a essa off-by-one (não bloqueiam pause-and-ask falso); gates quantitativos com count esperado fixo ("esperado: 3 matches") são frágeis.
+
+- **D4 GATE 1 com pause-and-ask específico para edit semanticamente frágil.** Prompt T30-Hk §3 declarou que Edit 2.A.8.b (proposta-tcc2 §7 — `tripartite → two-scope`) deve ter `old_str`/`new_str` ratificados como sub-bullet do plano antes de aplicar. Code cumpriu na DD-8. Pattern aplicável a qualquer edit cujo new_str reorganiza prose multilingual densa em vez de substituir um token por outro. **Defense candidate sobre granularidade de GATE 1**: gate não é binário (planejou tudo / não planejou); gate pode ser cirúrgico (planejou tudo + ratifique especificamente os N edits frágeis enumerados).
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 verification-before-inference generalizado para claims numéricos — DD-7.** Prompt v3 declarava `"empirical sizes are 960 and 517 respectively"`. Code rodou `wc -l docs/specs/policy-reader/canonical.md` no pre-flight, detectou 959, escalou no GATE 1. Ratificação Chat usou 959. **Defense candidate forte**: pattern verification-before-inference, originalmente codificado em `.claude/rules/verification-before-inference.md` para `old_str`/`new_str` cirúrgicos, **opera também sobre qualquer claim numérico que o prompt afirma como verdade** — line counts, ocorrências esperadas, tamanho de payload, contagens em geral. Generalização explícita registrada.
+
+- **D5 achados cross-doc como inputs verificáveis, não autoridade.** O achado de cross-doc review do João declarava "G12: tamanhos canonical 673/440 → 960/517". Code descobriu na pre-flight que o número real era 959, não 960. **Defense candidate sobre tratamento de achados**: achado é input ao processo, não output autoritativo. Replicar pattern em futuras housekeepings — verificar claims do achado contra estado real antes de aplicar.
+
+- **D5 Amendment scope blocks com audit trail intencional — gates exclusion-aware.** Edits 2.B.1 (ADR-0001 D3) e 2.B.2 (ADR-0005 D1+D2) usam pattern Amendment scope H2 paralelo ao Context. Por design, o bloco preserva citações do estado original (`"originally prescribed cláusula IDs in 'stable Portuguese form (e.g., LGPD-Art-7-I)'"`) como audit trail. Consequência: gates de regressão `git grep -nE 'LGPD-Art-7-I'` retornam matches legítimos. Pattern correto: `git grep -nE 'TOKEN' . -- ':!arquivo-com-audit-trail.md'` + `git grep -c "TOKEN" arquivo` qualitativo. **Defense candidate forte**: gates de regressão precisam ser exclusion-aware quando edits preservam tokens originais como audit trail intencional. Replicar em toda futura PR que use Amendment scope.
+
+- **D5 Patch documento como fóssil — handoff é template-overwrite forward-looking.** O `docs/session-handoff.md` em main pós-#29 (db2d2c8) era "patch documento" estilizado com "Locate/Substitute by" referenciando ancorras inexistentes em `tasks.md` (lista A-G que nunca existiu naquele formato). Provavelmente proposta de uma sessão Chat anterior nunca materializada como reestruturação real do tasks.md. Identificado no Chat review v2 do prompt T30-Hk durante prep. **Defense candidate forte**: handoff é template-overwrite por sessão, forward-looking, prosa direta — não patch acumulativo. Esta sessão #30 abandona o vocabulário "Locate/Substitute" no handoff novo da #31 justamente por causa desse anti-pattern detectado. Documentos de coordenação entre sessões precisam ter convenção de forma explícita e estável; mudança silenciosa de forma sem decisão deliberada acumula débito documental.
+
+### Decisões
+
+- **Sweep regras imutáveis** deferido para Chat dedicada antes de Milestone C arrancar (não-bloqueante para T06+T07; bloqueante para C). Discrepâncias entre CLAUDE.md §"Immutable domain rules" e ADR-0001 Decision 4 catalogadas no handoff da #31.
+- **proposta-tcc2.md §6 sobre "dois eixos"** não atualizada — defensável como histórico (documento entregue à banca).
+- **`models.py:11` docstring stale**, **mypy não em dev-deps**, **architecture-overview §4.4 hedge**, **drift br-cpf-leak/br-cnpj-in-log** — todos catalogados no handoff #31 como débitos não-bloqueantes baixa-prioridade para próxima housekeeping.
+- **Estilo do session-handoff.md**: abandonado vocabulário "Locate/Substitute by" do template pré-#30 em favor de prosa direta forward-looking. Decisão materializada no handoff #31 pós-merge da PR #55.
+
+### Artefatos
+
+- PR `#55` — `chore: post-Milestone A housekeeping cleanup` (mergeado via squash). Squash hash a registrar quando handoff #31 for commitado em main.
+- Commits internos pre-squash: `3fbbc9b` (refresh stale state, 8 arquivos, +39/-28), `487ca49` (ADR amendments, 5 arquivos, +38/-14), `014c694` (canonical-sync-E policy-reader, 2 arquivos, +6/-6).
+- 15 arquivos modificados no total na PR, +83/-48 linhas, 100% docs/markdown.
+- Prompt-artefatos em `/mnt/user-data/outputs/`: `prompt-t30-housekeeping.md` (v1, 725 linhas), `prompt-t30-housekeeping-v2.md` (776 linhas), `prompt-t30-housekeeping-v3.md` (803 linhas) — três versões como evidência de multi-instance review iterativo.
+- Dois Chat reviews independentes do prompt (entre v1→v2 e entre v2→v3), anexados como documentos pelo João nas mensagens do Chat persistente da sessão #30.
+- Plano GATE 1 do Code com 10 DDs (DD-1 a DD-10) e 2 escalações para Chat (DD-7 numérica + DD-8 ratificação semântica do new_str da §7 proposta-tcc2).
+- Novo `docs/session-handoff.md` substituindo o pós-#29 como direct commit em main (close formal da #30 + abertura da #31 T06).
+
+### Próximo passo
+
+Sessão Chat de prep T06 (~1h). Pre-leitura conforme handoff #31 §"Pre-flight para sessão Chat de prep T06". Redigir prompt T06 com pattern análogo ao T30-Hk: pre-flight verification + plan-mode + GATE 1 + Fase 2 com gates intermediários por errorCode classe. Custo estimado: prep + Code + review = ~5h totais distribuídos em 2-3 sessões.
+
+Pre-flight em particular: verificação direta empírica antes de redigir (estado real de `server.py`, `loader.py`, `errors.py` pós-T05; conta empírica de linhas; estado de `tools.py` para qual escolha de primitivo de timeout — não inferir). Aplicar a lição DD-7 da #30: qualquer claim numérico no prompt T06 (linha esperada, count de tests, count de errorCodes implementados) deve ser verificado empiricamente antes de ser declarado autoridade.

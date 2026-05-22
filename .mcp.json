@@ -1,4 +1,4 @@
-﻿{
+{
   "mcpServers": {
     "policy-reader": {
       "command": "uv",
@@ -7,6 +7,15 @@
         "python",
         "-m",
         "mcp_servers.policy_reader.server"
+      ]
+    },
+    "semgrep-runner": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "mcp_servers.semgrep_runner.server"
       ]
     }
   }

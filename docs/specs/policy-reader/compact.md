@@ -318,7 +318,7 @@ Output: {
 >
 > If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retryable) — caller should retry with a successor `clause_id` from `details.successors`.
 
-**Note (MVP):** initial implementation returns `not_applicable` for any input. This is the legitimate verdict while no substantive clause exists. POL-001 will exercise the four-verdict enum.
+**Note:** post-Milestone A (#25), all four verdicts are implemented and exercised end-to-end against `POL-001..POL-004` fixture pack in `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/`. Real `policy/` ships with `POL-000` only (definitional); substantive clauses are authored per-client. MVP scope of `operation: collection` per ADR-0007 — other operations return `not_applicable` with explicit reason.
 
 **`inputSchema`:**
 

@@ -1,6 +1,6 @@
 # Tasks — Implementação Fase 2
 
-**Status.** Milestone A fechado em sessão #25 (gate milestone-level via MCP Inspector CLI mode; evidence pack em docs/milestoneA.md). Milestone B autorado em sessão #27 (Chat). Milestones C, D referenciados nominalmente; autoria deferida para após gate milestone-level do milestone anterior completar.
+**Status.** Milestone A fechado em sessão #25 (gate milestone-level via MCP Inspector CLI mode; evidence pack em docs/milestoneA.md). Milestone B em progresso pós-#29 — Provisão A + Provisão B + canonical-sync-D + T05 skeleton merged; T06 + T07 + gate milestone-level pendentes. Milestones C, D referenciados nominalmente; autoria deferida para após gate milestone-level do milestone anterior completar.
 
 **Governance.** ADR-0008 amended (2026-05-16) — granularidade de 8-12 tasks de 1-3h agrupadas em milestones; gate task-level (function tests + revisão Chat independente) e gate milestone-level (manual exercise contra RFs). Tasks neste documento ancoram função; milestones ancoram capability declarada em `docs/REQUIREMENTS.md`.
 

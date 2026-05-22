@@ -63,23 +63,29 @@ These rules express the core thesis of the project. Violating them in code, prom
 
 ## Status flags for the agent
 
-- **Repository age:** early-mid development — Milestone A in progress
-  (T01, T02a, T02b operational; T03, T04 pending).
-- **Tests:** 27 passing (T01 bootstrap, T02a get_clause + parametrize,
-  T02b find_clauses_by_law_article, wire-shape anchor).
-- **CI:** not configured yet.
-- **MCP servers:** policy-reader has 1 of 3 resources operational
-  (`policy://schema-version`; `policy://catalog` skeleton stub pending
-  T04; `policy://vocabularies` not yet introduced) + 2 of 3 tools
-  operational (`get_clause`, `find_clauses_by_law_article`;
-  `check_applicability` skeleton stub pending T03). semgrep-runner
-  designed, not implemented.
+- **Repository age:** mid development — Milestone A closed in session #25
+  (gate milestone-level via MCP Inspector CLI mode, evidence in
+  `docs/milestoneA.md`); Milestone B in progress (Provisão A + Provisão B
+  + canonical-sync-D + T05 skeleton merged through #29; T06 + T07 + gate
+  pending).
+- **Tests:** 64 passing (53 policy_reader + 11 semgrep_runner anchor +
+  AS-1..AS-8). Ruff clean, mypy strict clean.
+- **CI:** not configured yet (Milestone D).
+- **MCP servers:** policy-reader fully operational — 3 of 3 resources
+  (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`)
+  + 3 of 3 tools (`get_clause`, `find_clauses_by_law_article`,
+  `check_applicability`). semgrep-runner skeleton operational —
+  `scan_diff` stub returning `NOT_IMPLEMENTED` envelope, loader with
+  deterministic SHA-256 `rules_version`, T06 (scan_diff full
+  implementation) is next Code session.
 - **Subagents:** designed (Triager, Detector, Classifier, Matcher,
-  Reporter, plus coordinator), not implemented.
+  Reporter, plus coordinator), not implemented (Milestone C).
 - **Policy:** schema v0.1.0 stable; POL-000 (definitional, universal
   vocabulary) authored in real `policy/`; pack POL-001..POL-004 in
   `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/`
-  for T02b and T03 testing; no substantive clauses in real policy yet.
+  exercises T02b and T03 four-verdict matrix; no substantive clauses in
+  real policy yet (substantive content authored per-client, MVP ships
+  bundled with POL-000 only).
 
 When the agent is asked to perform an action that depends on
 infrastructure described as "not yet", "pending", or "skeleton stub"

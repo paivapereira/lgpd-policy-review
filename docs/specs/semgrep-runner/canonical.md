@@ -182,7 +182,7 @@ Output: {
   "isError": false,
   "structuredContent": {
     "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
-    "semgrep_version": "1.92.0",
+    "semgrep_version": "1.163.0",
     "scan_metadata": {
       "base_ref": "a3f5b1c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2",
       "head_ref": "9d8e7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d",
@@ -236,7 +236,7 @@ Output: {
   "isError": false,
   "structuredContent": {
     "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
-    "semgrep_version": "1.92.0",
+    "semgrep_version": "1.163.0",
     "scan_metadata": {
       "base_ref": "a3f5b1c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2",
       "head_ref": "1c2b3a4f5e6d7c8b9a0f1e2d3c4b5a6f7e8d9c0b",

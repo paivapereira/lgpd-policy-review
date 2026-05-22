@@ -65,7 +65,7 @@ O componente expõe três resources, todos sob o scheme `policy://`. O scheme cu
 - `article_sources_summary` — lista compacta de referências aos artigos da lei que a cláusula invoca, em forma sumarizada (forma exata definida em `policy/SCHEMA.md`). Estrutura completa de `statutory_reference` vive na cláusula em si, recuperável via `get_clause`.
 - `successors` — lista de `clause_id` sucessores, **presente apenas quando** `status: deprecated`. Ausente para cláusulas ativas.
 
-**Shape de `article_sources_summary`.** `list[str]` — uma string renderizada por entrada de `statutory_reference` da cláusula, produzida pelo formatter compartilhado `_format_stat_ref` (canonical §4.1). A ordem das strings preserva a ordem das entries no YAML da cláusula. Cláusulas com múltiplas entries no `statutory_reference` produzem múltiplas strings.
+**Shape de `article_sources_summary`.** `list[str]` — uma string renderizada por entrada de `statutory_reference` da cláusula, produzida pelo helper `_format_stat_ref` (wrapper Pydantic-aware sobre `_format_law_reference`, ADR-0009 — implementação em `src/mcp_servers/policy_reader/tools.py`). A ordem das strings preserva a ordem das entries no YAML da cláusula. Cláusulas com múltiplas entries no `statutory_reference` produzem múltiplas strings.
 
 A ordem dos itens segue ordem natural do `clause_id` (POL-001, POL-002, ...). Não há paginação na v0.1.0 — escala assumida da Política do MVP é < 200 cláusulas.
 
@@ -521,7 +521,7 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
 |---|---|---|---|
 | `clause_id` | string | sim | Identificador da cláusula a avaliar. Formato `POL-NNN`. |
 | `structured_context` | object | sim | Contexto estruturado do handling. Campos descritos abaixo. |
-| `structured_context.data_categories` | array de string | sim | Classes de dados envolvidas. Cada elemento deve pertencer ao vocabulário canônico declarado em POL-000 (`policy/SCHEMA.md`). Lista não-vazia. |
+| `structured_context.data_categories` | array de string | sim | Classes de dados envolvidas. Cada elemento deve pertencer ao vocabulário canônico declarado pela cláusula definitional POL-000, carregada de `policy/clauses/POL-000.yaml` no startup (estrutura governada por `policy/SCHEMA.md` §5). Lista não-vazia. |
 | `structured_context.operation` | string (enum) | sim | Tipo de operação sobre o dado. Vocabulário canônico definido em `policy/vocabularies/<framework>/operation.yaml`, exposto ao consumidor via resource `policy://vocabularies` (ver §3.3). |
 | `structured_context.legal_basis` | string | não | Base legal declarada pelo código (quando presente). Valor textual livre — não vocabulário fechado. Ausência sinaliza que o código não declara base. |
 | `structured_context.destination` | string | não | Destino do dado quando relevante (ex: `external_service`, `internal_database`, `client_browser`). Ausência sinaliza não-aplicabilidade. |
@@ -777,7 +777,7 @@ Note que `isError: false` por si só não discrimina: tanto sucesso quanto erro 
 | `CLAUSE_DEPRECATED` | business | true | `check_applicability` | `clause_id` aponta para cláusula com `status: deprecated`. | `{clause_id, successors, deprecation_reason}` |
 | `INVALID_LAW_IDENTIFIER` | validation | false | `find_clauses_by_law_article` | `lei` não casa com vocabulário declarado pelo header `accepted_law_identifiers` da Política. | `{provided, accepted_values}` |
 | `INVALID_DATA_CATEGORY` | validation | false | `check_applicability` | Elemento de `data_categories` fora do vocabulário POL-000. | `{invalid_value, accepted_values}` |
-| `INVALID_OPERATION` | validation | false | `check_applicability` | `operation` fora do enum declarado em `policy/SCHEMA.md`. | `{provided, accepted_values}` |
+| `INVALID_OPERATION` | validation | false | `check_applicability` | `operation` fora do enum declarado em `policy/vocabularies/<framework>/operation.yaml` (exposto via resource `policy://vocabularies`). | `{provided, accepted_values}` |
 | `EMPTY_DATA_CATEGORIES` | validation | false | `check_applicability` | `data_categories` é lista vazia. | `{}` |
 
 A tabela acima é exaustiva para a v0.1.0 da spec. **A classe system é vazia neste componente — ausência de system errors é declaração positiva, não omissão.** A Política é carregada apenas no startup do server (§6.5), de modo que falhas de I/O sobre o arquivo da Política durante runtime não ocorrem; corrupção ou indisponibilidade durante carregamento inicial aborta o startup do server, fora do contrato de erro de tools.
@@ -932,7 +932,7 @@ A implementação do `policy-reader` está completa quando todos os critérios a
 
 - [ ] Stack conforme ADR-0001 (FastMCP 3.x, Python 3.12.7).
 - [ ] Política carregada no startup; restart necessário para reload.
-- [ ] Vocabulário POL-000 (classes de dados) lido de `policy/SCHEMA.md`; vocabulários jurisdicionais (`operation`, `lawful_basis`, `control`, `out_of_scope`) lidos de `policy/vocabularies/<framework>/*.yaml` no startup, governados por `legal_framework` do header da Política (nenhum vocabulário hardcoded no componente).
+- [ ] Vocabulário POL-000 (classes de dados) lido de `policy/clauses/POL-000.yaml` pelo loader regular de cláusulas no startup (estrutura governada por `policy/SCHEMA.md` §5); vocabulários jurisdicionais (`operation`, `lawful_basis`, `control`, `out_of_scope`) lidos de `policy/vocabularies/<framework>/*.yaml` no startup, governados por `legal_framework` do header da Política (nenhum vocabulário hardcoded no componente).
 - [ ] Troca de `legal_framework` da Política não exige alteração de código: instanciar Política nova/clonada sob nova jurisdição, popular `policy/vocabularies/<new_framework>/`, atualizar header, restart. Verificável por exercício de clone sob framework alternativo.
 
 ### 8.8 Review pass do `architecture-overview`

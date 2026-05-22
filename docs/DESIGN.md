@@ -37,11 +37,16 @@ O sistema opera em três planos epistêmicos disjuntos: o Detector raciocina no 
 
 ## Decisões arquiteturais críticas
 
-- **ADR-0001** — Stack: Python 3.12.7, uv.
-- **ADR-0002** — MCP conventions: hybrid placement, custom URI schemes (`policy://`), três classes de erro.
+- **ADR-0001** — Stack: Python 3.12.7, uv. Decision 2 amended 2026-05-21 (Semgrep+FastMCP 3.2.4+Pydantic 2.13.4+MCP 1.27.1 pins); Decision 3 amended 2026-05-22 (cláusula IDs `POL-NNN` opacos, framework-agnostic).
+- **ADR-0002** — MCP conventions: hybrid placement, custom URI schemes (`policy://`), três classes de erro. §3 amended 2026-05-17 (Option B wire format: `isError: false` discriminado por presença de `errorCode` em `structuredContent`).
 - **ADR-0003** — Spec architecture: dual canonical+compact com escalation pointers; paridade restrita a contract surfaces.
 - **ADR-0004** — FastMCP 3.x.
-- **ADR-0005** — Multi-cliente: vocabulários jurisdicionais como dados em `policy/vocabularies/<framework>/`, expostos via resource `policy://vocabularies`.
+- **ADR-0005** — Multi-cliente: vocabulários jurisdicionais como dados em `policy/vocabularies/<framework>/`, expostos via resource `policy://vocabularies`. D1+D2 amended 2026-05-22 (`article_source` → `statutory_reference`).
+- **ADR-0006** — Language conventions: tokens canônicos do vocabulário `operation` em inglês; POL-000 segue convenção português; código/comments/identifiers em inglês.
+- **ADR-0007** — Escopo MVP v0.1.0: matching de cláusulas restrito a `operation: collection`; demais operações retornam `not_applicable` com razão explícita.
+- **ADR-0008** — Task decomposition: 8-12 tasks de 1-3h agrupadas em milestones; verificação two-scope (task-level: function tests + revisão Chat; milestone-level: manual exercise contra RFs). Amended 2026-05-16.
+- **ADR-0009** — Domain boundaries: share functions not types — `_format_law_reference` aceita 5 positional args, não `StatutoryReferenceEntry`.
+- **ADR-0010** — Semgrep install discipline: `uv tool install semgrep==1.163.0`; per-call binary check em `scan_diff` (não startup).
 
 ## Validação global
 

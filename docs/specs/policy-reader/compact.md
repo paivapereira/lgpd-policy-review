@@ -30,7 +30,7 @@ Three error classes (see ADR-0002 §3 for class semantics). Empty result and `in
 | `CLAUSE_DEPRECATED` | business | true | `check_applicability` | `clause_id` aponta para cláusula com `status: deprecated` | `{clause_id, successors, deprecation_reason}` |
 | `INVALID_LAW_IDENTIFIER` | validation | false | `find_clauses_by_law_article` | `lei` fora do vocabulário declarado em `accepted_law_identifiers` da Política | `{provided, accepted_values}` |
 | `INVALID_DATA_CATEGORY` | validation | false | `check_applicability` | Elemento de `data_categories` fora do vocabulário POL-000 | `{invalid_value, accepted_values}` |
-| `INVALID_OPERATION` | validation | false | `check_applicability` | `operation` fora do enum declarado em `policy/SCHEMA.md` | `{provided, accepted_values}` |
+| `INVALID_OPERATION` | validation | false | `check_applicability` | `operation` fora do enum declarado em `policy/vocabularies/<framework>/operation.yaml` (exposto via `policy://vocabularies`) | `{provided, accepted_values}` |
 | `EMPTY_DATA_CATEGORIES` | validation | false | `check_applicability` | `data_categories` é lista vazia | `{}` |
 
 **Empty error class declaration:** system errors are intentionally absent — Policy I/O failures are caught at startup, not at request runtime. See canonical §5.4 if implementing additional system error handling.
@@ -318,7 +318,7 @@ Output: {
 >
 > If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retryable) — caller should retry with a successor `clause_id` from `details.successors`.
 
-**Note (MVP):** initial implementation returns `not_applicable` for any input. This is the legitimate verdict while no substantive clause exists. POL-001 will exercise the four-verdict enum.
+**Note:** post-Milestone A (#25), all four verdicts are implemented and exercised end-to-end against `POL-001..POL-004` fixture pack in `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/`. Real `policy/` ships with `POL-000` only (definitional); substantive clauses are authored per-client. MVP scope of `operation: collection` per ADR-0007 — other operations return `not_applicable` with explicit reason.
 
 **`inputSchema`:**
 
@@ -485,6 +485,6 @@ Output: {
 
 Policy is loaded at server **startup**. File I/O errors during load abort startup (no runtime I/O errors during tool calls). Reload requires restart — hot reload is deferred (ADR-0002).
 
-Vocabulary POL-000 (data categories) read from `policy/SCHEMA.md`; jurisdictional vocabularies (`operation`, `lawful_basis`, `control`, `out_of_scope`) read from `policy/vocabularies/<framework>/*.yaml` at startup, governed by `legal_framework` in the Policy header. No vocabulary hardcoded in the component. Changing `legal_framework` requires a new/cloned Policy + populated `policy/vocabularies/<new_framework>/` + restart; no code change.
+Vocabulary POL-000 (data categories) read from `policy/clauses/POL-000.yaml` by the regular clause loader at startup (structure governed by `policy/SCHEMA.md` §5); jurisdictional vocabularies (`operation`, `lawful_basis`, `control`, `out_of_scope`) read from `policy/vocabularies/<framework>/*.yaml` at startup, governed by `legal_framework` in the Policy header. No vocabulary hardcoded in the component. Changing `legal_framework` requires a new/cloned Policy + populated `policy/vocabularies/<new_framework>/` + restart; no code change.
 
 **See canonical §6.5 if:** considering hot reload or in-session Policy mutation. Explicitly deferred for MVP.

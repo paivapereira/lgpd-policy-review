@@ -211,10 +211,13 @@ its authoring.
 
 ## Amendment companion edits (2026-05-16)
 
-- `CLAUDE.md` — section on task workflow updated to reflect
-  milestone-scope RF binding and the two-scope verification gate
-  (originally cited "tripartite verification gate"; now cites
-  two-scope gate).
+- `.claude/rules/spec-driven-workflow.md` — section on task workflow
+  updated to reflect milestone-scope RF binding and the two-scope
+  verification gate (originally cited "tripartite verification gate";
+  now cites two-scope gate). Originally listed as CLAUDE.md edit, but
+  the actual content landed in `.claude/rules/spec-driven-workflow.md`
+  during the rules migration of session #22 (PR-3 housekeeping);
+  location corrected 2026-05-22.
 - `docs/learning-log.md` — session #17 entry annotates the in-place
   amendment, preserving the original entry and adding the amendment
   rationale as a sub-section.

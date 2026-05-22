@@ -252,9 +252,12 @@ When a tool's contract has no `errorCode` in one of the three
 classes, the spec states this explicitly rather than omitting the
 row from the consolidated table. Example from
 `semgrep-runner.scan_diff`: the spec declares that this tool emits
-no validation errors because `base_ref` and `head_ref` are Git ref
-strings validated by Git itself during subprocess invocation,
-surfacing as the system-class `INVALID_REF_RESOLUTION` when invalid.
+no validation errors because `base_ref` and `head_ref` are non-empty
+strings validated by the FastMCP runtime via `inputSchema` before
+reaching component code, with semantic resolution surfacing as the
+business-class `GIT_REF_NOT_FOUND` when refs are syntactically valid
+but do not exist in the repo (sync 2026-05-22 with semgrep-runner
+canonical §5 post-canonical-sync-D).
 
 **Rationale.** An absent class in an error table can mean either
 "not yet thought through" or "deliberately empty"; the reader should
@@ -333,7 +336,8 @@ Each MCP server that exposes resources representing a domain
 artifact uses a custom URI scheme matching the artifact name, rather
 than the generic `mcp://`, `file://`, or `http://`. Concretely,
 `policy-reader` exposes resources under `policy://`
-(`policy://catalog`, `policy://schema-version`). Future servers
+(`policy://catalog`, `policy://schema-version`, `policy://vocabularies`
+— the third introduced by ADR-0005 D4). Future servers
 follow the same pattern (a hypothetical rules-serving component
 would use `rules://`).
 

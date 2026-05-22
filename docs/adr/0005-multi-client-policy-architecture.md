@@ -6,6 +6,12 @@
 **Superseded by.** Nothing.
 **Related.** ADR-0002 (MCP conventions and deferments — this ADR refines Decision 7 with the `policy://vocabularies` resource and registers framework-related deferments not covered by Part 2 of ADR-0002).
 
+## Amendment scope (2026-05-22)
+
+Decisions 1 and 2 are amended in-place to align with the canonical clause-envelope field name. The original formulation (2026-05-14, session #16) referred to a clause envelope field `article_source` in Decision 1 ("(`clause_id`, `article_source`, ...)") and described `accepted_law_identifiers` in Decision 2 as governing "statute references admissible in clause `article_source` fields". The field name `article_source` was a residue of a pre-#16 envelope sketch that did not survive into the canonical schema: `policy/SCHEMA.md` §5.1, materialized YAMLs (`policy/clauses/POL-000.yaml`, fixtures POL-001..POL-004), and both `_format_law_reference` (5 positional args, ADR-0009) and `_format_stat_ref` (Pydantic-aware wrapper) in `src/mcp_servers/policy_reader/tools.py` all use `statutory_reference` as the canonical field name, with hierarchical entries (`lei`/`artigo`/`paragrafo`/`inciso`/`alinea`).
+
+Amendment landed in-place rather than as a successor ADR because the substantive decisions of this ADR (vocabulary layering, multi-client architecture, `legal_framework` axis) are intact; only field-name terminology is corrected. Pattern follows ADR-0001 D2 amendment (2026-05-21) and D3 amendment (2026-05-22).
+
 ## Context
 
 The architecture declared in `docs/proposta-tcc2.md` §6 is explicitly
@@ -55,7 +61,7 @@ not a code-modification one.
 
 - **Structural layer.** Universal across all clients and jurisdictions.
   Defines the YAML shape of `policy.yaml`, the clause envelope
-  (`clause_id`, `article_source`, `status`, `requirements`,
+  (`clause_id`, `statutory_reference`, `status`, `requirements`,
   `exceptions`, and the `tombstone` block — containing `successors`,
   `effective_until`, `deprecation_reason` — when `status: deprecated`),
   the closed structural vocabularies (`status` enum: `active`,
@@ -97,7 +103,7 @@ Policy under `legal_framework: LGPD`).
 The distinction is deliberate: `legal_framework` declares the
 jurisdiction (single, governs which `policy/vocabularies/<framework>/`
 files are loaded); `accepted_law_identifiers` declares the lexicon of
-statute references admissible in clause `article_source` fields
+statute references admissible in clause `statutory_reference` fields
 within that jurisdiction (plural, governs validation).
 
 **Rationale.** A Policy operates under one legal framework at a time.

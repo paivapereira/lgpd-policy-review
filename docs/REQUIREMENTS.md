@@ -137,9 +137,9 @@
 
 ### RNF-001 — Stack tecnológica e reprodutibilidade
 
-**Descrição.** Sistema é implementado em Python 3.12.7 sob gerenciamento `uv`, com FastMCP 3.x para servidores MCP, Pydantic 2.5 para validação de esquemas, Semgrep como motor de detecção sintática, GitHub Actions como runtime CI/CD, e Inspect AI como framework de validação empírica do benchmark sintético. Reprodutibilidade depende de lockfile commitado e ausência de instalações ad hoc.
+**Descrição.** Sistema é implementado em Python 3.12.7 sob gerenciamento `uv`, com FastMCP 3.2.4 para servidores MCP, Pydantic 2.13.4 para validação de esquemas, Semgrep 1.163.0 como motor de detecção sintática, GitHub Actions como runtime CI/CD, e Inspect AI como framework de validação empírica do benchmark sintético. Reprodutibilidade depende de lockfile commitado e ausência de instalações ad hoc.
 
-**Critério.** Dependências declaradas em `pyproject.toml` e travadas em `uv.lock` versionado no repositório. Bump de versão major de qualquer dependência crítica exige ADR específico aprovado antes da atualização. ADRs governantes: ADR-0001 (configuração inicial — em débito de sincronização com `uv.lock` atual, FastMCP 3.x) e ADR-0004 (FastMCP 3.x e ajustes de stack — reservado, a redigir antes da primeira sessão de implementação).
+**Critério.** Dependências declaradas em `pyproject.toml` e travadas em `uv.lock` versionado no repositório. Bump de versão major de qualquer dependência crítica exige ADR específico aprovado antes da atualização. ADRs governantes: ADR-0001 (configuração inicial, com amendment 2026-05-21 alinhando Decision 2 à pilha real Semgrep+FastMCP 3.2.4+Pydantic 2.13.4+MCP 1.27.1), ADR-0004 (FastMCP 3.x e ajustes de stack — accepted) e ADR-0010 (Semgrep install discipline).
 
 **Refs.** ADR-0001, ADR-0004 (a redigir); `proposta-tcc2.md` §7.
 

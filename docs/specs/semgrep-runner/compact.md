@@ -118,8 +118,8 @@ Input: {"base_ref": "main", "head_ref": "feature/user-export"}
 Output: {
   "isError": false,
   "structuredContent": {
-    "rules_version": "rules-2026-04-1a7f3b",
-    "semgrep_version": "1.62.0",
+    "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+    "semgrep_version": "1.163.0",
     "scan_metadata": {
       "base_ref": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
       "head_ref": "f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1",
@@ -168,8 +168,8 @@ Input: {"base_ref": "main", "head_ref": "feature/docs-only"}
 Output: {
   "isError": false,
   "structuredContent": {
-    "rules_version": "rules-2026-04-1a7f3b",
-    "semgrep_version": "1.62.0",
+    "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+    "semgrep_version": "1.163.0",
     "scan_metadata": {
       "base_ref": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
       "head_ref": "0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f",

@@ -4995,3 +4995,133 @@ Trilhas paralelas / débitos residuais não-bloqueantes (registradas no handoff 
 - Sweep cross-doc das regras imutáveis ADR-0001 Decision 4 ↔ CLAUDE.md §"Immutable domain rules" (Chat dedicada ~1.5h). **Pendência crítica antes de Milestone C arrancar.**
 - Verificação canonical §5.1 título contra `_template.md` (~5min Code).
 - (Opcional) Adicionar convenção ASCII-fied commit message em PS 5.1 a `.claude/rules/windows-tooling.md`.
+
+## 2026-05-22 — sessão #29 — canonical-sync-D + T05 skeleton
+
+**Entregas.**
+- PR `chore/canonical-sync-D-semgrep-runner` mergeada: canonical.md (+90/-76),
+  compact.md (+44/-30), tasks.md AS-7 (+1/-1).
+- PR `feat/semgrep-runner-skeleton` (T05) mergeada: 10 arquivos, 650 insertions,
+  64 tests passando (53 policy_reader baseline + 11 semgrep_runner).
+- prompt-t05-v3.1.md gerado (output local; Bloco 6 aplicado pós-merge canonical-sync-D).
+- Review cross-doc pós-#28 realizada (13 achados novos catalogados; 3 PRs
+  de housekeeping propostas).
+
+**Decisões fechadas.**
+
+*canonical-sync-D:*
+- Opção C ratificada (validada via web_search contra docs Semgrep): semgrep-runner
+  é runner genérico; rule set MVP cobre personal data BR. Framing "domain-agnostic"
+  é adjetivo arquitetural na description.
+- Description prosa unificada (3 parágrafos, ~190 palavras, byte-idêntica entre
+  canonical §4.2 e compact §5.1). Blockquote removido; prosa plana per pattern
+  policy-reader.
+- 7 decisões de output structure: rules_version/semgrep_version top-level
+  (compact-side placement); rule_severity lowercase, rule_message, location
+  aninhado com start/end col, snippet, elapsed_seconds (canonical-side naming).
+  Mixed-direction sync documentado na commit message.
+- §5 canonical reorganizado per _template.md: §5.1 estrutura canônica do payload,
+  §5.2 classes de erro (validation vazia como declaração positiva), §5.3 casos
+  que parecem erro mas não são (4 casos incl. stderr não-vazio em exit 0),
+  §5.4 tabela consolidada (coluna "Tools que emitem" adicionada per template),
+  §5.5 princípio de evolução. Substituição atômica única (range ## 5 até ## 6
+  exclusive) eliminou ordering hazard da v1.
+- 3 boas práticas Semgrep ancoradas em canonical §2.2 e §4.2: --metrics=off
+  e --json como flags obrigatórias do subprocess; timeout process budget vs
+  --timeout interno são ortogonais (sem impl-spec como subprocess.run — neutro
+  de primitivo per Rev1 U1-S1).
+
+*T05:*
+- 12 DDs ratificadas (T05-1 a T05-12).
+- compute_rules_version: SHA-256 prefixo sha256:, normalização CRLF→LF, filename
+  no input do hash (protege contra rename silencioso), glob *.yaml flat com
+  docstring de forward-compat (rglob + path.relative_to para hierarquia futura).
+- Empty rules dir: raise RulesLoadError em pt-BR ANTES de Pydantic (DD-T05-12,
+  mirror de policy_reader/loader.py:262-267). _bootstrap captura APENAS
+  RulesLoadError; ValidationError propaga uncaught.
+- tools.py / _envelope.py inline em server.py para T05 (DD-T05-11 — premature
+  scaffolding evitado; T06 introduz com conteúdo real).
+- Test count real: 64 (não 62 estimado) porque AS-6 parametrizado em 3 gera
+  3 test functions no pytest.
+
+**Conceitos da prova exercitados.**
+
+- 💡 D4 — Prompt Engineering: validation-retry loop manual (prompt T05 v1→v2→v3→v3.1;
+  multi-instance review em 2 configurações sessão hot vs sessão fresh; convergência
+  empírica entre reviewers como sinal de saturação e critério de parada).
+- 💡 D4 — Prompt Engineering: few-shot via referência estrutural — prompt T05 aponta
+  para tests/mcp_servers/policy_reader/ como pattern operativo em vez de exemplos
+  inline; Code reproduz estrutura em semgrep_runner por espelhamento.
+- 💡 D2 — Tool Design: tool description como prompt do agente em cada turn —
+  inspect.getdoc() normaliza docstring para list_tools(); AS-7 valida byte-identity
+  de toda a cadeia (compact.md → docstring → inspect.getdoc() → list_tools()).
+- 💡 D2 — Tool Design: isError reserved para protocol-level; discriminação de domínio
+  por presença de errorCode em structuredContent (Option B) — materializado no
+  NOT_IMPLEMENTED envelope do stub T05.
+- 💡 D1 — Agentic Architecture: escalation via canary embutido em prompt —
+  cláusula de flag de DD-T05-9 disparou conforme intenção (Code parou antes de
+  Fase 2 e devolveu decisão para camada humana); zero código bugado mergeado.
+- 💡 D1 — Agentic Architecture: skeleton-first task decomposition — T05 entrega
+  esqueleto com gate task-level próprio; T06 preenche; cada um com critério de
+  aceitação independente. _STATE assert no stub protege bootstrap order para T06.
+- 💡 D1 — Agentic Architecture: GATE 1 explícito como separation generator/evaluator
+  (Rajasekaran) — Code é generator do plano; João é evaluator; sem essa separação
+  Code regride para "implementa e descobre problema depois".
+- 💡 D5 — Context Management: provenance arquitetural via web_search — viabilidade
+  de Opção C confirmada contra docs Semgrep antes de ratificar (não inferida de
+  evidência interna do projeto). Pattern: external claims exigem external
+  verification.
+- 💡 D5 — Context Management: specs auto-contidas como lost-in-the-middle defense
+  (sub-decisão A do Cluster 3 — não cross-ref entre specs componentes).
+- 💡 D3 — Claude Code Configuration: template-driven spec authoring —
+  _template.md como contrato de discovery; estrutura fixa garante que toda spec
+  carrega o mesmo set de informações no mesmo lugar.
+
+**Defense candidates emergentes (Capítulo de Método).**
+- Iterative prompt refinement via multi-instance review (v1→v2→v3) com
+  convergência empírica como sinal de saturação.
+- Review multi-instância em duas configurações (hot vs fresh) captura classes
+  complementares de achado: hot tem vantagem em design/framing; fresh tem
+  vantagem em verificação direta (grep, find, glob).
+- Escalation via pre-flight check materializada em prompt como contrato
+  decisional — cláusula de flag de DD-T05-9 disparou conforme intenção.
+- Drift entre formas da spec pode ser lossy quando destilação roda sem
+  cross-check contra AS list (compact omitiu start_col/end_col vs canonical).
+- Substituição atômica vs incremental em diff aplicável: incremental quando
+  decisões individuais ainda precisam de debate; atômico quando deliberação
+  está fechada e o que sobra é mecânica de aplicação.
+- Peer review independente de artefatos de especificação (não só de código)
+  como gate de qualidade pré-execução — canonizável como workflow independente.
+- Mixed-direction sync: diferentes eixos do mesmo diff sincronizam em direções
+  opostas (compact-side placement para provenance; canonical-side naming para
+  findings fields). Commit message precisa nomear cada direção explicitamente.
+
+**Artefatos.**
+- `/mnt/user-data/outputs/prompt-t05-v1.md` (430 linhas)
+- `/mnt/user-data/outputs/prompt-t05-v2.md` (589 linhas)
+- `/mnt/user-data/outputs/prompt-t05-v3.md` (613 linhas)
+- `/mnt/user-data/outputs/prompt-t05-v3.1.md` (611 linhas)
+- `/mnt/user-data/outputs/canonical-sync-d-diff-aplicavel.md` (645 linhas, v1)
+- `/mnt/user-data/outputs/canonical-sync-d-diff-aplicavel-v2.md` (728 linhas, v2)
+- PR `chore/canonical-sync-D-semgrep-runner` (merged, hash head 3c069a2→bf53959)
+- PR `feat/semgrep-runner-skeleton` (merged, hash head 89bf1c7)
+
+**Próximo passo.**
+
+Antes de T06: F1 housekeeping — PR `docs/refresh-stale-state` (~20min Code
+mecânico): CLAUDE.md status flags (Milestone A fechado, 64 tests, 3/3 resources
++ tools, semgrep-runner skeleton operacional), REQUIREMENTS.md RNF-001
+(Pydantic 2.5→2.13.4, débitos removidos), policy-reader compact §5.3 nota MVP
+removida/atualizada, DESIGN.md ADRs 0006-0010 adicionados, semgrep_version nos
+exemplos das specs uniformizados para 1.163.0, rules_version compact exemplo
+→ forma sha256:.
+
+T06 (~3h Code): scan_diff completo — subprocess Semgrep + 6 errorCodes + wire
+format Option B per canonical §5. Pré-requisitos: T05 mergeado ✓, Provisão A
+mergeada ✓, ADR-0010 ratificado ✓, binário semgrep==1.163.0 disponível via
+uv tool install ✓.
+
+Débitos cross-doc catalogados (3 PRs propostas, não urgentes antes de T06
+exceto F1): docs/refresh-stale-state, docs/adr-foundational-amendments,
+docs/canonical-sync-E-policy-reader. Sweep regras imutáveis (ADR-0001 D4 ↔
+CLAUDE.md §Immutable domain rules) crítico antes de Milestone C arrancar.

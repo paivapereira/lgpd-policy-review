@@ -13,7 +13,15 @@ Decision 2 is amended in-place. The original formulation, authored 2026-05-01 in
 
 Amendment landed in-place rather than as a successor ADR because (a) the original Decision 2 was framed as canonical-package adoption ("the path of lowest pedagogical friction toward the exam") rather than as a deliberated technical comparison — there is no original comparison to preserve as historical record; (b) the substantive replacements (Presidio → Semgrep, formal pins) are first-class deliberated decisions documented elsewhere (ADR-0010 + uv.lock), not novel commitments of this ADR; this amendment is a sync, not an independent decision. The pattern follows ADR-0008's in-place amendment (2026-05-16), which used the same rationale.
 
-The original wording survives in the git history at the pre-amendment commit. Decisions 1, 3, 4, 5, and 6 are intact.
+The original wording survives in the git history at the pre-amendment commit. Decisions 1, 4, 5, and 6 are intact (D3 amended in-place 2026-05-22, see Amendment scope (2026-05-22) below).
+
+## Amendment scope (2026-05-22)
+
+Decision 3 is amended in-place. The original formulation, authored 2026-05-01 in session #01, prescribed cláusula IDs in "stable Portuguese form (e.g., `LGPD-Art-7-I`), never translated." ADR-0005 (multi-client policy architecture, session #16, 2026-05-14) formalized the property RF-008 (framework substitution without code change): a cláusula ID literally containing "LGPD" is by definition not framework-agnostic, contradicting the central thesis. The amendment realigns D3 to the opaque `POL-NNN` form already materialized in real artifacts: `policy/clauses/POL-000.yaml`, fixtures POL-001..POL-004, CLAUDE.md §"Languages", architecture-overview.md. The mapping from cláusula to legal source moves entirely to the `statutory_reference` field of each clause.
+
+Amendment landed in-place rather than as a successor ADR because (a) the original D3 was language convention guidance, not a deliberated architectural decision; (b) the substantive replacement (framework-agnostic IDs as RF-008 property) is documented in ADR-0005 and materialized in `policy/clauses/` — this amendment is sync, not novel commitment. The pattern follows Decision 2's in-place amendment (2026-05-21) and ADR-0008's amendment (2026-05-16).
+
+The original wording survives in the git history at the pre-amendment commit. Note also that Immutable Rule 2 in Decision 4 still cites `LGPD-Art-7-I` as an example — that wider sync between CLAUDE.md §"Immutable domain rules" and ADR-0001 Decision 4 is deferred to a dedicated semantic deliberation Chat session scheduled before Milestone C kickoff.
 
 ## Context
 
@@ -195,8 +203,11 @@ The lock-in is the point: alignment with the exam stack is the priority.
   fidelity to the LGPD statute text.
 - System outputs to end users (review reports, PR comments, escalation
   messages): **Brazilian Portuguese**.
-- Cláusula IDs: **stable Portuguese form** (e.g., `LGPD-Art-7-I`),
-  never translated.
+- Cláusula IDs: **opaque stable identifiers** with `POL-` prefix
+  (e.g., `POL-001`), framework-agnostic. The mapping to legal source
+  lives in the `statutory_reference` field of each clause, not in the
+  ID itself. Amended 2026-05-22 (see "Amendment scope (2026-05-22)"
+  above); original form `LGPD-Art-7-I` deprecated.
 
 **Rationale.** Code in English is the unmarked default in the Python and
 Anthropic ecosystems; deviating would create friction for any future

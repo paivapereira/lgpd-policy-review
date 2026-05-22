@@ -56,6 +56,14 @@ do ambiente de execução. Funcionalidade nativa de diff-aware scan via
 `--baseline-commit` é o mecanismo central usado pela tool exposta — o
 componente não reimplementa diferenciação de findings, delega ao Semgrep.
 
+**Flags obrigatórias do subprocess Semgrep.** Independente da combinação de `base_ref`/`head_ref` ou do estado do rule set, o componente sempre invoca `semgrep scan` com três flags constantes:
+
+- `--json` — Output em JSON conforme schema versionado em `semgrep-interfaces/semgrep_output_v1.jsonschema`. Forma de parsing estável; output text e SARIF são reservados para consumo humano, não para o componente.
+- `--metrics=off` — Desabilita telemetria opcional do Semgrep. Decisão arquitetural fechada em ADR-0010: componente opera sem integração Semgrep AppSec Platform (`SEMGREP_APP_TOKEN` não é lido). Passar `--metrics=off` materializa essa decisão de modo robusto, independente do estado do token.
+- `--baseline-commit <base_ref>` — Habilita diff-aware scan nativo do Semgrep. Mecanismo central usado pela tool (parágrafo anterior); sem este flag, o componente reimplementaria diff awareness.
+
+O componente **não passa `--error`** ao subprocess. Comportamento default do Semgrep (exit 0 mesmo com findings) é o desejado: findings vivem no payload retornado pelo componente, não no exit code do subprocess. Esta decisão alinha com RNF-002 (sistema informativo, não-bloqueante).
+
 Versão mínima aceita do binário: `semgrep` 1.x. Pin formal:
 `semgrep==1.163.0`, instalado via `uv tool install` conforme ADR-0010.
 
@@ -87,17 +95,17 @@ do código do server, o nome local da tool é `scan_diff`.
 
 **Description (inglês, sem markdown).**
 
-> Scans the pull request diff for new findings introduced by HEAD relative
-> to BASE, using the project's curated detection rule set for personal data
-> handling candidates. Returns findings with location, code snippet, and
-> rule provenance. Use this tool when the agent has the BASE and HEAD git
-> refs of a pull request and needs to identify candidate sites for further
-> classification. Operation is synchronous and may take seconds to minutes
-> depending on diff size.
+Scans the Git diff between base_ref and head_ref using the project's curated Semgrep rule set, returning findings that match any rule in the set. Use this when the caller has the BASE and HEAD refs of a pull request and needs to identify candidate sites for downstream classification. The rule set is server-side curated and not callable-parameterizable; it is fixed at server build time. The MVP rule set covers Brazilian personal data identifiers (CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde), but the component itself is domain-agnostic — rule set substitution is the supported path for different jurisdictions or detection domains.
+
+Findings are single-file: the MVP does not perform cross-file taint analysis. Each finding carries rule provenance (rule_id), location (file path, line range), and code snippet. Empty findings list is a valid success outcome — the diff was scanned and no rules matched.
+
+Returns success with findings list (possibly empty) on completion. Returns business error if Git refs are unresolvable, system error if the scan times out or the Semgrep binary fails. Operation is synchronous and may take seconds to minutes depending on diff size.
 
 Tempo máximo de execução configurável via variável de ambiente
 `SEMGREP_RUNNER_TIMEOUT_SECONDS`; default 300s. Excedido o limite,
 retorna `SCAN_TIMEOUT` (ver §5).
+
+**Distinção: timeout do processo vs. timeout interno do Semgrep.** `SEMGREP_RUNNER_TIMEOUT_SECONDS` (default 300s) governa o **budget total** do subprocess Semgrep, materializado via o mecanismo de timeout do runtime que invoca o subprocess (decisão de T06 sobre primitivo Python específico — `subprocess.run`, `Popen` + `wait`, `asyncio` — sem implicação para o contrato). Após expiração, o processo recebe SIGTERM seguido de SIGKILL e o componente emite `SCAN_TIMEOUT`. Este timeout é **ortogonal** ao flag `--timeout` do Semgrep CLI (default 5s por rule por arquivo, multiplicado por `--timeout-threshold` default 3): o flag interno governa quanto tempo uma única rule pode rodar em um único arquivo; o componente **não passa `--timeout`** ao subprocess, deixando o default do Semgrep. Caller que precisa controle fino do budget interno é responsabilidade futura (deferimento explícito ADR-0002 ou T06+).
 
 **Input.**
 
@@ -110,30 +118,34 @@ retorna `SCAN_TIMEOUT` (ver §5).
 
 ```yaml
 {
-  scan_metadata: {
-    rules_version: <hash ou semver do rule set>,
-    semgrep_version: <versão do binário usado>,
-    base_ref: <commit hash resolvido de base_ref>,
-    head_ref: <commit hash resolvido de head_ref>,
-    elapsed_seconds: <tempo de execução>
+  rules_version: <string>,          # top-level provenance estática (hash do rule set, ver §6)
+  semgrep_version: <string>,        # top-level provenance estática (versão do binário invocado)
+  scan_metadata: {                  # dynamic per-scan
+    base_ref: <string>,             # 40-char hex commit hash, resolvido do input
+    head_ref: <string>,             # 40-char hex commit hash, resolvido do input
+    files_scanned: <int>,           # contagem de arquivos distintos no diff
+    elapsed_seconds: <float>        # tempo decorrido do scan
   },
   findings: [
     {
-      rule_id: <string, ex: "br-cpf-leak">,
-      rule_severity: <enum: info | warning | error>,
-      rule_message: <texto curto da regra>,
+      rule_id: <string>,            # identificador da regra Semgrep que disparou
+      rule_severity: <enum>,        # info | warning | error — lowercase normalizado de Semgrep uppercase
+      rule_message: <string>,       # texto da regra (campo message do YAML Semgrep)
       location: {
-        path: <relativo ao repo root>,
-        start_line: <int, 1-indexed>,
-        start_col: <int, 1-indexed>,
-        end_line: <int, 1-indexed>,
-        end_col: <int, 1-indexed>
+        path: <string>,             # relativo ao repo root
+        start_line: <int>,          # 1-indexed
+        start_col: <int>,           # 1-indexed
+        end_line: <int>,            # 1-indexed
+        end_col: <int>              # 1-indexed
       },
-      snippet: <string com o código matched>
-    }
+      snippet: <string>             # excerpt no location do finding
+    },
+    ...
   ]
 }
 ```
+
+**Ordenação de `findings`.** Lista ordenada por `(location.path, location.start_line)` ascendente. Ordem estável entre invocações sob o mesmo input — invariante para callers que processam findings sequencialmente.
 
 **Empty result.** `findings: []` com sucesso é estado normal — significa que
 o diff não introduziu candidatos detectáveis pelas regras curadas. Não
@@ -169,11 +181,12 @@ Input: { "base_ref": "main", "head_ref": "feat/onboarding-cpf" }
 Output: {
   "isError": false,
   "structuredContent": {
+    "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+    "semgrep_version": "1.92.0",
     "scan_metadata": {
-      "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
-      "semgrep_version": "1.92.0",
       "base_ref": "a3f5b1c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2",
       "head_ref": "9d8e7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d",
+      "files_scanned": 5,
       "elapsed_seconds": 47.3
     },
     "findings": [
@@ -222,11 +235,12 @@ Input: { "base_ref": "main", "head_ref": "docs/update-readme" }
 Output: {
   "isError": false,
   "structuredContent": {
+    "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+    "semgrep_version": "1.92.0",
     "scan_metadata": {
-      "rules_version": "sha256:b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
-      "semgrep_version": "1.92.0",
       "base_ref": "a3f5b1c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2",
       "head_ref": "1c2b3a4f5e6d7c8b9a0f1e2d3c4b5a6f7e8d9c0b",
+      "files_scanned": 1,
       "elapsed_seconds": 12.1
     },
     "findings": []
@@ -294,56 +308,56 @@ Output: {
 
 ## 5. Contrato de erro
 
-`isError` é o boolean nativo do `CallToolResult` no protocolo MCP. Per
-Option B (canonical §4.2; ADR-0002 §3 amendment 2026-05-17), wire
-`isError: false` em TODOS os retornos deste componente — sucesso, empty
-result, e erros de domínio (classes business/system). Wire `isError: true`
-fica reservado para falhas de protocolo emitidas pelo framework FastMCP
-(input rejeitado por `inputSchema`, tool inexistente, transport-level
-errors), não por este componente. Discriminação semântica sucesso-vs-erro
-opera por **presença do campo `errorCode` em `structuredContent`**: sucesso
-nunca carrega `errorCode`; erro carrega o envelope
-`{errorCode, message, isRetryable, details}` em `structuredContent`.
-Cada `errorCode` listado abaixo materializa cenário de falha de domínio do
-`semgrep-runner` e vive dentro do payload, não no nível protocolar.
-Estrutura do payload segue ADR-0002 Decision 1 (placement híbrido
-`structuredContent` + `content[0].text`) e Decision 3 (três classes).
+Discriminação semântica sucesso-vs-erro opera por **presença do campo `errorCode` em `structuredContent`**: sucesso nunca carrega `errorCode`; erro carrega o envelope `{errorCode, message, isRetryable, details}` em `structuredContent`. Cada `errorCode` listado em §5.4 materializa cenário de falha de domínio do `semgrep-runner` e vive dentro do payload, não no nível protocolar.
 
-Validation errors de domínio são **vazios** neste componente. Os dois
-inputs (`base_ref`, `head_ref`) são strings não-vazias declaradas em
-`inputSchema`; o runtime FastMCP rejeita inputs sintaticamente inválidos
-antes de chegar ao código do componente (essa rejeição emite wire
-`isError: true` per a reserva acima, não erro de domínio classe
-validation). Ausência de validation errors classe-domínio neste componente
-é declaração positiva, não omissão, per ADR-0002 Decision 4.
+Sub-seções abaixo: estrutura canônica do payload (§5.1), classes de erro (§5.2), casos que parecem erro mas não são (§5.3), tabela consolidada de `errorCode` (§5.4), princípio de evolução do contrato (§5.5).
 
-| `errorCode` | Classe | `isRetryable` | Quando ocorre | `details` |
-|---|---|---|---|---|
-| `GIT_REF_NOT_FOUND` | business | false | `base_ref` ou `head_ref` é sintaticamente válido mas não existe no repositório atual. | `{ref_param, ref_value, hint}` |
-| `INSUFFICIENT_GIT_HISTORY` | business | false | Shallow clone impede o Semgrep de resolver merge-base entre os refs para diff-aware scan. | `{hint: "increase actions/checkout fetch-depth"}` |
-| `SCAN_TIMEOUT` | system | true | Scan excedeu `SEMGREP_RUNNER_TIMEOUT_SECONDS`. Subprocess Semgrep terminado com SIGKILL após grace period. | `{timeout_seconds, elapsed_seconds, partial_findings_discarded: true}` |
-| `SEMGREP_BINARY_UNAVAILABLE` | system | false | Binário `semgrep` não encontrado no PATH no momento da invocação. | `{searched_paths}` |
-| `SEMGREP_EXECUTION_FAILED` | system | true | Semgrep terminou com exit code de erro fatal (2) sem causa categorizada. | `{exit_code, stderr_excerpt}` |
-| `INVALID_RULE_SET` | system | false | Regras curadas pelo projeto têm bug sintático (Semgrep exit 4 ou 5). | `{exit_code, stderr_excerpt}` |
+### 5.1 Estrutura canônica do payload de erro
 
-### 5.1 Casos que parecem erro mas não são
+Quatro campos canônicos: `errorCode` (constante em inglês, MAIÚSCULAS_SNAKE, estável entre versões da spec), `message` (humana em português, prosa orientada ao operador ou agente que lê o erro), `isRetryable` (booleano que sinaliza ao caller se retry é caminho viável de remediação), `details` (objeto estruturado cuja forma depende de `errorCode` — ver tabela §5.4). A separação errorCode + message permite que o caller programaticamente roteie por código estável enquanto o humano lê a mensagem.
 
-**Empty findings.** Scan rodou com sucesso, atravessou o diff, nenhuma
-regra matcheou. **Estado normal**, retornado como `{scan_metadata: {...},
-findings: []}` com `isError: false`.
+**Placement no `CallToolResult` MCP.** O envelope canônico mora em `structuredContent` (canal nativo do MCP para JSON estruturado), e `content[0]` carrega um `TextContent` cuja chave `text` reproduz `message` em prosa humana (fallback de legibilidade em logs e retrocompatibilidade com callers que só lêem `content`). O único campo de erro nativo do MCP é o booleano `isError` — wire `isError: true` é reservado para falhas de protocolo emitidas pelo framework FastMCP (input rejeitado por `inputSchema`, tool inexistente, transport-level), não pelo componente. Convenção de Option B materializada em ADR-0002 §3 amendment 2026-05-17: discriminação sucesso-vs-erro de domínio é semântica (presença de `errorCode`), não protocolar (flag `isError` permanece `false`).
 
-**Diff vazio.** `base_ref == head_ref` ou commits idênticos. Semgrep roda,
-não tem nada para escanear, retorna sucesso com lista vazia. Mesmo
-tratamento.
+### 5.2 Classes de erro
 
-**Findings em arquivos preexistentes.** Filtrados nativamente pelo
-`--baseline-commit` do Semgrep antes de chegar ao caller. Não emergem como
-findings visíveis.
+Três classes: **validation**, **business**, **system**. Definição operacional de cada uma e regra de `isRetryable` por classe:
+
+- **validation** — Input sintaticamente válido mas semanticamente inválido contra vocabulário ou regra do componente. `isRetryable: false` por classe (retry sem mudar input não tem caminho de remediação; caller corrige input e reinvoca).
+- **business** — Estado do mundo (refs Git, histórico, etc.) incompatível com a operação solicitada. `isRetryable: false` por classe (retry sem mudar estado do mundo não muda outcome; caller corrige estado e reinvoca, ou usa caminho alternativo).
+- **system** — Falha em recurso externo (subprocess, binário, filesystem) ou em invariante interno do componente. `isRetryable` varia por errorCode específico: timeouts e falhas transient são retryable; binário ausente ou rule set inválido não são.
+
+**A classe validation é vazia neste componente — ausência de validation errors é declaração positiva, não omissão.** Os dois inputs de `scan_diff` (`base_ref`, `head_ref`) são strings não-vazias declaradas em `inputSchema`; o runtime FastMCP rejeita inputs sintaticamente inválidos antes de chegar ao código do componente (rejeição emite wire `isError: true` pelo framework, não erro de domínio classe validation). Declaração positiva da classe vazia materializa princípio do ADR-0002 §4.
+
+### 5.3 Casos que parecem erro mas não são
+
+**Empty findings.** Scan rodou com sucesso, atravessou o diff, nenhuma regra matcheou. **Estado normal**, retornado como `{scan_metadata: {...}, findings: []}` com `isError: false`.
+
+**Diff vazio.** `base_ref == head_ref` ou commits idênticos. Semgrep roda, não tem nada para escanear, retorna sucesso com lista vazia. Mesmo tratamento.
+
+**Findings em arquivos preexistentes.** Filtrados nativamente pelo `--baseline-commit` do Semgrep antes de chegar ao caller. Não emergem como findings visíveis.
+
+**Stderr não-vazio em exit code 0.** Semgrep emite warnings ocasionais no stderr para rules que não matcheam o target language ou para arquivos parcialmente parseáveis, mesmo quando o scan completa com sucesso (exit 0). Estado normal — warnings são descartadas pelo componente; payload retornado reflete apenas o scan structure (findings matched + scan_metadata). Não é erro. Comportamento observado contra Semgrep 1.163.0 (pin do projeto per ADR-0010).
+
+### 5.4 Tabela consolidada de `errorCode`
+
+| `errorCode` | Classe | `isRetryable` | Tools que emitem | Quando ocorre | `details` |
+|---|---|---|---|---|---|
+| `GIT_REF_NOT_FOUND` | business | false | `scan_diff` | `base_ref` ou `head_ref` é sintaticamente válido mas não existe no repositório atual. | `{ref_param, ref_value, hint}` |
+| `INSUFFICIENT_GIT_HISTORY` | business | false | `scan_diff` | Shallow clone impede o Semgrep de resolver merge-base entre os refs para diff-aware scan. | `{hint: "increase actions/checkout fetch-depth"}` |
+| `SCAN_TIMEOUT` | system | true | `scan_diff` | Scan excedeu `SEMGREP_RUNNER_TIMEOUT_SECONDS`. Subprocess Semgrep terminado com SIGKILL após grace period. | `{timeout_seconds, elapsed_seconds, partial_findings_discarded: true}` |
+| `SEMGREP_BINARY_UNAVAILABLE` | system | false | `scan_diff` | Binário `semgrep` não encontrado no PATH no momento da invocação. | `{searched_paths}` |
+| `SEMGREP_EXECUTION_FAILED` | system | true | `scan_diff` | Semgrep terminou com exit code de erro fatal (2) sem causa categorizada. | `{exit_code, stderr_excerpt}` |
+| `INVALID_RULE_SET` | system | false | `scan_diff` | Regras curadas pelo projeto têm bug sintático (Semgrep exit 4 ou 5). | `{exit_code, stderr_excerpt}` |
+
+A tabela acima é exaustiva para a v0.1.0 da spec. **A classe validation é vazia neste componente — ver §5.2 para declaração positiva.** Erros de protocolo MCP (Nível 1 — schema do `inputSchema` violado, tool inexistente, transport-level) não aparecem nesta tabela; são tratados pelo protocolo, não pelo componente.
+
+### 5.5 Princípio de evolução do contrato
+
+Adicionar `errorCode` ao contrato é mudança **minor** da spec (`spec_version` 0.1.0 → 0.2.0). Remover ou mudar semântica de `errorCode` existente é mudança **major** (incompatível com callers existentes). Versionamento da spec governado por ADR-0002 §6.
 
 ## 6. Provenance e versionamento
 
-O componente carrega três eixos de versão independentes, todos refletidos
-em `scan_metadata` de cada finding emitido:
+O componente carrega eixos de provenance distribuídos entre nível top-level do `structuredContent` (provenance estática — `rules_version` e `semgrep_version`, não mudam durante o lifetime do servidor para um dado rule set / binário) e `scan_metadata` aninhado (provenance dinâmica por-scan — `base_ref` e `head_ref` resolvidos, `files_scanned`, `elapsed_seconds`):
 
 - `rules_version` — versão do rule set curado pelo projeto. Trilha de
   auditoria de regras de detecção. Muda quando regras são adicionadas,
@@ -421,7 +435,7 @@ observável, verificável por teste automatizado ou inspeção direta.
 
 ### 8.1 Tool `scan_diff` — caso normal
 
-- [ ] Tool retorna `{scan_metadata, findings}` com `isError: false` quando o diff entre `base_ref` e `head_ref` casa pelo menos uma regra do rule set curado.
+- [ ] Tool retorna sucesso com `isError: false` quando o diff entre `base_ref` e `head_ref` casa pelo menos uma regra do rule set curado. `structuredContent` carrega quatro chaves: `rules_version` e `semgrep_version` em top-level (provenance estática), `scan_metadata` (com `base_ref`, `head_ref`, `files_scanned`, `elapsed_seconds`), e `findings`.
 - [ ] Cada item de `findings` carrega `rule_id`, `rule_severity` (∈ {`info`, `warning`, `error`}), `rule_message`, `location` (com `path`, `start_line`, `start_col`, `end_line`, `end_col`) e `snippet`.
 - [ ] `location.path` é relativo ao repo root, não absoluto.
 - [ ] `start_line`, `start_col`, `end_line`, `end_col` em `location` são inteiros 1-indexed.
@@ -444,7 +458,7 @@ observável, verificável por teste automatizado ou inspeção direta.
 
 ### 8.4 Provenance
 
-- [ ] Todo retorno de sucesso (incluindo empty result) carrega em `scan_metadata`: `rules_version`, `semgrep_version`, `base_ref`, `head_ref`, `elapsed_seconds`.
+- [ ] Todo retorno de sucesso (incluindo empty result) carrega `rules_version` e `semgrep_version` em nível top-level de `structuredContent` (provenance estática); `scan_metadata: {base_ref, head_ref, files_scanned, elapsed_seconds}` aninhado (metadata dinâmica por scan).
 - [ ] `base_ref` e `head_ref` em `scan_metadata` são commit hashes resolvidos (40 chars hex), não branch names ou tags.
 - [ ] `rules_version` é estável entre execuções consecutivas quando o rule set não foi alterado — duas chamadas seguidas sem mudança em `mcp_servers/semgrep_runner/rules/` retornam o mesmo valor.
 - [ ] `rules_version` muda quando o conteúdo de `mcp_servers/semgrep_runner/rules/` é alterado (regra adicionada, removida ou modificada).

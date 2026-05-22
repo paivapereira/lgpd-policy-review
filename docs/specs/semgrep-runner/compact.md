@@ -61,11 +61,11 @@ One tool. Naming convention: `mcp__semgrep-runner__scan_diff` (runtime-generated
 
 **Description (English, no markdown, this is the actual tool description seen by the model):**
 
-> Run Semgrep over the Git diff between `base_ref` and `head_ref` of the current repository, using the project-curated rule set. Returns the list of findings emitted by Semgrep for files touched in the diff. Use this when the caller needs to identify static-analysis candidates in a code change before downstream classification by the Matcher.
->
-> The rule set is fixed at server build time and is not callable-parameterizable. Findings are single-file: the MVP does not perform cross-file taint analysis. Static analysis identifies candidates for downstream verification — it does not produce compliance verdicts.
->
-> Returns success with a list of findings (possibly empty) on completion. Returns business/validation error if refs are unresolvable, system error if the scan times out or the Semgrep binary fails.
+Scans the Git diff between base_ref and head_ref using the project's curated Semgrep rule set, returning findings that match any rule in the set. Use this when the caller has the BASE and HEAD refs of a pull request and needs to identify candidate sites for downstream classification. The rule set is server-side curated and not callable-parameterizable; it is fixed at server build time. The MVP rule set covers Brazilian personal data identifiers (CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde), but the component itself is domain-agnostic — rule set substitution is the supported path for different jurisdictions or detection domains.
+
+Findings are single-file: the MVP does not perform cross-file taint analysis. Each finding carries rule provenance (rule_id), location (file path, line range), and code snippet. Empty findings list is a valid success outcome — the diff was scanned and no rules matched.
+
+Returns success with findings list (possibly empty) on completion. Returns business error if Git refs are unresolvable, system error if the scan times out or the Semgrep binary fails. Operation is synchronous and may take seconds to minutes depending on diff size.
 
 **Note:** `scan_diff` does not accept `rule_set` as a parameter. For potential future modes (e.g., fast vs full scan), the canonical response is tool split, not parametrization of `scan_diff`.
 
@@ -80,30 +80,34 @@ One tool. Naming convention: `mcp__semgrep-runner__scan_diff` (runtime-generated
 
 ```yaml
 {
-  rules_version: <string>,         # hash or semver of the curated rule set (see §6)
-  semgrep_version: <string>,       # version of the Semgrep CLI invoked
-  scan_metadata: {
+  rules_version: <string>,         # top-level static provenance (hash of rule set, see §6)
+  semgrep_version: <string>,       # top-level static provenance (version of Semgrep CLI invoked)
+  scan_metadata: {                 # dynamic per-scan
     base_ref: <string>,            # 40-char hex commit hash, resolved from input
     head_ref: <string>,            # 40-char hex commit hash, resolved from input
     files_scanned: <int>,          # count of distinct files touched in diff
-    duration_seconds: <float>
+    elapsed_seconds: <float>       # scan elapsed time
   },
   findings: [
     {
       rule_id: <string>,           # Semgrep rule identifier
-      severity: <enum: ERROR | WARNING | INFO>,
-      file_path: <string>,         # repo-relative
-      line_start: <int>,
-      line_end: <int>,
-      message: <string>,           # rule's message field
-      code_snippet: <string>       # excerpt at finding location
+      rule_severity: <enum>,       # info | warning | error — lowercase normalized from Semgrep uppercase
+      rule_message: <string>,      # rule's message field
+      location: {
+        path: <string>,            # repo-relative
+        start_line: <int>,         # 1-indexed
+        start_col: <int>,          # 1-indexed
+        end_line: <int>,           # 1-indexed
+        end_col: <int>             # 1-indexed
+      },
+      snippet: <string>            # excerpt at finding location
     },
     ...
   ]
 }
 ```
 
-**Findings list semantics:** ordered by `(file_path, line_start)` ascending. Empty list (`findings: []`) is a valid success — means Semgrep ran successfully and found no matches in the diff. This is **not** an error.
+**Findings list semantics:** ordered by `(location.path, location.start_line)` ascending. Order is stable across invocations under the same input. Empty list (`findings: []`) is a valid success — means Semgrep ran successfully and found no matches in the diff. This is **not** an error.
 
 **Errors:** `GIT_REF_NOT_FOUND`, `INSUFFICIENT_GIT_HISTORY`, `SCAN_TIMEOUT`, `SEMGREP_BINARY_UNAVAILABLE`, `SEMGREP_EXECUTION_FAILED`, `INVALID_RULE_SET` (see table §3).
 
@@ -120,32 +124,42 @@ Output: {
       "base_ref": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
       "head_ref": "f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1",
       "files_scanned": 3,
-      "duration_seconds": 4.21
+      "elapsed_seconds": 4.21
     },
     "findings": [
       {
         "rule_id": "python.lang.security.audit.weak-hash.weak-hash",
-        "severity": "WARNING",
-        "file_path": "src/users/export.py",
-        "line_start": 42,
-        "line_end": 42,
-        "message": "Use of MD5 is insecure for hashing passwords.",
-        "code_snippet": "    return hashlib.md5(password.encode()).hexdigest()"
+        "rule_severity": "warning",
+        "rule_message": "Use of MD5 is insecure for hashing passwords.",
+        "location": {
+          "path": "src/users/export.py",
+          "start_line": 42,
+          "start_col": 5,
+          "end_line": 42,
+          "end_col": 60
+        },
+        "snippet": "    return hashlib.md5(password.encode()).hexdigest()"
       },
       {
         "rule_id": "python.flask.security.audit.no-csrf-protection",
-        "severity": "ERROR",
-        "file_path": "src/users/export.py",
-        "line_start": 87,
-        "line_end": 95,
-        "message": "Endpoint missing CSRF protection.",
-        "code_snippet": "@app.route('/export', methods=['POST'])\ndef export_users():..."
+        "rule_severity": "error",
+        "rule_message": "Endpoint missing CSRF protection.",
+        "location": {
+          "path": "src/users/export.py",
+          "start_line": 87,
+          "start_col": 1,
+          "end_line": 95,
+          "end_col": 24
+        },
+        "snippet": "@app.route('/export', methods=['POST'])\ndef export_users():..."
       }
     ]
   },
   "content": [{"type": "text", "text": "scan_diff: 2 findings em 3 arquivos (4.21s)."}]
 }
 ```
+
+Note: the example above uses Semgrep Registry rule IDs (`python.lang.security.audit.*`) for didactic value. The project MVP rule set carries rules with IDs in `br-cpf`, `br-cnpj`, etc. pattern (see T07).
 
 **Example — empty result (no findings, success):**
 
@@ -160,7 +174,7 @@ Output: {
       "base_ref": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
       "head_ref": "0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f",
       "files_scanned": 2,
-      "duration_seconds": 1.87
+      "elapsed_seconds": 1.87
     },
     "findings": []
   },

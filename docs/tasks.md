@@ -284,7 +284,7 @@ Custo estimado: ~1.5-2h Chat de deliberação dos snippets/padrões + ~30min Cod
 
 - **AS-6 — `rules_version` muda com conteúdo.** Dado `rules_version` v1 computado contra fixture inicial, quando um novo arquivo YAML é adicionado em `rules/` (ou um existente é editado), `compute_rules_version` é re-invocado, e o retorno difere de v1.
 
-- **AS-7 — Tool `scan_diff` registrada com description final.** Dado servidor iniciado em AS-1, quando o cliente MCP invoca `list_tools`, então a lista carrega `scan_diff` com a description exatamente conforme canonical §4.2 (texto em inglês, sem markdown), independentemente de a implementação ainda ser stub.
+- **AS-7 — Tool `scan_diff` registrada com description final.** Dado servidor iniciado em AS-1, quando o cliente MCP invoca `list_tools`, então a lista carrega `scan_diff` com a description exatamente conforme canonical §4.2 / compact §5.1 (formas paritárias pós canonical-sync-D; texto em inglês, sem markdown, três parágrafos em prosa plana), independentemente de a implementação ainda ser stub.
 
 - **AS-8 — Stub de `scan_diff` retorna envelope claro.** Dado servidor iniciado em AS-1, quando `scan_diff` é invocada com refs válidos, então (per Option B — wire `isError: false`) retorna envelope `{errorCode: "NOT_IMPLEMENTED", message, isRetryable: false, details: {task: "T05"}}` em `structuredContent`, sinalizando que a tool aguarda implementação completa em T06.
 

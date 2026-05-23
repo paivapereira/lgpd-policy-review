@@ -114,6 +114,8 @@ retorna `SCAN_TIMEOUT` (ver §5).
 | `base_ref` | string | sim | Git ref (commit hash, branch name, or tag) representing the baseline against which new findings are computed. |
 | `head_ref` | string | sim | Git ref representing the current PR state to scan. |
 
+**Invariantes de pré-invocação (caller responsibility).** O componente assume que (a) o `cwd` do processo MCP server é a raiz do repositório Git contra o qual `scan_diff` deve operar; (b) ambos `base_ref` e `head_ref` existem no checkout local (não shallow para distâncias acima da `fetch-depth` configurada — caso contrário emite `INSUFFICIENT_GIT_HISTORY`); (c) binário `git >= 2.30` está disponível no PATH (requisito do flag `--baseline-commit` do Semgrep, que depende de `git diff --merge-base` introduzido em git 2.30 — ver Semgrep issue semgrep/semgrep#5891). Violação de (a) ou (c) não é coberta por errorCode do componente; é responsabilidade do orquestrador (`Detector` no MVP) garantir as pré-condições antes de invocar.
+
 **Output em sucesso.**
 
 ```yaml
@@ -338,6 +340,8 @@ Três classes: **validation**, **business**, **system**. Definição operacional
 
 **Stderr não-vazio em exit code 0.** Semgrep emite warnings ocasionais no stderr para rules que não matcheam o target language ou para arquivos parcialmente parseáveis, mesmo quando o scan completa com sucesso (exit 0). Estado normal — warnings são descartadas pelo componente; payload retornado reflete apenas o scan structure (findings matched + scan_metadata). Não é erro. Comportamento observado contra Semgrep 1.163.0 (pin do projeto per ADR-0010).
 
+**JSON `errors[]` não-vazio em exit code 0.** Distinto do caso anterior (que cobre o canal OS stderr): Semgrep popula o array `errors[]` dentro do próprio JSON output mesmo em exit 0, carregando warnings que o componente classifica como non-fatal por design (o flag `--strict` do Semgrep mudaria isso; o componente **não passa `--strict`**). Estado normal — entradas em `errors[]` na resposta de sucesso são descartadas pelo componente. Comportamento observado contra Semgrep 1.163.0 (pre-flight T06 §3.E).
+
 ### 5.4 Tabela consolidada de `errorCode`
 
 | `errorCode` | Classe | `isRetryable` | Tools que emitem | Quando ocorre | `details` |
@@ -346,8 +350,10 @@ Três classes: **validation**, **business**, **system**. Definição operacional
 | `INSUFFICIENT_GIT_HISTORY` | business | false | `scan_diff` | Shallow clone impede o Semgrep de resolver merge-base entre os refs para diff-aware scan. | `{hint: "increase actions/checkout fetch-depth"}` |
 | `SCAN_TIMEOUT` | system | true | `scan_diff` | Scan excedeu `SEMGREP_RUNNER_TIMEOUT_SECONDS`. Subprocess Semgrep terminado com SIGKILL após grace period. | `{timeout_seconds, elapsed_seconds, partial_findings_discarded: true}` |
 | `SEMGREP_BINARY_UNAVAILABLE` | system | false | `scan_diff` | Binário `semgrep` não encontrado no PATH no momento da invocação. | `{searched_paths}` |
-| `SEMGREP_EXECUTION_FAILED` | system | true | `scan_diff` | Semgrep terminou com exit code de erro fatal (2) sem causa categorizada. | `{exit_code, stderr_excerpt}` |
-| `INVALID_RULE_SET` | system | false | `scan_diff` | Regras curadas pelo projeto têm bug sintático (Semgrep exit 4 ou 5). | `{exit_code, stderr_excerpt}` |
+| `SEMGREP_EXECUTION_FAILED` | system | true | `scan_diff` | Semgrep terminou com exit code de erro fatal (2, 3, 13, 99, ou outros não-mapeados) sem causa categorizada. | `{exit_code, stderr_excerpt}` |
+| `INVALID_RULE_SET` | system | false | `scan_diff` | Rule set não-utilizável¹ (Semgrep exits 7 ou 8). | `{exit_code, stderr_excerpt}` |
+
+¹ INVALID_RULE_SET cobre 2 causas observadas empiricamente em Semgrep 1.163.0 (pinned via `uv tool install` per ADR-0010): configuração ausente, malformada ou YAML não-parseável (exit 7 — Semgrep colapsa YAML errors em "invalid configuration"); linguagem não-suportada por regra (exit 8). Exits 4 e 5 documentados na CLI reference do Semgrep são empiricamente inalcançáveis em 1.163.0 (exit 2 e exit 7 cobrem respectivamente os casos que a CLI reference atribui a 4 e 5); se alcançados em versão futura, cairiam no fallback genérico `SEMGREP_EXECUTION_FAILED` per CLAUDE.md "no defensive code for impossible scenarios". Verifique `stderr_excerpt` para diagnóstico específico — operator-facing, não machine-facing.
 
 A tabela acima é exaustiva para a v0.1.0 da spec. **A classe validation é vazia neste componente — ver §5.2 para declaração positiva.** Erros de protocolo MCP (Nível 1 — schema do `inputSchema` violado, tool inexistente, transport-level) não aparecem nesta tabela; são tratados pelo protocolo, não pelo componente.
 
@@ -477,6 +483,20 @@ observável, verificável por teste automatizado ou inspeção direta.
 - [ ] `SCAN_TIMEOUT` é emitido após 300s quando `SEMGREP_RUNNER_TIMEOUT_SECONDS` está ausente do environment; após o valor configurado quando presente.
 - [ ] Findings em arquivos não modificados pelo diff entre `base_ref` e `head_ref` não aparecem em `findings`, mesmo quando regras matcheariam neles ao escanear o repo inteiro.
 - [ ] Quando `SCAN_TIMEOUT` é emitido, o subprocess Semgrep está garantidamente terminado — invocações subsequentes não competem com processos zumbis pelo binário.
+
+**Exit code mapping (detalhe de implementação — Semgrep 1.163.0).** Tabela de mapeamento process exit code → `errorCode` consolidada empiricamente em T06 pre-flight §3.E. Mantida nesta sub-seção e não em §5.4 porque é detalhe de implementação (caller só vê os 6 `errorCode` da tabela §5.4; o mapeamento muda sob versões diferentes de Semgrep, os errorCodes não).
+
+| Exit code | Significado empírico (1.163.0)               | `errorCode` mapeado          |
+|-----------|----------------------------------------------|------------------------------|
+| 0         | Sucesso (sem ou com findings)                | (não-erro)                   |
+| 2,3,13,99 | Falha de execução genérica                   | `SEMGREP_EXECUTION_FAILED`   |
+| 7         | Config ausente/malformada/YAML não-parseável | `INVALID_RULE_SET`           |
+| 8         | Linguagem não-suportada por regra            | `INVALID_RULE_SET`           |
+| Outros    | Não-mapeado — fallback                       | `SEMGREP_EXECUTION_FAILED`   |
+
+Exits 4 e 5 documentados na CLI reference do Semgrep não aparecem nesta tabela porque são empiricamente inalcançáveis em 1.163.0 (CLAUDE.md "no defensive code for impossible scenarios"); ver footnote ¹ em §5.4 para o detalhe.
+
+Ortogonal ao process exit code, o componente também inspeciona `errors[].message` no stdout JSON em exit ≠ 0 (DD-T06-22) para refinar a discriminação de `INSUFFICIENT_GIT_HISTORY` quando a checagem proativa `git rev-parse --is-shallow-repository` retorna `false` mas o `--baseline-commit` interno do Semgrep ainda assim falha por histórico ausente (ex.: `"Exception in BaselineHandler initialization"`).
 
 ### 8.<final> Review pass do architecture-overview
 

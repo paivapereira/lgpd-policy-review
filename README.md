@@ -37,6 +37,7 @@ Pré-requisitos do ambiente de desenvolvimento. Estas instruções cobrem reprod
 - **Python 3.12.7** via [pyenv-win](https://github.com/pyenv-win/pyenv-win), pinado em `.python-version`.
 - **Node 24** via npm em diretório de usuário (não requer admin local).
 - **Semgrep 1.163.0** via `uv tool install`, isolado do `uv.lock` do projeto ([ADR-0010](docs/adr/0010-semgrep-installation-strategy.md)).
+- **Git >= 2.30** no PATH. Requerido por `semgrep-runner`/`scan_diff` para uso de `--baseline-commit`, que depende de `git diff --merge-base` introduzido em git 2.30 (Semgrep issue [semgrep/semgrep#5891](https://github.com/semgrep/semgrep/issues/5891)).
 
 **Instalação em PowerShell 5.1 (Windows 11 sem admin local):**
 

@@ -389,10 +389,6 @@ PRs separados ou commits internos de PRs principais, fora do escopo de implement
 - README pin de Semgrep: documenta `uv tool install semgrep==1.163.0` como prerequisite na seção Setup, alongside Python 3.12.7 via pyenv-win e Node 24, conforme ADR-0010.
 - ADR-0001 Decision 2 amendment in-place: alinha stack canônica à realidade — Semgrep (substitui Presidio menção); FastMCP 3.2.4 pin formal; Pydantic 2.13.4 pin formal; MCP 1.27.1 pin formal. Espelha pattern de amendment in-place de ADR-0008 (2026-05-16).
 
-**Resolver pós-T07 ou em PR mecânica dedicada:**
-
-- `docs/architecture-overview.md` §4.4 hedge removal: o texto atual "Regras Semgrep ou módulos equivalentes" reflete decisão em aberto. Após T07 fechar com escolha definitiva por regras Semgrep YAML, sync para "Regras Semgrep em formato YAML". Companion edit pequena, viaja com próxima PR que tocar `architecture-overview.md` por outro motivo, ou PR mecânica dedicada se nenhuma outra emergir.
-
 ---
 
 ## Pós-Milestone B aberto

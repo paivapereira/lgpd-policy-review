@@ -1,77 +1,257 @@
 # Handoff #32 → #33
 
-## Estado atual (pós-T06 mergeado)
+## Estado atual (pós-housekeeping pre-T07 mergeado)
 
-PR #56 mergeado: `feat(semgrep-runner): T06 — scan_diff completo (subprocess + X1 mapping + Option B)`. 83 tests passing (53 policy_reader baseline + 9 test_bootstrap pós-cleanup + 21 test_scan_diff). Ruff All checks passed. Mypy Success em 8 source files (escopo `src/mcp_servers/semgrep_runner/`).
+PR #57 mergeada: `chore/housekeeping-pre-t07` — cleanup de drifts cross-doc.
+8 commits internos pre-squash colapsados via squash-merge no GitHub UI. Hash
+do squash a registrar pós-pull `<TBD>`. 83 tests passing preservados; ruff
+clean; mypy Success em 16 source files de `src/`.
 
-Milestone B (semgrep-runner core) substantialmente avançado: T05 (skeleton + rule loader + stub) e T06 (`scan_diff` completo) ambos em main. Próxima task da Milestone B é T07 (Detector subagent) — primeiro consumer real de `scan_diff` via FastMCP Client.
+PR #56 (T06 scan_diff completo) mergeada anteriormente na mesma sessão #32.
+Milestone B substantialmente avançado em T05+T06; T07 (Detector subagent) é
+a próxima task topológica de Milestone B — primeiro consumer real de
+`scan_diff` via FastMCP Client.
 
-## DDs implementadas em T06 (22 novas + 1 invariante canonical §4.2)
+Sessão #32 encerrada formalmente neste handoff. Sessão #33 reservada para
+prep T07.
 
-DD-T06-1 a DD-T06-21 ratificadas em prompt v5.1 antes de implementação. DD-T06-22 e DD-T06-23 emergiram como implementation surprises:
+## DDs/decisões load-bearing que persistem como contexto pós-housekeeping
 
-- **DD-T06-22** (ratificada em GATE 1 pós-pre-flight): parse stdout JSON best-effort em ramo de erro para enrichment de `details.stderr_excerpt`; failure de parse = fallback transparente para stderr cru.
-- **DD-T06-23** (ratificada em halt de 3.A): snippet derivado por filesystem read em `_read_snippet(location, repo_root)` porque Semgrep OSS sem `SEMGREP_APP_TOKEN` emite `extra.lines = "requires login"` em vez de código real; canonical §8 veta token.
+1. **Convenção bare ratificada para rule_id Semgrep.** `br-cpf`, `br-cnpj`,
+   `br-cnh`, `br-nis-pis`, `br-titulo-eleitor`, `br-cns-saude` — uma regra
+   por identificador, cobrindo N padrões via `pattern-either`. Canonical
+   examples agora coerentes com convenção tasks.md T07 e com filenames
+   `br_cpf.yaml` em `mcp_servers/semgrep_runner/rules/`. T07 implementação
+   deve usar este vocabulário.
 
-## Decisões load-bearing que merecem persistir como contexto
+2. **Severity convention para regras BR ratificada.** `warning` para
+   identificadores comuns (CPF, CNPJ, CNH, NIS, título eleitor); `error`
+   apenas para casos com razão semântica forte (e.g., CNS-saúde sob LGPD
+   Art. 11 sensíveis). Coerente com Chat review T07 prescrito em tasks.md.
+   Decisão antecipada em #32 housekeeping; T07 implementa.
 
-1. **Exit code mapping X1 (ratificado em GATE 1).** Exits 4 e 5 documentados em CLI reference são empíricamente inalcançáveis em Semgrep 1.163.0; removidos do mapping per CLAUDE.md "no defensive code". Pre-flight 3.E confirmou: "rule parse error" cai em exit 2, "unparseable YAML" cai em exit 7 (colapsado em wrapper "invalid configuration"). Mapping final: `0→success; 7,8→INVALID_RULE_SET; 2,3,13,99,outros→SEMGREP_EXECUTION_FAILED`.
+3. **mypy + ruff agora em `[dependency-groups.dev]`.** Pin oficial
+   (`mypy>=1.18`, `ruff>=0.13`) via `uv.lock`. Workaround `uv run --with
+   mypy mypy` aposentado. Comandos canônicos a partir de #33:
+   - `uv run mypy src/` para checagem do código de aplicação.
+   - `uv run ruff check .` para lint.
+   - `uv run pytest -q` para tests.
 
-2. **DD-T06-6 refinada — shallow signal em JSON, não stderr.** Pre-flight 3.G descobriu que Semgrep em shallow repo com `--baseline-commit` produz `errors[].message: "Exception in BaselineHandler initialization: ..."` em stdout JSON, com stderr vazio. Lazy layer DD-T06-6 inspeciona `errors[].message` via 4 substrings (`BaselineHandler initialization`, `shallow`, `merge-base`, `cannot find common ancestor`).
+4. **`[tool.mypy] exclude`** apontando para
+   `tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/`.
+   Fixtures Semgrep são deliberadamente type-incorrect pelo padrão stdlib
+   (structured logging via kwargs); excluídos do strict checking. Novos
+   fixtures adicionados em T07 ou em Provisão futura herdam o exclude
+   automaticamente — sem necessidade de `# type: ignore` per-snippet.
 
-3. **6 companion edits cross-doc aplicados.** Canonical §4.2 caller invariants; §5.3 quinto caso JSON errors[]; §5.4 INVALID_RULE_SET expansão (exits 7|8) + SEMGREP_EXECUTION_FAILED clarificação + footnote¹ com pin de versão; §8.6 exit code mapping subsection; README git ≥ 2.30; tasks.md §T06 AS-13 psutil → `_pid_alive_windows`. Bundling justificado como "novas decisões contratuais, não pre-existing debt".
+5. **`.claude/rules/windows-tooling.md` extendido com ASCII commit
+   convention** (5 seções: Principle/Justification/How to apply/Scope +
+   header). Rule auto-carregada pelo Code em sessões futuras quando os
+   path-scoped triggers casam. Code não precisa receber lembrete no
+   prompt — convenção materializada.
 
-4. **AS-7 namespace collision T05 vs T06 fechado.** T05's AS-7 (description byte-identity) preservado em `test_bootstrap.py`; T06's AS-7 (`SEMGREP_BINARY_UNAVAILABLE` per-call) em `test_scan_diff.py`. Naming convention `test_as7_*` (sem underscore extra) consistente com T05.
+6. **Gate de regressão exclusion-aware com 5 exclusões cumulativas.**
+   Pattern operacional consolidado para grep-based regression checks
+   em PRs cross-doc futuras:
+   ```bash
+   git grep -nE "<token>" -- . \
+     ':!docs/learning-log.md' \
+     ':!docs/session-handoff.md' \
+     ':!docs/adr/' \
+     ':!docs/DESIGN.md' \
+     ':!src/mcp_servers/policy_reader/models.py'
+   ```
+   Exclusões justificadas como audit trail intencional (learning-log,
+   handoff, ADRs) ou audit trail cross-doc legítimo preservado em sites
+   não-tocados pela PR (DESIGN.md ADR-0005 rename note; models.py docstring
+   nova). Padrão a aplicar em futuras housekeepings cross-doc.
 
-5. **Splittability T06 rejeitada com justificativa empírica.** Excedeu janela ADR-0008 (~3-4h vs 1-3h prescrito) mas split em T06a/T06b violaria coverage de AS-11 (wire format Option B precisa happy path + ≥1 error path), duplicaria mock infra (AS-6/AS-7/AS-13 compartilham), e descartaria pre-flight 3.H (subprocess cleanup só faz sentido com Fase 3 tocando subprocess). Awareness > tacit assumption per §11 do prompt v5.1.
+7. **`policy/clauses/POL-000.yaml` + Provisão B (fixture pack BR)
+   mergeados.** Disponíveis como fixtures base para T07:
+   - POL pack para tests de Detector que precisem invocar policy-reader
+     em integração.
+   - Recognizer pack BR para tests de scan_diff invocado pelo Detector
+     subagent.
 
-## Lessons metodológicas (defense candidate forte para Capítulo de Método)
+8. **Estado de débitos pós-PR #57.**
+   - **Zero débitos mecânicos abertos** (todos os 7 catalogados nos
+     handoffs #31+#32 fechados).
+   - **D-5 deferido**: sweep cross-doc das regras imutáveis ADR-0001
+     Decision 4 ↔ CLAUDE.md §"Immutable domain rules". Bloqueante para
+     Milestone C, não para T07. Sessão Chat dedicada ~1.5h antes do início
+     de C.
+   - **JS/TypeScript coverage**: pós-Milestone B gate milestone-level,
+     janela 15/06-30/06 caso haja capacidade. Detalhes em
+     `tasks.md` §"Pós-Milestone B aberto".
+   - **Promoções pendentes para `.claude/rules/`**: catálogo-de-débitos-
+     é-código (cristalizada em #32 Edit M-2); gates de regressão
+     exclusion-aware com dois vetores (cristalizada em #32 P-7);
+     documento de implementação externo como evolução do plan-mode pattern
+     (cristalizada em #32). Sessão metodológica retrospectiva dedicada
+     quando o número de candidates acumulados justificar.
 
-**Convergência multi-round NÃO-monotônica em quantidade de catches; severidade conceitual decai monotonicamente.** Trajetória v1→v5.1: v1 (4 bloqueadores estruturais) → v2 (4 bloqueadores Windows-factual) → v3 (0 bloqueadores; mas C1 reframe — DD-T06-21 reinventava canonical §4.2 line 148) → v4 (1 bloqueador colateral AS-7 namespace, emergiu como subproduto de fix v3) → v5 (cirúrgicos) → v5.1 (cosméticos). Triangulação real requer ≥1 round verificacional após cada round de fix substancial. Review coerência interna ratifica mas pode mascarar reinvenção de contrato; review verificacional (que abre arquivos reais do projeto) é complementar necessário, não redundante.
+## Conceitos de prova exercitados na sessão #32 housekeeping
 
-**Verification-before-inference aplicada recursivamente.** Ao código (pre-flight 3.A-3.H verifica empíricamente); ao prompt (cada DD pergunta "isto já está em canonical/spec/tasks?"); à interpretação de catches anteriores (revisitar S2 v3 com leitura literal evitaria erro mecânico em v4); aos companion edits (Fase 2 cita texto literal antes de propor diff).
+Detalhamento em `learning-log.md` entry "2026-05-23 — sessão #32
+(continuação)". Resumo:
 
-**Pre-flight ambicioso paga dividendo iterativo.** 3 surfaces empíricas substantivas que toda deliberação Chat v1→v5.1 não pegou: exits 4/5 unreachable (3.E); shallow signal em JSON (3.G); snippet "requires login" (3.A). Pattern relevante para `.claude/rules/review-patterns.md` amendment: anomalias de pre-flight devem ser cross-checked contra spec **exemplo** (não só spec contract) antes de classificar como "não-bloqueante" — gap empírico↔contratual emerge ao mapear, não ao verificar isoladamente.
+- **D1** (Agentic Architecture, 27%): plan mode externalizado como
+  artefato pre-sancionado; halt-and-escalate em Code review sobre
+  artefato-prompt.
+- **D3** (Claude Code Configuration, 20%): `.claude/rules/windows-tooling.md`
+  extendido; `[tool.mypy]` config materializada.
+- **D4** (Prompt Engineering, 20%): validation-retry loop manual em 4
+  rounds com severity decay monotônico; verification-before-inference
+  recursiva.
+- **D5** (Context Management, 15%): audit trail exclusions em gates de
+  regressão (5 exclusões cumulativas); error propagation estruturada
+  cross-system Chat ↔ Code; provenance via cascading decision.
 
-**GATE 1 não é único — gates intermediários por sub-fase 3.A→3.J capturam surpresas em camadas diferentes.** DD-T06-22 emergiu em pre-flight + GATE 1; DD-T06-23 emergiu em halt de 3.A. Múltiplos gates absorvem iterativamente sem comprometer trajetória.
+## Pré-flight para sessão Chat de prep T07
 
-## Conceitos de prova exercitados em T06
+Verificação direta empírica antes de redigir o prompt T07. Pattern
+consolidado em sessões #28+: pre-flight verifica fatos do código real, não
+infere a partir de docs ou memória.
 
-- **D1** (Agentic Architecture): GATE 1 + Fase 3 faseada por classe de errorCode + halt-and-escalate em gate intermediário aplicado a feature task pela primeira vez.
-- **D2** (Tool Design & MCP): errorCode discrimination via Pydantic Literal; 8-exit-code → 2-errorCode mapping; anchor `isRetryable` byte-by-byte vs canonical §5.4; wire format Option B universal.
-- **D4** (Prompt Engineering): iterative refinement v1→v5.1 com multi-instance review + cross-check externo; Pydantic gating do Semgrep JSON com validation-retry implícita.
-- **D5** (Context Management): subprocess error propagation com cleanup empírico; provenance via JSON top-level version; verification-before-inference recursive.
+**1. Estado real de `src/mcp_servers/semgrep_runner/`.**
 
-## Próximo passo: T07 — Detector subagent
+```bash
+# Listar tools expostas pelo server
+grep -n "@mcp.tool" src/mcp_servers/semgrep_runner/server.py
+# Confirmar: apenas scan_diff, ou há outras?
 
-Detector é o primeiro **consumer real** de `scan_diff` via FastMCP Client. Resolve empíricamente:
+# Confirmar export do componente
+cat src/mcp_servers/semgrep_runner/__init__.py
+# Confirmar pattern de export
 
-1. **`repo_root` como parâmetro explícito vs cwd implícito** (DD-T06-3 + DD-T06-19). T07 expõe se contract implícito é viável ou se Provisão A precisa amendment para inputSchema explícito (evolution candidate em canonical §7).
-2. **Findings ordering cross-component.** Anchor T06 exercita invariante via `tools.scan_diff` direto; T07 consome via Client e processa sequencialmente — segunda-line de validação que ordering sobrevive serialização Option B.
-3. **Wire format Option B em consumer multi-tool.** T07 invoca `policy_reader.check_applicability` + `policy_reader.get_clause` + `semgrep_runner.scan_diff` — primeiro teste real de Option B cross-server, com Detector discriminando sucesso vs erro via `errorCode` presence.
-4. **Caso real de `errors[]` non-empty em exit 0?** DD-T06-20 ignora; T07 pode revelar caso onde rules dropped silenciosamente afeta classificação. Se emergir, promover Opção B (escalation threshold) ou Opção C (campo `warnings` em scan_metadata) per canonical §7.
+# Estado do bootstrap
+grep -n "_bootstrap\|_STATE" src/mcp_servers/semgrep_runner/server.py
+# Pattern análogo ao policy_reader/server.py?
+```
 
-Estimativa T07: 2-3h se thin orchestrator; 4-5h se lógica LGPD applicability scoring for não-trivial. Pre-flight T07 vai verificar shape de FastMCP Client multi-server em ambiente local antes de implementação.
+**2. Pattern de import do FastMCP Client no projeto.**
 
-**Sugestão de início para sessão #33:** começar com leitura de `docs/tasks.md` §T07 + canonical do Detector (se existir; senão, especificar Detector como spec nova em ADR/canonical antes de implementar — pattern Provisão A).
+```bash
+# Buscar usos existentes de Client (T07 vai ser o primeiro consumer real)
+git grep -nE "from fastmcp import Client|from fastmcp\.client" .
+# Esperado: 0 ou poucos matches (Client é novo no projeto pós-T07)
 
-## Housekeeping debt aberto
+# Confirmar versão FastMCP pinned em uv.lock
+grep -A1 '"fastmcp"' uv.lock | head -5
+# Esperado: 3.2.4 ou similar (per ADR-0001 amendment 2026-05-21)
 
-Issue separada para mypy fixtures `tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/br_nis_log_payload.py` (3 errors pre-existentes de PR #52 T07 prep). Opções: (a) `pyproject.toml` exclude module; (b) `# type: ignore[call-arg]` inline nas linhas. Out-of-scope T06.
+# Buscar documentação FastMCP 3.x sobre Client se necessário
+# Web search: "fastmcp Client tutorial site:gofastmcp.com"
+```
 
-## Artefatos chave
+**3. AgentDefinition pattern — primeira AgentDefinition do projeto.**
 
-- PR #56 (mergeado): T06 scan_diff completo.
-- `prompt-t06-v5.1.md`: prompt final usado em implementação. Appendix de 25 catches.
-- Trajetória completa Chat #32: `2026-05-23-01-39-38-session-32-prep-t06-v3.txt` (transcript) cobrindo v1→v5.1 + Fase 1 pre-flight + Fase 2 plan + DD-T06-23 halt + ratificação implementação.
-- Learning log entry: `learning-log-T06.md` para append em `docs/learning-log.md`.
+```bash
+# Confirmar que ainda não há AgentDefinition no projeto
+git grep -nE "AgentDefinition|agent_definition" -- . ':!docs/' ':!*.md'
+# Esperado: 0 matches em código (Milestone C introduz)
 
-## Status da prova (Claude Certified Architect — Foundations)
+# Pre-leitura obrigatória de architecture-overview
+sed -n '/^## 5\./,/^## 6\./p' docs/architecture-overview.md
+# Especialmente §5.2 Detector + §5.7 matriz de restrições por subagent
 
-T06 exercitou conceitos dos 4 domínios principais (D1 27% + D2 18% + D4 20% + D5 15% = 80% do peso da prova). D3 (Claude Code Configuration & Workflows, 20%) é exercitado continuamente pelo uso do projeto mas não tem implementação direta em T06; será exercitado em CI/CD setup (Milestone D) com `-p` + `--output-format json` + integração com workflow.
+# Pre-leitura .mcp.json se existir
+cat .mcp.json 2>/dev/null || echo "(no .mcp.json yet)"
+# Confirmar exposição de semgrep-runner para Detector via mcp_servers field
+```
 
-Trajetória prep T06 com 5 rounds de iteração + halt-and-escalate em GATE 1 e gate 3.A é defense candidate forte para Capítulo de Método. Documentar como pattern auditável.
+**4. Provisão B (recognizer pack BR) — disponibilidade.**
+
+```bash
+# Confirmar pack mergeado
+ls tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/
+
+# Confirmar estrutura conforme T07 §Files previstos
+ls tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/*.py | wc -l
+# Esperado: ~9 arquivos (6 positivos + 3 negativos + README)
+
+# Confirmar exclusão mypy ativa
+uv run mypy tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/
+# Esperado: Success: 0 source files
+```
+
+**5. Decisão substantiva pré-prompt.**
+
+Antes de redigir o prompt T07, deliberar:
+
+- **Escopo da T07**: apenas Detector (single AgentDefinition) ou também
+  Coordinator stub para orquestrar invocação? Boundary clarification.
+- **AgentDefinition em qual diretório**: `src/agents/` novo? ou inline
+  em `src/coordinator.py`? Pattern do projeto pós-T07.
+- **Tests fixture root assembly** análogo ao policy_reader pattern, ou
+  algo diferente para subagent? Pre-leitura `tests/mcp_servers/policy_reader/
+  test_bootstrap.py` para pattern operacional.
+- **Carregamento de regras Semgrep `br_*.yaml`**: T07 cria os arquivos
+  YAML em `mcp_servers/semgrep_runner/rules/` (substitui placeholder de
+  T05)? Ou T07 é apenas o Detector subagent + tests, com criação de
+  `br_*.yaml` em task separada T08? Boundary crítica — afeta
+  ordem topológica de Milestone B e estimativa de custo.
+
+**6. Custo estimado T07.**
+
+Prep Chat ~2-3h (multi-round se justificado, espelha T06) + Code ~3-4h.
+Pattern: pre-flight ambicioso + plan-mode + GATE 1 + Fase 2 com gates
+intermediários conforme prescrito em
+`.claude/rules/spec-driven-workflow.md`.
+
+## Sugestão de início para sessão #33
+
+Começar com pre-flight verification (passos 1-4 acima) sob commit limpo de
+`main` pós-housekeeping. Resultado do pre-flight é input para deliberação
+do passo 5 (boundary clarification). Boundary fechada → redação prompt T07
+v1.
+
+**Não pular pre-flight.** Padrão consolidado em #28+: anomalias de
+pre-flight emergem ao mapear empiricamente, não ao verificar isoladamente
+contra docs. Cada sessão Code pre-flight ambicioso pagou dividendos em
+implementation surprises absorvidas sem rework arquitetural (T04 wire-shape,
+T06 exits 4/5 unreachable, T06 shallow signal em JSON, T06 snippet
+"requires login").
 
 ## Próximo halt esperado em #33
 
-Pre-flight T07 ou plan mode T07. Sessão #32 oficialmente encerrada.
+Pre-flight T07 verification report ou plan mode T07 (GATE 1 deliberation
+com DDs). Sessão #32 oficialmente encerrada neste handoff.
+
+## Artefatos chave da sessão #32
+
+- **PR #56** (mergeado): T06 scan_diff completo. Detalhes em learning-log
+  entry T06.
+- **PR #57** (mergeado): housekeeping pre-T07 (8 commits internos).
+  Hash squash `<TBD>`.
+- **`prompt-t06-v5.1.md`**: prompt final de T06 implementação. Appendix
+  de 25 catches. Referência para metodologia de prompt-redação T07.
+- **`housekeeping-pre-t07-IMPL.md` FINAL** (767 linhas): documento de
+  implementação consolidado. Audit trail descartável pós-merge; lições
+  absorvidas no learning-log entry #32 (continuação).
+- **Learning log entries**: T06 (anexar separadamente) + #32
+  (continuação housekeeping, este handoff).
+
+## Status da prova (Claude Certified Architect — Foundations)
+
+Sessão #32 (T06 + housekeeping) exercitou conceitos dos 5 domínios:
+
+- **D1 27%**: GATE 1 + Fase 3 faseada em T06; plan mode externalizado +
+  halt-and-escalate em housekeeping.
+- **D2 18%**: scan_diff completo em T06 (subprocess Semgrep + 6 errorCodes
+  + Option B wire format).
+- **D3 20%**: `.claude/rules/windows-tooling.md` extendido; `[tool.mypy]`
+  config materializada; mypy/ruff em dev-deps.
+- **D4 20%**: validation-retry em 5 rounds (T06 prompt) + 4 rounds
+  (housekeeping artefato). Severity decay monotônico empiricamente
+  observado em ambos.
+- **D5 15%**: long context exercitado (housekeeping consumiu múltiplos
+  arquivos cross-component); audit trail exclusions com 5 exclusões
+  cumulativas; error propagation estruturada Chat ↔ Code.
+
+Trajetória de sessão #32 (T06 + housekeeping) é defense candidate forte
+para Capítulo de Método — multi-round validation-retry sobre dois tipos
+de artefato distintos (código de aplicação T06; documento de plano
+housekeeping) com mesmo pattern operacional, mesma convergência empírica,
+mesma capacidade de absorver implementation surprises via halt-and-
+escalate. Pattern generaliza além do tipo de output.

@@ -5290,3 +5290,287 @@ T07 resolverá empíricamente os seguintes itens que T06 preservou como evolutio
 - **Use case para `errors[]` non-empty em exit 0**: DD-T06-20 ignora; T07 pode descobrir caso real onde rules dropped silenciosamente afeta classificação. Se emergir, considerar promover Opção B (escalation threshold) ou C (campo `warnings` em scan_metadata) per canonical §7 evolution candidates.
 
 Estimativa T07: 2-3h se Detector for thin orchestrator; 4-5h se houver lógica de decisão complexa (LGPD applicability scoring). Pre-flight T07 vai verificar shape de FastMCP Client multi-server em ambiente local antes de implementação.
+
+## 2026-05-23 — sessão #32 (continuação) — Housekeeping cross-doc pre-T07 (PR #57)
+
+**Foco.** Sessão Chat persistente longa cobrindo, pós-merge T06: inventário dos
+débitos catalogados nos handoffs #31 e #32 (este último incompleto na seção de
+débitos abertos); redação multi-round dos documentos de plano (v1 mecânicos +
+v1 deliberativos → v2 patches → FINAL implementação); 4 rounds Chat ↔ Code
+review independente sobre artefato-prompt; ratificação João das 4 decisões
+deliberativas (D-1 a D-4); execução Code dos 8 commits internos pre-squash;
+squash-merge final via GitHub UI.
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%).**
+- **Plan mode externalizado como artefato pre-sancionado.** Code não rodou
+  plan-mode ad-hoc com 8 sub-decisões; recebeu documento autossuficiente
+  `housekeeping-pre-t07-IMPL.md` (767 linhas) com `old_str`/`new_str`
+  byte-exact + grep checks empíricos + halt conditions explícitas + ordering
+  ratificado. Code executou top-to-bottom em modo de implementação direta,
+  com escalation embutida (halt-and-report em cada divergência). Pattern
+  evoluído a partir do plan-mode pattern interno do Code (#23+) — agora o
+  plan vive como documento auditável externo, sancionado por multi-round
+  review pré-aplicação.
+- **Halt-and-escalate em Code review sobre artefato-prompt.** Rounds 1 e 2
+  do Code review independente identificaram bloqueadores (R1 heading órfã,
+  R2 grep word boundary, R7 audit trail exclusions) que Chat sozinho não
+  pegou. Cada halt produziu patch cirúrgico no Chat → revisão por Code →
+  ratificação ou novo halt. Severidade decay monotônica em 4 rounds (v1 →
+  v2 → FINAL → aplicação): 2 BLOCK em v1, 1 BLOCK em v2, 0 BLOCK em FINAL,
+  0 problemas em aplicação.
+
+**Domínio 3 — Claude Code Configuration & Workflows (20%).**
+- **`.claude/rules/windows-tooling.md` extendido com ASCII commit
+  convention.** Materialização de pattern observado em duas sessões (#28
+  Provisão B + #30 PR #55) sobre fricção PS 5.1 + bash HEREDOC + UTF-8 em
+  commit messages. Rule é auto-carregada pelo Code em sessões futuras —
+  reduzem risco de reinventar a roda. Defense candidate latente: lições
+  cristalizadas no learning-log NÃO são carregadas pelo Code em runtime;
+  apenas `.claude/rules/` é. Promoção learning-log → rule é movimento
+  arquitetural deliberado, não automático.
+- **`[tool.mypy]` section materializada com `exclude` regex.** Antes da
+  PR #57, `pyproject.toml` não tinha `[tool.mypy]` section — workaround
+  era `uv run --with mypy mypy` que respeitava apenas defaults. Edit
+  M-4 criou seção com `exclude` apontando para diretório de fixtures
+  Semgrep deliberadamente type-incorrect pelo padrão stdlib. Aplicação
+  do pattern oficial mypy (docs `mypy.readthedocs.io`): `exclude` para
+  diretórios de test data, `# type: ignore` para violations individuais
+  em código real. Decisão arquitetural materializada no pyproject.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%).**
+- **Validation-retry loop manual sobre artefato-prompt em 4 rounds.**
+  Chat v1 → Code review (R1 + R2 BLOCK) → Chat v2 patches → Code review
+  v2 (R7 BLOCK + observações) → Chat FINAL consolidado → aplicação Code
+  com 0 issues. Pattern verifiable: cada round catalogou catches por
+  classe (estruturais, factuais, smoke check de gates), severidade
+  decay monotônico, convergência empírica em 0 issues no round final.
+  Custo total ~6h Chat + ~1h Code = ~7h para 8 commits substantivos —
+  trade-off ratificado: tempo de prep dobra tempo de implementation,
+  mas risk de implementation com surprise crítica decai a zero.
+- **Verification-before-inference aplicada a artefato-prompt
+  recursivamente.** Chat verificou empiricamente cada `old_str` contra
+  anexos enviados por João antes de declarar o plano final. Anexos
+  pedidos em vez de inferir (5 arquivos: tasks.md, models.py,
+  br_nis_log_payload.py, pyproject.toml, windows-tooling.md + output
+  literal mypy). Defense candidate cristalizado em três escalas:
+  (i) Chat verifica anexos antes de redigir, (ii) Code verifica
+  grep counts pré-aplicação antes de aplicar, (iii) Code review v1
+  verifica empiricamente os 9 grep checks declarados pelo Chat v1.
+
+**Domínio 5 — Context Management & Reliability (15%).**
+- **Audit trail exclusions em gates de regressão — segunda
+  materialização.** Pattern inaugurado em #30 (learning-log +
+  session-handoff já excluídos como audit trail intencional). Em #32
+  o padrão escalou: gate de `article_source` (P-7) precisou de 5
+  exclusões cumulativas — `learning-log.md`, `session-handoff.md`,
+  `docs/adr/`, `docs/DESIGN.md` (preserva rename note ADR-0005),
+  `src/mcp_servers/policy_reader/models.py` (preserva novo audit
+  trail "migration from `article_source`...canonical-sync-E"). Padrão
+  generalizado: **gates de regressão são exclusion-aware com dois
+  vetores distintos** — (a) edits que preservam tokens originais como
+  audit trail intencional (vetor #30), (b) audit trails legítimos
+  cross-doc preservam tokens em sites não-tocados pela PR (vetor #32).
+- **Error propagation estruturada cross-system entre Chat e Code.**
+  Cada Code review v1, v2, FINAL produziu artefato (transcript)
+  estruturado por ressalvas numeradas (R1, R2, R7) + classificação
+  bloqueante/não-bloqueante + recomendação operacional. Chat absorveu
+  o output como input estruturado, não como prosa livre — viabilizou
+  patches cirúrgicos endereçando cada ressalva por número. Pattern
+  análogo ao `errorCode + message + isRetryable + details` do contrato
+  MCP, materializado no protocolo de revisão multi-agente sobre
+  artefato-prompt.
+- **Provenance via cascading decision.** D-1 ratificado bare cobre
+  implicitamente R3 (uniformização de severity em M-5b), porque a
+  uniformização só aplica sob a hipótese D-1=bare (regra
+  single-purpose por identificador). Sub-decisão dependente herda
+  ratificação da decisão superior no grafo de design. Defense
+  candidate: ratificação cascading reduz custo de governance em
+  decisões interdependentes — pattern transferível para futuras
+  prep-sessions com múltiplas DDs encadeadas.
+
+### Decisões fechadas
+
+- **D-1 ratificado bare** (`br-cpf`, `br-cnpj`, etc.). Canonical
+  alinhado à convenção tasks.md. Tasks.md, Provisão B (mergeada),
+  T07 §Files previstos todos coerentes.
+- **D-2 ratificado: mypy + ruff em dev-deps com pin** (`mypy>=1.18`,
+  `ruff>=0.13`). Workaround `uv run --with mypy mypy` aposentado;
+  agora `uv run mypy` direto funciona em qualquer ambiente após
+  `uv sync`.
+- **D-3 ratificado: ASCII commit message convention adicionada a
+  `.claude/rules/windows-tooling.md`** como seção nova (38 linhas, 4
+  sub-seções Principle/Justification/How to apply/Scope).
+- **D-4 ratificado Opção A: exclude no `[tool.mypy]`** apontando para
+  diretório de fixtures Semgrep. Alternativa Opção B (inline
+  `# type: ignore`) rejeitada por escalabilidade (Provisão B + T07 vão
+  expandir o pack).
+- **D-5 deferido** (sweep regras imutáveis ADR-0001 D4 ↔ CLAUDE.md
+  §"Immutable domain rules"). Bloqueante para Milestone C, não para
+  T07. Sessão Chat dedicada ~1.5h antes do início de C.
+- **Severity uniformization em M-5b** (`error` → `warning` para
+  `br-cnpj`) ratificada implicitamente via D-1 bare. Coerente com
+  prescrição tasks.md T07 Chat review: "warning para identificadores
+  comuns; error apenas se houver razão semântica forte".
+- **Catálogo de débitos é também código.** Lição cristalizada em
+  Edit M-2: `tasks.md §Companion edits cross-doc` é registry vivo —
+  bullets que ficam stale pós-merge de PRs cross-doc (canonical-sync-D
+  resolveu §5.1 título; catálogo não foi atualizado) precisam ser
+  removidos. Pattern análogo ao "Companion edits cross-doc as living
+  debt registry" de `.claude/rules/spec-driven-workflow.md`, mas no
+  sentido reverso: limpar débitos *resolvidos* tão importante quanto
+  adicionar *novos*. Promoção formal para rule pendente.
+
+### Lessons metodológicas (defense candidates fortes para Capítulo de Método)
+
+1. **Documento de implementação como evolução do plan-mode pattern.**
+   Plan-mode interno do Code (`spec-driven-workflow.md`) cobre tasks
+   single-Code-session com decisões emergentes ratificadas via GATE 1
+   intra-session. Documento de implementação cobre PRs multi-arquivo
+   com decisões PRÉ-sancionadas via multi-round Chat ↔ Code review
+   externo. Os dois patterns são complementares — plan-mode interno
+   para tasks de implementação (T01-T07); documento de implementação
+   externo para PRs de housekeeping/governance/refactor. Cristalização
+   da distinção como contribuição metodológica forte.
+
+2. **Multi-round Chat ↔ Code review sobre artefato-prompt — convergência
+   empírica em 4 rounds.** v1 (2 BLOCK + observações) → v2 (1 BLOCK + ⚠️
+   informativos) → FINAL (0 BLOCK) → aplicação (0 issues). Severity
+   decay monotônico empiricamente observado em quatro rounds, replicando
+   pattern de #28 (cinco rounds) em domínio diferente. Sustenta hipótese
+   de #28: triangulação real requer ≥1 round verificacional após cada
+   round de fix substancial; review coerência interna ratifica mas pode
+   mascarar reinvenção de contrato; review verificacional (que abre
+   arquivos reais) é complementar necessário, não redundante.
+
+3. **Gate de regressão exclusion-aware com dois vetores.** Pattern #30
+   coberto (audit trail intencional via edit). Pattern #32 acresce:
+   audit trails cross-doc legítimos que sobrevivem a edits (DESIGN.md
+   ADR-0005 summary rename note, models.py docstring nova). Total cinco
+   exclusões cumulativas: `learning-log.md`, `session-handoff.md`,
+   `docs/adr/`, `docs/DESIGN.md`, `src/mcp_servers/policy_reader/models.py`.
+   Pattern operacional consolidado: gates de regressão grep-based
+   precisam de catálogo de exclusões mantido junto com o gate —
+   exclusões NÃO são bug, são auditability features.
+
+4. **Provenance multi-camada do artefato-plano.** Sessão #32 produziu 4
+   documentos sequenciais com responsabilidades distintas:
+   - `housekeeping-mechanical-fixes.md` v1 (503 linhas): 6 edits
+     mecânicos com diffs aplicáveis e análise individual.
+   - `housekeeping-deliberation.md` v1 (510 linhas): 5 itens
+     deliberativos com recomendação fundamentada + alternativas.
+   - `housekeeping-patches-v2.md` (254 linhas): 6 patches sobre v1
+     endereçando Code review R1+R2.
+   - `housekeeping-pre-t07-IMPL.md` FINAL (767 linhas): documento
+     consolidado autossuficiente para Code executar.
+
+   Cada documento tem audit trail próprio. Documentos de origem (v1,
+   v2 patches) viram histórico Chat sem necessidade de preservação em
+   main; FINAL.md é descartável pós-merge (lições absorvidas neste
+   learning-log + handoff). Pattern: artefato-plano não é monolito; é
+   stream de documentos com semântica de iteração explícita.
+
+5. **Ratificação cascading reduz custo de governance.** D-1 (bare)
+   ratificou implicitamente R3 (severity uniformization em M-5b) porque
+   uniformização só aplica sob D-1=bare. Pattern transferível para
+   futuras prep-sessions: decisões interdependentes podem ser organizadas
+   em grafo, com ratificação flowing top-down. Reduz N decisões
+   independentes em K decisões com cascata implícita. Documentação
+   explícita do grafo de dependências é pré-requisito (feito em
+   `housekeeping-deliberation.md` §D-1 ⚠️ trade-off block).
+
+### Métricas operacionais
+
+- **Commits internos pre-squash:** 8 (D-2, M-4, M-1+companion, M-2, M-3,
+  M-5, M-6, D-3). Ordering D-2 antes de M-4 ratificada (permite gates
+  pós-M-4 usar `uv run mypy` direto).
+- **Arquivos modificados:** 6 (architecture-overview.md, tasks.md,
+  canonical.md semgrep-runner, models.py policy-reader, pyproject.toml,
+  windows-tooling.md). Cobertura cross-doc + src + config + rules.
+- **Pytest baseline preservado:** 83 passing (53 policy_reader + 9
+  test_bootstrap + 21 test_scan_diff). Zero regression funcional.
+- **Mypy pós-PR:** Success em 16 source files (src/) + 8 source files
+  (tests reais); 0 source files em fixtures (excluded via [tool.mypy]).
+- **Rounds Chat ↔ Code review sobre artefato-prompt:** 4
+  (v1 → v2 → FINAL → aplicação). Severity decay monotônica.
+- **Custo total:** ~6h Chat + ~1h Code = ~7h. Trade-off prep:Code = 6:1
+  para PR de housekeeping cross-doc com decisões deliberativas.
+- **Catálogo de débitos resolvidos nesta PR:** 7
+  (mypy fixtures BR + architecture-overview §4.4 hedge + canonical
+  examples sufixados + canonical §5.1 título stale + tasks.md linha 236
+  atribuição + tasks.md linha 387 catálogo stale + models.py:11
+  docstring stale). Mais 2 débitos DX/governance (mypy/ruff dev-deps +
+  ASCII commit convention).
+
+### Artefatos
+
+- **PR `#57` `chore/housekeeping-pre-t07`** (squash-mergeada em main,
+  hash a registrar pós-pull `<TBD>`).
+- **8 commits internos pre-squash** (hashes registrados pelo Code):
+  - `c34449f` chore(deps): pin mypy and ruff in dev-deps
+  - `4e03cfa` chore(mypy): exclude recognizer pack fixtures from mypy
+  - `0cecdeb` docs(architecture-overview): remove §4.4 hedge + stale companion debt
+  - `d796c52` docs(tasks): cleanup stale §5.1 title debt
+  - `6230cc3` docs(tasks): drop stale §5.1 cross-ref from canonical-sync-C
+  - `7c41ba5` docs(canonical): align examples to br-identifier bare convention
+  - `d8ba621` docs(models): refresh stale article_source docstring
+  - `09ddb56` docs(rules): add ASCII commit message convention
+- **Documentos produzidos em `/mnt/user-data/outputs/` da sessão Chat
+  (audit trail descartável pós-merge):**
+  - `housekeeping-mechanical-fixes.md` v1 (503 linhas)
+  - `housekeeping-deliberation.md` v1 (510 linhas)
+  - `housekeeping-patches-v2.md` (254 linhas)
+  - `housekeeping-pre-t07-IMPL.md` FINAL (767 linhas)
+- **Code review transcripts** (anexados pelo João via mensagem em Chat
+  session #32): review v1 + review v2 + confirmação de aplicação.
+
+### Próximo passo
+
+Sessão Chat #33 — **prep T07 (Detector subagent)**, primeiro consumer
+real de `scan_diff` via FastMCP Client.
+
+**Pre-flight verificação direta antes de redigir o prompt T07:**
+
+- Estado real de `src/mcp_servers/semgrep_runner/server.py` pós-T06: que
+  tool é exposta? Apenas `scan_diff` ou há mais? Confirmar via leitura
+  direta, não inferir.
+- Pattern de import do FastMCP Client no projeto: `from fastmcp import
+  Client` ou similar? Como T07 vai consumir `scan_diff`? Confirmar
+  contra documentação FastMCP 3.x e contra código existente.
+- AgentDefinition pattern para Detector — primeira AgentDefinition do
+  projeto. Pre-leitura `architecture-overview.md` §5.2 (Detector como
+  consumidor de `semgrep-runner`) + canonical.md §1 + `.mcp.json` do
+  projeto (mecanismo de exposição cross-process).
+- Provisão B (fixture pack BR) já mergeada — Code pode usar como base
+  para fixtures de teste do Detector. Confirmar via listagem direta de
+  `tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/`.
+- Decisão substantiva pré-prompt: T07 é apenas Detector (single
+  AgentDefinition) ou também inclui Coordinator stub para invocar o
+  Detector? Boundary clarification para escopo da task.
+
+**Custo estimado T07:** prep Chat ~2-3h (multi-round se justificado) +
+Code ~3-4h. Pattern análogo a T06: pre-flight ambicioso + plan-mode + GATE
+1 + Fase 2 com gates intermediários.
+
+**Débitos deferidos para futuro:**
+
+- **Sweep regras imutáveis** (ADR-0001 D4 ↔ CLAUDE.md §"Immutable
+  domain rules") — Chat dedicada ~1.5h antes do início de Milestone C.
+  Bloqueante para C, não para T07.
+- **Cobertura de detecção em JavaScript/TypeScript** — pós-Milestone B
+  gate milestone-level, dentro da janela 15/06-30/06 caso haja capacidade.
+- **Promoção de rules emergentes para `.claude/rules/`**:
+  catálogo-de-débitos-é-código (cristalizada em #32); audit-trail
+  exclusion-aware gates (cristalizada em #30, replicada em #32); plan
+  externalizado vs interno (cristalizado em #32). Sessão metodológica
+  retrospectiva dedicada quando o número de candidates justificar.
+
+---
+
+**Nota sobre numeração de sessões.** Sessão #32 começou como prep+aplicação
+T06 (PR #56, primeira metade) e estendeu para housekeeping cross-doc
+pre-T07 (PR #57, segunda metade) sem fechamento intermediário formal. Para
+fins de catalogação, esta entrada cobre apenas a segunda metade; a entrada
+T06 (PR #56) é anexada separadamente ao learning-log conforme handoff
+#32→#33 anterior previa. Sessão #33 está reservada para prep T07.

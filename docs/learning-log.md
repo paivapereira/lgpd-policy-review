@@ -5188,3 +5188,105 @@ CLAUDE.md §Immutable domain rules) crítico antes de Milestone C arrancar.
 Sessão Chat de prep T06 (~1h). Pre-leitura conforme handoff #31 §"Pre-flight para sessão Chat de prep T06". Redigir prompt T06 com pattern análogo ao T30-Hk: pre-flight verification + plan-mode + GATE 1 + Fase 2 com gates intermediários por errorCode classe. Custo estimado: prep + Code + review = ~5h totais distribuídos em 2-3 sessões.
 
 Pre-flight em particular: verificação direta empírica antes de redigir (estado real de `server.py`, `loader.py`, `errors.py` pós-T05; conta empírica de linhas; estado de `tools.py` para qual escolha de primitivo de timeout — não inferir). Aplicar a lição DD-7 da #30: qualquer claim numérico no prompt T06 (linha esperada, count de tests, count de errorCodes implementados) deve ser verificado empiricamente antes de ser declarado autoridade.
+
+# Learning Log — entrada T06
+
+Anexar a `docs/learning-log.md` no projeto, abaixo das entradas anteriores (T05, Provisão A, etc).
+
+---
+
+## 2026-05-23 — T06 scan_diff completo (PR #56)
+
+### Conceitos da prova exercitados
+
+**D1 — Agentic Architecture & Orchestration (27%).**
+- GATE 1 + Fase 3 faseada por classe de errorCode aplicada a feature task pela primeira vez (não housekeeping). Halt-and-escalate em pre-flight (3.E mapping divergente; 3.G shallow signal em JSON) + gate 3.A (snippet "requires login") absorveu DD-T06-22 e DD-T06-23 sem rework arquitetural.
+- Pattern de stop_reason implícito materializado: Code parou em cada gate intermediário (3.A→3.J), escalou ao Chat quando surface empírica não estava em DD prévia, aguardou ratificação humana.
+- Sub-fases independentes (10 sub-fases de Fase 3) com gate intermediário cada — análogo a coordenador-subagent pattern em multi-instância, mas single-turn dentro do mesmo Code.
+
+**D2 — Tool Design & MCP Integration (18%).**
+- errorCode discrimination com 6 codes via Pydantic Literal; mapping de 8 exit codes Semgrep (X1 ratificado) para 2 errorCodes via tabela explícita em canonical §8.6.
+- Wire format Option B universal (`isError: false` em todos retornos; discriminação via `errorCode` em `structuredContent`) implementado via wrappers `_envelope_tool_result` + `_scan_success_tool_result` em `_envelope.py`.
+- Anchor `isRetryable byte-by-byte vs canonical §5.4` detecta drift sem precisar end-to-end — anchor invariant de contrato per `.claude/rules/test-strategy.md`.
+- Pydantic com `ConfigDict(extra="ignore")` em `_SemgrepRunOutput` — tolera campos volátil cross-Semgrep-versions sem regredir contrato.
+
+**D4 — Prompt Engineering & Structured Output (20%).**
+- Iterative prompt refinement v1→v5.1 (~5 rounds independentes; multi-instance review Chat + Code clean alternados). Trajetória: v1 (395 linhas, 4 bloqueadores) → v2 (520, 4 bloqueadores) → v3 (590, 0 bloqueadores; C1 reframe DD-T06-21 anti-pattern) → v4 (620, 1 bloqueador colateral AS-7 namespace) → v5 (625, sexta companion edit) → v5.1 (640, surgical fixes).
+- Cross-check contra docs oficiais externas (Semgrep CLI reference, ATD schema, issues #5891/#11114/#8254/#435742) + canonical interna + tasks.md como third-line of defense.
+- Pydantic gating do Semgrep JSON output com validation-retry implícita (parse failure → SEMGREP_EXECUTION_FAILED com `parse_error` em details, em vez de propagar exception).
+
+**D5 — Context Management & Reliability (15%).**
+- Subprocess error propagation com cleanup empírico verificado (zero zombies em pre-flight 3.H via `tasklist /FI`); provenance via JSON top-level `version` field (pattern do próprio Semgrep MCP server).
+- Verification-before-inference aplicada recursivamente: ao código (pre-flight verifica exit codes empíricamente); ao prompt (DD-T06-21 era invariante canonical já declarada, não decisão nova); à interpretação de catches anteriores (S2 v3 não era "migrar AS-7", era "evitar duplicar `_EXPECTED_*`"); aos companion edits (texto literal citado antes de propor diff).
+- Scratchpad efetivo em pre-flight (`$smokeDir`, `$shallowDir`) com cleanup delegado ao operador per §10.
+
+### Decisões load-bearing
+
+1. **Exit code mapping X1 (ratificado em GATE 1).** Exits 4 e 5 documentados em CLI reference removidos por **empíricamente inalcançáveis** em Semgrep 1.163.0 — pre-flight 3.E revelou que Semgrep colapsa "rule parse error" em exit 2 e "unparseable YAML" em exit 7. CLAUDE.md "no defensive code for impossible scenarios" aplicado. Granularidade perdida ("Rule parse error" cai em SEMGREP_EXECUTION_FAILED em vez de INVALID_RULE_SET) é trade-off aceitável: caller já recebe `stderr_excerpt` para diagnóstico específico.
+
+2. **Snippet via filesystem read (DD-T06-23, halt em 3.A).** Semgrep OSS sem `SEMGREP_APP_TOKEN` emite `extra.lines = "requires login"`, não código real. Canonical §4.2 + §4.3 exemplo declaram snippet como código real, required. Canonical §8 veta token. Solução: helper `_read_snippet(location, repo_root)` em `tools.py` lê o arquivo do disco. Não-defensivo: baseado em descoberta empírica de Fase 3, não em hipótese.
+
+3. **6 companion edits bundled (não pre-existing debt).** Distinção descritiva de `.claude/rules/git-conventions.md`: PR sequencing favorece separação para *debt*; *novas decisões* pertencem ao PR que as estabelece. Bundling justificado em §9 do PR body explicitamente.
+
+4. **Splittability rejected (per ADR-0008 §1).** T06 estimado ~3-4h excede janela 1-3h. Rejeição argumentada: AS-11 (wire format Option B) precisa happy path + ≥1 error path para parametrize cross-errorCode; AS-7/AS-13 compartilham mock infra com AS-6; pre-flight 3.H (subprocess cleanup) descarta investimento se Fase 3 não toca subprocess. Awareness > tacit assumption.
+
+### Defense candidate metodológico (novo, para Capítulo de Método)
+
+**Convergência multi-round NÃO-monotônica em quantidade de catches; severidade conceitual decai monotonicamente.**
+
+Trajetória observada v1→v5.1:
+- v1: 4 bloqueadores estruturais (function signatures, scope creep)
+- v2: 4 bloqueadores (Windows-specific factual + editorial)
+- v3: 0 bloqueadores; 4 refinamentos (mas DD-T06-21 reinventava canonical §4.2 — anti-pattern não detectado por review de coerência interna; só review verificacional capturou em v4)
+- v4: 1 bloqueador colateral mecânico (AS-7 namespace collision T05 vs T06) — emergiu como subproduto do fix S2 v3
+- v5: catches cirúrgicos da reversão (counts, naming)
+- v5.1: catches cosméticos (math, polimentos)
+
+**Insight:** triangulação real requer ≥1 round verificacional após cada round de fix substancial. Review coerência interna ratifica mas pode mascarar reinvenção de contrato; review verificacional (que abre arquivos reais do projeto) é complementar necessário, não redundante.
+
+**Aplicação recursiva de verification-before-inference:**
+- Ao código (pre-flight 3.A-3.H).
+- Ao prompt (DDs perguntam "isto já está em canonical/spec/tasks?").
+- À interpretação de catches anteriores (revisitar S2 v3 com leitura literal de `tasks.md` evitaria reinterpretar para erro mecânico em v4).
+- Aos companion edits (Fase 2 cita texto literal dos arquivos alvo antes de propor diff).
+
+**Pre-flight ambicioso paga dividendo iterativo.** As 3 surfaces empíricas que toda deliberação Chat v1→v5.1 não pegou:
+- Exits 4/5 unreachable (descoberto em pre-flight 3.E).
+- Shallow signal em JSON `errors[].message`, não stderr (descoberto em pre-flight 3.G).
+- Snippet "requires login" em OSS (descoberto em mapping de Fase 3.A).
+
+Pattern relevante para `.claude/rules/review-patterns.md` futura amendment: anomalias de pre-flight devem ser cross-checked contra spec **exemplo** (não só spec contract) antes de classificar como "não-bloqueante" — gap entre fato empírico e shape contratual emerge ao mapear, não ao verificar isoladamente.
+
+**Custo total:** ~3-4h Chat de iteração (5 rounds) para prompt de feature task de ~3-4h Code. Trade-off: tempo de prep dobra tempo de implementation, mas risk de implementation com surprise crítica decai substantivelmente. Defesa empírica: zero rework arquitetural em Fase 3 apesar de 2 implementation surprises absorvidas (DD-T06-22, DD-T06-23).
+
+### Artefatos
+
+- **PR #56 (mergeado):** feat(semgrep-runner): T06 — scan_diff completo (subprocess + X1 mapping + Option B).
+- **Prompt T06 v5.1:** `prompt-t06-v5.1.md` em outputs da sessão Chat #32. Appendix de 25 catches (13 v4→v5 + 12 v5→v5.1) para auto-check durante implementação.
+- **Sessão Chat #32:** prep T06 completo (v1→v5.1 + plan ratification + DD-T06-23 ratification em halt de 3.A).
+- **Tests:** 83 passing total. Baseline 64 pós-T05 + 19 novos (21 test_scan_diff − 2 stubs removidos de test_bootstrap). Reportar count real validou estimativa de Fase 2 (~77; veio 83 por contagem pytest com parametrize expandido).
+- **Gate outputs:** pytest 83 passed em 78s; ruff All checks passed!; mypy Success em 8 source files (escopo `src/mcp_servers/semgrep_runner/`).
+
+### Companion edits aplicados
+
+1. `canonical.md` §4.2 — caller invariants (cwd repo root, refs presentes, git ≥ 2.30).
+2. `canonical.md` §5.3 — quinto caso (JSON `errors[]` em exit 0 distinto de stderr).
+3. `canonical.md` §8.6 — exit code mapping subsection (X1 table).
+4. `canonical.md` §5.4 — INVALID_RULE_SET row (exits 7|8) + SEMGREP_EXECUTION_FAILED row clarificada + footnote¹ com pin de versão Semgrep 1.163.0.
+5. `README.md` — git ≥ 2.30 prerequisite na setup section.
+6. `tasks.md` §T06 AS-13 — psutil → `_pid_alive_windows` (alinha spec à implementação real).
+
+### Housekeeping debt aberto
+
+- Issue separada para `pyproject.toml` exclude OR `# type: ignore[call-arg]` em fixtures `tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/br_nis_log_payload.py` (3 mypy errors pre-existentes de PR #52 T07 prep; fixtures são código-alvo Semgrep, não Python aplicação).
+
+### Próximo passo: T07 — Detector subagent (consumer real de `scan_diff`)
+
+T07 resolverá empíricamente os seguintes itens que T06 preservou como evolution candidates:
+
+- **`repo_root` como parâmetro explícito** (vs cwd implícito DD-T06-3 + DD-T06-19): T07 será o primeiro caller real e expõe se contract implícito é viável em produção ou se Provisão A precisa amendment para inputSchema explícito.
+- **Validação cross-component da invariante de findings ordering**: anchor `test_anchor_findings_ordering_path_startline_ascending` exercita a invariante via `tools.scan_diff` direto; T07 consome via FastMCP Client e processa findings sequencialmente — segunda-line de validação que ordering sobrevive serialização Option B.
+- **Pattern de wire format Option B em consumer multi-tool**: T07 invoca `policy_reader.check_applicability` + `policy_reader.get_clause` + `semgrep_runner.scan_diff` em sequência; primeiro teste real de Option B cross-server (Detector consome 3 tools de 2 servers e discrimina sucesso vs erro via `errorCode` presence).
+- **Use case para `errors[]` non-empty em exit 0**: DD-T06-20 ignora; T07 pode descobrir caso real onde rules dropped silenciosamente afeta classificação. Se emergir, considerar promover Opção B (escalation threshold) ou C (campo `warnings` em scan_metadata) per canonical §7 evolution candidates.
+
+Estimativa T07: 2-3h se Detector for thin orchestrator; 4-5h se houver lógica de decisão complexa (LGPD applicability scoring). Pre-flight T07 vai verificar shape de FastMCP Client multi-server em ambiente local antes de implementação.

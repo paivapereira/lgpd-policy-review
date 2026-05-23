@@ -7,9 +7,9 @@ or in Milestone B (when POL-001 is authored) does not become rework.
 
 Naming convention: the field carrying hierarchical legal references is
 `statutory_reference` (matches `policy/SCHEMA.md` §5.1/§6.1 and the real
-artefact `policy/clauses/POL-000.yaml`). The compact spec still writes
-`article_source` in places — that drift is pinned in `docs/tasks.md`
-§Companion edits cross-doc and is applied here per `tasks.md` line 7.
+artefact `policy/clauses/POL-000.yaml`). The migration from the legacy name
+`article_source` was completed across canonical and compact specs in
+canonical-sync-E (session #30); no drift remains.
 """
 from __future__ import annotations
 

@@ -193,9 +193,9 @@ Output: {
     },
     "findings": [
       {
-        "rule_id": "br-cpf-leak",
+        "rule_id": "br-cpf",
         "rule_severity": "warning",
-        "rule_message": "Possível tratamento de CPF sem anonimização declarada",
+        "rule_message": "Possível tratamento de CPF detectado em código sob revisão",
         "location": {
           "path": "src/checkout/forms.py",
           "start_line": 42,
@@ -206,9 +206,9 @@ Output: {
         "snippet": "user.cpf = request.form['cpf']"
       },
       {
-        "rule_id": "br-cnpj-in-log",
-        "rule_severity": "error",
-        "rule_message": "CNPJ sendo escrito em log estruturado",
+        "rule_id": "br-cnpj",
+        "rule_severity": "warning",
+        "rule_message": "Possível tratamento de CNPJ detectado em código sob revisão",
         "location": {
           "path": "src/billing/audit.py",
           "start_line": 87,
@@ -223,7 +223,7 @@ Output: {
   "content": [
     {
       "type": "text",
-      "text": "Scan concluído em 47.3s. Encontrados 2 candidatos: src/checkout/forms.py:42 (br-cpf-leak), src/billing/audit.py:87 (br-cnpj-in-log)."
+      "text": "Scan concluído em 47.3s. Encontrados 2 candidatos: src/checkout/forms.py:42 (br-cpf), src/billing/audit.py:87 (br-cnpj)."
     }
   ]
 }

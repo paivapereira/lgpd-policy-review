@@ -384,7 +384,7 @@ PRs separados ou commits internos de PRs principais, fora do escopo de implement
 
 **Consolidados em Provisão A de Milestone B** (PR `chore/canonical-sync-C-semgrep-runner`, ver §Milestone B § Pré-implementação):
 
-- canonical sync do `semgrep-runner` (Option B amendment §3 ADR-0002 + §6 vs §8.6 alignment + §5.1 título se ainda drifted).
+- canonical sync do `semgrep-runner` (Option B amendment §3 ADR-0002 + §6 vs §8.6 alignment).
 - compact sync cirúrgico do `semgrep-runner` (6 errorCodes, classes, retryability, runtime vs startup do BINARY_UNAVAILABLE, wire format).
 - README pin de Semgrep: documenta `uv tool install semgrep==1.163.0` como prerequisite na seção Setup, alongside Python 3.12.7 via pyenv-win e Node 24, conforme ADR-0010.
 - ADR-0001 Decision 2 amendment in-place: alinha stack canônica à realidade — Semgrep (substitui Presidio menção); FastMCP 3.2.4 pin formal; Pydantic 2.13.4 pin formal; MCP 1.27.1 pin formal. Espelha pattern de amendment in-place de ADR-0008 (2026-05-16).

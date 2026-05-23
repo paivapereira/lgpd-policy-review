@@ -4,15 +4,16 @@ Exposes diff-aware Semgrep execution over a Git ref range as a single
 tool (`scan_diff`) consumed by the Detector subagent. See
 `docs/specs/semgrep-runner/canonical.md` for the contract.
 
-T05 wires the rule set loader to the bootstrap path and registers
-`scan_diff` as a stub that returns the `NOT_IMPLEMENTED` envelope —
-the full subprocess + six errorCodes + wire format implementation
-lands in T06 (canonical §4.2-4.3, §5).
+T05 wired the rule set loader to the bootstrap path and registered
+`scan_diff` as a stub returning the `NOT_IMPLEMENTED` envelope. T06
+replaces the stub with the real implementation in `tools.scan_diff`
+(canonical §4.2-4.3, §5); the @mcp.tool wrapper here is a thin
+delegator that injects `_STATE`.
 
 Per canonical §8.6 and ADR-0010, the Semgrep binary availability is
 NOT verified at startup. The per-call check lives at the `scan_diff`
-entry point in T06, surfacing as `SEMGREP_BINARY_UNAVAILABLE` when
-the binary is missing — never as a server crash.
+entry point (DD-T06-2), surfacing as `SEMGREP_BINARY_UNAVAILABLE`
+when the binary is missing — never as a server crash.
 """
 from __future__ import annotations
 
@@ -21,10 +22,10 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 from fastmcp.tools.base import ToolResult
-from mcp.types import TextContent
 
 from .loader import load_rules, resolve_runner_root
 from .models import LoadedRules
+from .tools import scan_diff as _scan_diff_impl
 
 mcp = FastMCP("semgrep-runner")
 
@@ -66,43 +67,6 @@ def _reset_state_for_tests() -> None:
 
 
 # =============================================================================
-# Envelope helper (T05 inline; promoted to `_envelope.py` in T06)
-# =============================================================================
-
-# T05 keeps the envelope inline in `server.py` rather than splitting into a
-# dedicated `_envelope.py`/`tools.py` pair (see DD-T05-11). A single stub
-# return shape does not justify the navigation cost of three modules;
-# T06 introduces the split when `scan_diff` carries the real six-errorCode
-# matrix and the helper grows beyond one envelope.
-def _not_implemented_envelope() -> ToolResult:
-    """Return the NOT_IMPLEMENTED envelope for the T05 stub of `scan_diff`.
-
-    Wire shape (Option B per ADR-0002 §3 amendment 2026-05-17):
-    `structured_content` carries `{errorCode, message, isRetryable, details}`;
-    `content[0].text` reproduces `message`; wire `is_error` stays `False`
-    and is reserved for protocol-level failures.
-
-    The `NOT_IMPLEMENTED` errorCode is a meta-class transitional to the
-    T05 skeleton — it never appears in the final contract (canonical §5
-    consolidated table). T06 replaces the stub with the real subprocess
-    invocation and the six contract errorCodes.
-    """
-    message = (
-        "Tool scan_diff ainda não implementada; implementação completa em T06."
-    )
-    payload = {
-        "errorCode": "NOT_IMPLEMENTED",
-        "message": message,
-        "isRetryable": False,
-        "details": {"task": "T06"},
-    }
-    return ToolResult(
-        content=[TextContent(type="text", text=message)],
-        structured_content=payload,
-    )
-
-
-# =============================================================================
 # Tools
 # =============================================================================
 
@@ -115,7 +79,7 @@ def scan_diff(base_ref: str, head_ref: str) -> ToolResult:
     Returns success with findings list (possibly empty) on completion. Returns business error if Git refs are unresolvable, system error if the scan times out or the Semgrep binary fails. Operation is synchronous and may take seconds to minutes depending on diff size.
     """
     assert _STATE is not None, "semgrep-runner bootstrap did not run"
-    return _not_implemented_envelope()
+    return _scan_diff_impl(base_ref, head_ref, _STATE)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,16 @@
 """T05 acceptance tests — server skeleton + rule set loader.
 
 Each `test_as_*` covers one acceptance scenario from `docs/tasks.md` T05.
-The anchor `test_documents_fastmcp_scan_diff_stub_shape` (labelled
-distinctly per `.claude/rules/test-strategy.md`) pins the wire shape
-FastMCP produces for the T05 stub so that T06's substitution of the
-real `scan_diff` payload fails first here if the wire envelope drifts.
+AS-7 here (`test_as7_scan_diff_registered_with_canonical_description`)
+pins the byte-identity invariant between the tool description registered
+by FastMCP and the literal in `docs/specs/semgrep-runner/compact.md` §5.1
+/ canonical §4.2 — this invariant survives the T06 substitution because
+the wrapper docstring in `server.py` is unchanged. The T05 anchor
+(`test_documents_fastmcp_scan_diff_stub_shape`) and T05's AS-8
+(`test_as8_scan_diff_stub_returns_not_implemented_envelope`) were
+removed by T06 §3.J: both pinned the obsolete `NOT_IMPLEMENTED` stub
+shape that T06 replaced. End-to-end wire format (Option B) is now
+tested in `test_scan_diff.py::test_as11_wire_format_option_b`.
 
 Fixtures never touch the real `mcp_servers/semgrep_runner/rules/` of the
 repo — tests that mutate rule files build under `tmp_path` and pass the
@@ -16,7 +22,6 @@ from pathlib import Path
 
 import pytest
 from fastmcp import Client
-from mcp.types import TextContent
 
 from mcp_servers.semgrep_runner import server
 from mcp_servers.semgrep_runner.errors import RulesLoadError
@@ -60,51 +65,6 @@ _EXPECTED_SCAN_DIFF_DESCRIPTION = """Scans the Git diff between base_ref and hea
 Findings are single-file: the MVP does not perform cross-file taint analysis. Each finding carries rule provenance (rule_id), location (file path, line range), and code snippet. Empty findings list is a valid success outcome — the diff was scanned and no rules matched.
 
 Returns success with findings list (possibly empty) on completion. Returns business error if Git refs are unresolvable, system error if the scan times out or the Semgrep binary fails. Operation is synchronous and may take seconds to minutes depending on diff size."""
-
-
-# ---------------------------------------------------------------------------
-# Anchor — FastMCP wire shape for the T05 NOT_IMPLEMENTED stub (DD-T05-7)
-# ---------------------------------------------------------------------------
-
-async def test_documents_fastmcp_scan_diff_stub_shape(
-    reset_server_state: None,
-) -> None:
-    """Anchor test pinning the wire shape FastMCP 3.x produces from the T05
-    stub of `@mcp.tool scan_diff`, invoked via the in-memory `Client`.
-
-    Locked-in observation against FastMCP 3.2.4:
-      `Client(server.mcp).call_tool(name, args)` returns
-      `fastmcp.client.client.CallToolResult` with snake_case attributes
-      (`is_error`, `structured_content`, `content`).
-
-    Shape pinned (Option B envelope per ADR-0002 §3 amendment 2026-05-17):
-      - `is_error=False` — wire flag reserved for protocol failures.
-      - `structured_content` carries the four canonical envelope fields
-        (`errorCode`, `message`, `isRetryable`, `details`).
-      - `content[0]` is a `TextContent` whose `text` reproduces `message`.
-
-    T06 replaces the stub with the real `scan_diff` payload. The wire
-    shape itself stays stable; only the payload contents change (six
-    real errorCodes + success path). If FastMCP changes the wire shape
-    in a future release, this anchor fails first and forces revision
-    before T06 substitution.
-    """
-    server._bootstrap()
-
-    async with Client(server.mcp) as client:
-        result = await client.call_tool(
-            "scan_diff", {"base_ref": "main", "head_ref": "feature/x"},
-        )
-
-    assert result.is_error is False
-    assert isinstance(result.structured_content, dict)
-    assert result.structured_content["errorCode"] == "NOT_IMPLEMENTED"
-    assert result.structured_content["message"]
-    assert result.structured_content["isRetryable"] is False
-    assert result.structured_content["details"] == {"task": "T06"}
-    assert len(result.content) == 1
-    assert isinstance(result.content[0], TextContent)
-    assert result.content[0].text == result.structured_content["message"]
 
 
 # ---------------------------------------------------------------------------
@@ -264,30 +224,3 @@ async def test_as7_scan_diff_registered_with_canonical_description(
     assert by_name["scan_diff"].description == _EXPECTED_SCAN_DIFF_DESCRIPTION
 
 
-# ---------------------------------------------------------------------------
-# AS-8 — Stub returns the NOT_IMPLEMENTED envelope (helper direct)
-# ---------------------------------------------------------------------------
-
-def test_as8_scan_diff_stub_returns_not_implemented_envelope() -> None:
-    """AS-8. The private helper `_not_implemented_envelope()` returns a
-    `ToolResult` carrying the four canonical envelope fields in
-    `structured_content` and a `TextContent` reproducing the message in
-    `content[0]`. Per DD-T05-11, the helper is tested directly (cleaner
-    than parsing the `ToolResult` returned by the decorated `scan_diff`).
-    The anchor test above exercises the end-to-end path through the
-    FastMCP Client; this AS pins the helper contract that T06 will reuse.
-    """
-    result = server._not_implemented_envelope()
-
-    assert result.structured_content == {
-        "errorCode": "NOT_IMPLEMENTED",
-        "message": (
-            "Tool scan_diff ainda não implementada; "
-            "implementação completa em T06."
-        ),
-        "isRetryable": False,
-        "details": {"task": "T06"},
-    }
-    assert len(result.content) == 1
-    assert isinstance(result.content[0], TextContent)
-    assert result.content[0].text == result.structured_content["message"]

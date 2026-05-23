@@ -334,7 +334,7 @@ Custo estimado: ~1.5-2h Chat de deliberação dos snippets/padrões + ~30min Cod
 
 - **AS-12 — `--baseline-commit` em uso (filtro diff-aware).** Dado fixture Git repo onde `base_ref` é commit pré-existente e `head_ref` é HEAD após adicionar arquivo NOVO que casa a regra, E onde existe arquivo PRÉ-EXISTENTE (committado em `base_ref` ou antes) que também casaria a regra, quando a tool é invocada, então `findings` carrega apenas o finding do arquivo NOVO; o finding pré-existente NÃO aparece, confirmando uso de `--baseline-commit` e não scan completo (canonical §8.6).
 
-- **AS-13 — Subprocess limpo após timeout.** Dado AS-6 disparou SCAN_TIMEOUT, quando psutil é consultado no teardown do teste, então não há processos zumbis com binário `semgrep` rodando — SIGTERM + grace period + SIGKILL (ou equivalente Windows via `Popen.kill()`) completaram a terminação do subprocess.
+- **AS-13 — Subprocess limpo após timeout.** Dado AS-6 disparou SCAN_TIMEOUT, quando o helper `_pid_alive_windows` (conftest, via `tasklist /FI`) é consultado no teardown do teste, então o PID do subprocess não está mais ativo — `Popen.kill()` (TerminateProcess no Windows, invocado internamente por `subprocess.run` em `TimeoutExpired`) completou a terminação. Teste marcado Windows-only via `@pytest.mark.skipif`; ambiente target é Windows 11 corporate (CLAUDE.md §Stack), POSIX dispatch dispensado para evitar dep nova de psutil (`.claude/rules/windows-tooling.md`).
 
 **Gate task-level.**
 

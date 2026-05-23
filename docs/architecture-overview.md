@@ -126,7 +126,7 @@ Detalhes contratuais no spec do `policy-reader` (`docs/specs/policy-reader/canon
 
 ### 4.4 Detecção sintática
 
-**Recognizers brasileiros.** Regras Semgrep ou módulos equivalentes para identificar identificadores brasileiros em código: CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde. Mantidos como diferencial competitivo do MVP em relação a ferramentas existentes que tratam apenas identificadores de jurisdições anglófonas (SSN, ITIN, NHS Number). Operam dentro do `semgrep-runner`, invocados pelo Detector.
+**Recognizers brasileiros.** Regras Semgrep em formato YAML para identificar identificadores brasileiros em código: CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde. Mantidos como diferencial competitivo do MVP em relação a ferramentas existentes que tratam apenas identificadores de jurisdições anglófonas (SSN, ITIN, NHS Number). Operam dentro do `semgrep-runner`, invocados pelo Detector.
 
 ### 4.5 Validação empírica
 

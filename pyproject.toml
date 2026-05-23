@@ -19,10 +19,22 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "mypy>=1.18",
     "pytest>=9.0.3",
     "pytest-asyncio>=0.24",
+    "ruff>=0.13",
     "types-PyYAML>=6.0",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.mypy]
+# Recognizer pack fixtures são deliberadamente type-incorrect pelo padrão
+# stdlib (logger.info com kwargs estilo structured logging) — o snippet é
+# alvo de detecção Semgrep em T07, não código de aplicação. Excluído do
+# strict checking; semantic correctness é validada pela regra Semgrep que
+# casa o pattern, não por mypy.
+exclude = [
+    "tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/",
+]

@@ -233,7 +233,7 @@ Duas provisões precedem o início de tasks específicas. Nenhuma bloqueia T05 �
 
 Commits internos propostos:
 
-1. **canonical sync.** `docs/specs/semgrep-runner/canonical.md` migrado para Option B do amendment §3 do ADR-0002: §4.3 exemplos com wire `isError: false` em sucesso E erro (drift atual: exemplo de SCAN_TIMEOUT mostra `"isError": true`); §8.5 wire format bullets atualizados para refletir discriminação por presença de `errorCode` em `structuredContent`, não por wire flag; §8.<final> review pass contra prosa, eliminando referências remanescentes a wire `isError: true` em erros de domínio. Adicionalmente, §6 da spec é alinhada a §8.6: a frase "version checked against minimum (see ADR-0001). Failure: server fails to start" é removida ou reescrita para refletir verificação per-call em T06 (canonical §8.6 + ADR-0010 são autoritativos). Drift análogo no título de §5.1 ("Casos que parecem erro mas não são"): verificar diretamente se o texto atual ainda diverge do `_template.md`; se sim, sync.
+1. **canonical sync.** `docs/specs/semgrep-runner/canonical.md` migrado para Option B do amendment §3 do ADR-0002: §4.3 exemplos com wire `isError: false` em sucesso E erro (drift atual: exemplo de SCAN_TIMEOUT mostra `"isError": true`); §8.5 wire format bullets atualizados para refletir discriminação por presença de `errorCode` em `structuredContent`, não por wire flag; §8.<final> review pass contra prosa, eliminando referências remanescentes a wire `isError: true` em erros de domínio. Adicionalmente, §6 da spec é alinhada a §8.6: a frase "version checked against minimum (see ADR-0001). Failure: server fails to start" é removida ou reescrita para refletir verificação per-call em T06 (canonical §8.6 + ADR-0010 são autoritativos).
 
 2. **compact sync cirúrgico.** `docs/specs/semgrep-runner/compact.md` recebe edits dirigidos aos contract surfaces drifted, não re-derivação total — ADR-0003 Decision 1 prescreve paridade restrita a contract surfaces (tool descriptions, output schemas, error codes, anti-uses, when-to-use guidance), não prose. Drifts a sincronizar: (a) §3 tabela de errorCodes — substituir os 4 atuais (`INVALID_BASE_REF`, `INVALID_HEAD_REF`, `SCAN_TIMEOUT`, `SEMGREP_EXECUTION_FAILED`) pelos 6 do canonical §5 (`GIT_REF_NOT_FOUND`, `INSUFFICIENT_GIT_HISTORY`, `SCAN_TIMEOUT`, `SEMGREP_BINARY_UNAVAILABLE`, `SEMGREP_EXECUTION_FAILED`, `INVALID_RULE_SET`); (b) classes — `validation+system` → `business+system` (validation é vazio neste componente por declaração positiva, ADR-0002 Decision 4); (c) retryability — `SCAN_TIMEOUT` non-retryable → retryable, `SEMGREP_EXECUTION_FAILED` non-retryable → retryable (alinha com ADR-0002 Decision 3 "system — isRetryable: true in almost all cases"); (d) timing de `SEMGREP_BINARY_UNAVAILABLE` — caught at startup → per-call (canonical §8.6 + ADR-0010 são autoritativos); (e) wire format em §3 e §5 — alinhar a Option B amended.
 
@@ -384,14 +384,10 @@ PRs separados ou commits internos de PRs principais, fora do escopo de implement
 
 **Consolidados em Provisão A de Milestone B** (PR `chore/canonical-sync-C-semgrep-runner`, ver §Milestone B § Pré-implementação):
 
-- canonical sync do `semgrep-runner` (Option B amendment §3 ADR-0002 + §6 vs §8.6 alignment + §5.1 título se ainda drifted).
+- canonical sync do `semgrep-runner` (Option B amendment §3 ADR-0002 + §6 vs §8.6 alignment).
 - compact sync cirúrgico do `semgrep-runner` (6 errorCodes, classes, retryability, runtime vs startup do BINARY_UNAVAILABLE, wire format).
 - README pin de Semgrep: documenta `uv tool install semgrep==1.163.0` como prerequisite na seção Setup, alongside Python 3.12.7 via pyenv-win e Node 24, conforme ADR-0010.
 - ADR-0001 Decision 2 amendment in-place: alinha stack canônica à realidade — Semgrep (substitui Presidio menção); FastMCP 3.2.4 pin formal; Pydantic 2.13.4 pin formal; MCP 1.27.1 pin formal. Espelha pattern de amendment in-place de ADR-0008 (2026-05-16).
-
-**Resolver pós-T07 ou em PR mecânica dedicada:**
-
-- `docs/architecture-overview.md` §4.4 hedge removal: o texto atual "Regras Semgrep ou módulos equivalentes" reflete decisão em aberto. Após T07 fechar com escolha definitiva por regras Semgrep YAML, sync para "Regras Semgrep em formato YAML". Companion edit pequena, viaja com próxima PR que tocar `architecture-overview.md` por outro motivo, ou PR mecânica dedicada se nenhuma outra emergir.
 
 ---
 

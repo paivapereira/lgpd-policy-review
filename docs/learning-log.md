@@ -5672,3 +5672,75 @@ T06 (PR #56) é anexada separadamente ao learning-log conforme handoff
 
 - **Gate milestone-level Milestone B**: auditoria de completude vs proposta-tcc2.md §B; checklist de critérios; decisão sobre direct progression vs housekeeping pre-C.
 - Sessão #34 candidate: gate audit OU pre-C housekeeping OU authoring direto de tasks.md §Milestone C. Decidido no handoff #33→#34.
+
+# Session #34 — 2026-05-24 — Gate Milestone B: descoberta de defeito em scan_diff via stdio transport
+
+## Status
+
+- **Branch aberta:** `chore/gate-milestone-b-rule-set-fixture` (não mergeada).
+- **Commits na branch:** `19e0536` (pack alternativo synthetic_iban), `84672a5` (gate exercise script).
+- **Gate Milestone B:** FAIL — não por defeito do gate, mas por defeito empírico em `scan_diff` que o gate revelou.
+- **Tests:** 132 passing inalterado (defeito invisível ao pytest existente).
+- **Decisão de fluxo:** fix em PR separada (sessão Code #35); ADR pos-hoc após escopo de fix consolidado; re-rodar gate após merge do fix.
+
+## Conceitos da prova exercitados
+
+### D2 — Tool Design & MCP Integration (18%)
+- **In-memory client vs stdio transport client — distinção fundamental.** AS-11 do T06 valida envelope shape via `Client(server.mcp)` no mesmo processo Python — sem serialização, sem subprocess, sem pipe stdio real. Para validação de wire format protocolar fiel, stdio transport é o único caminho. AS-11 deu falsa segurança sobre comportamento sob transport real; defeito do `subprocess.run` em `_resolve_ref` só se manifesta quando o servidor MCP roda como subprocess do cliente externo com stdin pipe herdado.
+- **MCP Inspector CLI v atual — limitação de client-side request timeout.** Default insuficiente para cold start de `scan_diff` em Windows; override via `MCP_SERVER_REQUEST_TIMEOUT` não teve efeito documentado. FastMCP `Client(timeout=...)` expõe o parâmetro explicitamente, viabilizando exercise fiel sem o cliente Node.
+- **Equivalência cliente↔cliente sob mesma surface protocolar.** Argumento que justifica MCP como protocolo aberto materializado empiricamente: trocar Inspector (Node) por FastMCP Client (Python) preserva fidelidade protocolar — ambos consomem o mesmo wire format stdio contra o mesmo servidor.
+- **`StdioTransport(command, args, env, cwd)` da FastMCP 3.2.4** — API confirmada via inspeção empírica (`inspect.getsource`); aceita `cwd` e `env` parametrizáveis, viabilizando exercise com rule set alternativo via `SEMGREP_RUNNER_ROOT` injetado e cwd apontando para repo Git de fixture.
+
+### D5 — Context Management & Reliability (15%)
+- **Error propagation defeituoso — `TimeoutExpired` classificada como business error.** `tools.py:_resolve_ref` captura `subprocess.SubprocessError` (superclass de `TimeoutExpired`) e traduz para `None` → `GIT_REF_NOT_FOUND` (business, isRetryable=False). Cadeia inteira: bug de portabilidade Windows-stdio (transient, subprocess deadlock por handle inheritance) → erro semântico de ref inexistente (business, irrecuperável). Anti-pattern canônico que D5 cobra em "transient vs business vs permission errors". Fix correto distingue classes: `TimeoutExpired` → transient (eventualmente retryable ou system error), `CalledProcessError` exit-code-mapped → business. Fix mínimo (`stdin=DEVNULL`) elimina manifestação; fix arquitetural separa classes.
+- **Progressive narrowing de hipóteses na sessão.** Sequência metodológica empírica: suspeita ampla ("MCP timeout") → isolamento de transport (Inspector vs FastMCP Client) → isolamento cliente vs servidor (script vs Inspector) → isolamento cliente MCP vs invocação direta (`scan_diff` standalone com `state` injetado manualmente) → revelação do defeito empírico no transport via comparação `subprocess.run` com vs sem `stdin=DEVNULL`. Cada passo eliminou um eixo. Pattern de escalation que D5 cobra: não chutar solução, isolar onde o erro está.
+- **Handle inheritance em pipe stdio + subprocess sem `stdin=` explícito.** Causa raiz invisível ao código-fonte do consumidor: o defeito está na interação entre transport stdio do MCP (parent recebe pipe stdin do cliente) + comportamento default do `subprocess.run` (filho herda handles do parent quando `stdin=` não é especificado). Pytest com in-memory client não tem pipe stdin a herdar; defeito não aparece. Categoria de bug que **só** gate manual com transport real pode capturar.
+
+### D3 — Claude Code Configuration & Workflows (20%)
+- **`.claude/rules/review-patterns.md` Justificativa #2 materializada.** "Exercise contra wire real expõe debt que pytest cobre por coincidência" — citada literalmente pelo Code no halt-and-escalate. Pattern de project-level rule consumida via CLAUDE.md hierarchy aplicada como argumento de halt structurally significant.
+- **Disciplina de "gate descobre defeito → Chat planeja → Code executa".** Pattern empírico das sessões #21-#25 reafirmado: Code identifica defeito + escopo de fix + propõe sequência, mas para na fronteira "modificar `src/`" (proibido pelo prompt da sessão de gate); Chat decide direção; sessão Code subsequente executa. Disciplina materializada via halt-and-escalate, não via tentativa unilateral de Code resolver tudo na mesma sessão.
+
+## Decisões de sessão
+
+- **Pack alternativo `alternative_rule_set_synthetic`** criado conforme planejado. Layout ratificado: subdir `rules/` (alvo de `SEMGREP_RUNNER_ROOT`) + snippet + README no pack root. Smoke check verde antes do exercise (`load_rules` apontando para o pack carrega regra `synthetic-iban` sem erro; `rules_version = sha256:ffb1ac00...`).
+- **Mudança de mecanismo do exercise**: Inspector CLI → FastMCP Client via stdio transport. Argumento defensivo: client-side timeout default do Inspector insuficiente; override via env var sem efeito; FastMCP `Client(timeout=...)` é cliente MCP Python contra mesmo servidor via mesmo wire format stdio. Equivalência cliente↔cliente preserva fidelidade protocolar.
+- **Caminho 4** (Code redige o script com repo em contexto) escolhido sobre Caminho 1 (in-memory client), Caminho 2 (eu redijo stdio script), Caminho 3 (cavar Inspector). Code tem visibilidade da API exata da FastMCP 3.2.4 instalada e do pattern AS-11 para referência negativa (o que NÃO replicar).
+- **Próximo fluxo decidido**: fix em PR separada com tests novos primeiro; ADR pos-hoc após escopo de fix consolidado (pode aparecer mais loci do mesmo defeito); ADR-0001 Decision 2 amendment é precedente projetual de ADR retroativo. Branch atual `chore/gate-milestone-b-rule-set-fixture` mantida aberta — ela existe como evidência da descoberta, não como deliverable; merge dela vem **junto** ou **depois** do merge do fix.
+- **Tests novos do fix inline em `test_scan_diff.py`** como AS-14, complementar a AS-11. Razão: AS-14 não é feature nova, é cobertura empírica do mesmo contrato sob cliente faltante. Agrupar por componente sob teste, não por mecanismo de teste.
+
+## Artefatos da sessão
+
+- Branch `chore/gate-milestone-b-rule-set-fixture` (não mergeada):
+  - `tests/mcp_servers/semgrep_runner/fixtures/alternative_rule_set_synthetic/rules/synthetic_iban.yaml`
+  - `tests/mcp_servers/semgrep_runner/fixtures/alternative_rule_set_synthetic/synthetic_iban_function_param.py`
+  - `tests/mcp_servers/semgrep_runner/fixtures/alternative_rule_set_synthetic/README.md`
+  - `scripts/gate_milestone_b_exercise.py` (artefato de exercise, não teste pytest)
+- Diagnóstico empírico do Code (apagado após uso, registrado prosa-only no halt):
+  - `subprocess.run([git, ...], cwd=cwd, capture_output=True, text=True, timeout=5)` → timeout, partial_stdout=""
+  - `subprocess.run([git, ...], cwd=cwd, capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL)` → rc=0, stdout=<sha>
+- Outputs Chat extensos: prompt de pack (com delta pós-pre-flight), prompt de gate script, três rodadas de diagnóstico de timeout, halt-and-escalate report do Code, plano de sequência pós-descoberta.
+
+## Catches do gate (não bloqueantes para sessão #35)
+
+| # | Item | Severidade | Locus |
+|---|------|-----------|-------|
+| 1 | `summarize_phase` fallback `scan_metadata.base_ref or base_ref` em `gate_milestone_b_exercise.py:168-169` — INV-5 mede "input refs bem formados" se scan retornar erro, não strictamente "servidor ecoou refs resolvidos". Nuance metodológica a registrar no gate report eventual. | Cosmético | `scripts/gate_milestone_b_exercise.py` |
+| 2 | Verificar se `subprocess.run` do próprio Semgrep em `tools.py` também sofre do mesmo handle inheritance — provavelmente sim, mas trava menos visível por `--metrics=off` e config mais auto-contida. Pre-flight do prompt de fix deve verificar. | Substantivo, defensivo | `src/mcp_servers/semgrep_runner/tools.py` invocação Semgrep |
+| 3 | `_is_shallow_repository` (também `subprocess.run` git) tem o mesmo padrão; fix se aplica simetricamente. | Substantivo | `src/mcp_servers/semgrep_runner/tools.py:_is_shallow_repository` |
+
+## Métrica acumulada sessão #34
+
+- **Tempo Chat:** ~4h prep + diagnóstico (estimativa).
+- **Tempo Code:** ~1h (pack + gate script + halt-and-escalate report).
+- **Ratio:** ~4:1 Chat:Code mantido.
+- **Rounds de prompt:** 2 prompts grandes para Code (pack, gate script) + 1 prompt curto de diagnóstico (probe.py via heredoc PowerShell).
+- **Catches por layer:**
+  - Layer-1 (docs/prompt): catch do layout do pack (subdir rules/ ratificado em Chat pré-execution); catch da divergência `SEMGREP_RUNNER_ROOT` (Code halt-and-escalate em pre-flight).
+  - Layer-2 (script): catch do `summarize_phase` fallback durante review Chat do output do Code.
+  - Layer-3 (execução empírica): **defeito de portabilidade Windows-stdio descoberto exclusivamente aqui** — pytest, code review, e prompt design todos invisíveis a esta categoria de bug.
+
+## Próximo passo
+
+Sessão Chat #35 — prep do prompt Code para PR de fix em `tools.py`. Pre-leitura conforme handoff #34→#35. Escopo: `stdin=subprocess.DEVNULL` em ambos `subprocess.run` que invocam git (`_resolve_ref`, `_is_shallow_repository`) + verificação se `subprocess.run` do próprio Semgrep tem mesmo padrão (provavelmente sim — incluir preventivamente). Separação `TimeoutExpired` vs `CalledProcessError` para classificação correta de error class (D5 transient vs business): incluir na mesma PR ou diferir? Decisão de sessão #35. AS-14 inline em `test_scan_diff.py` validando `scan_diff` sob stdio transport real (Client externo, não in-memory). Após merge: re-rodar `scripts/gate_milestone_b_exercise.py` esperando PASS; redigir `docs/milestoneB.md`; ADR pos-hoc; mergear branch atual `chore/gate-milestone-b-rule-set-fixture` em conjunto com (ou após) PR do fix.
+
+Custo estimado distribuído em 2-3 sessões: ADR ~1h Chat dedicada (pos-hoc, sessão própria); PR de fix ~1h Code + ~30min Chat review; re-rodar gate ~5min; redigir milestoneB.md ~45min; atualizar este learning-log com PASS confirmation ~15min.

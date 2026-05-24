@@ -18,6 +18,7 @@ AS-7 PATH manipulation, AS-8 specific exit code injection) use
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -27,6 +28,7 @@ from typing import Any
 
 import pytest
 from fastmcp import Client
+from fastmcp.client.transports import StdioTransport
 from mcp.types import TextContent
 
 from mcp_servers.semgrep_runner import server, tools
@@ -758,3 +760,135 @@ def test_anchor_findings_ordering_path_startline_ascending(
     # Strict ordering: a_file.py:3, then z_file.py:2, then z_file.py:5.
     order = [(f["location"]["path"], f["location"]["start_line"]) for f in findings]
     assert order == [("a_file.py", 3), ("z_file.py", 2), ("z_file.py", 5)]
+
+
+# ---------------------------------------------------------------------------
+# AS-14 — scan_diff via StdioTransport (real subprocess MCP server)
+# ---------------------------------------------------------------------------
+
+def _stdio_transport_env(rules_dir: Path) -> dict[str, str]:
+    """Env baseline for spawning the MCP server via StdioTransport.
+
+    `env=dict(os.environ)` baseline is mandatory — never `env={}` alone:
+    PATH is required for git/semgrep resolution, SYSTEMROOT is required
+    on Windows for socket/stdlib imports to succeed in spawned subprocesses.
+    `SEMGREP_RUNNER_ROOT` is overridden to point at the test rules dir so
+    the server bootstrap does not depend on the project's installed rule
+    set (see `loader.resolve_runner_root` precedence).
+    """
+    env = dict(os.environ)
+    env["SEMGREP_RUNNER_ROOT"] = str(rules_dir)
+    return env
+
+
+async def test_as14_scan_diff_stdio_transport_success(
+    tmp_path: Path,
+    test_rules_dir: Path,
+) -> None:
+    """AS-14. `scan_diff` exercised through a real `StdioTransport`
+    (subprocess MCP server spawned via `python -m
+    mcp_servers.semgrep_runner.server`), in contrast with AS-11 which
+    uses `Client(server.mcp)` in-memory.
+
+    Cross-platform happy path: ensures the stdio transport works
+    end-to-end for valid refs. AS-14b (Windows-only) covers the specific
+    handle-inheritance regression that AS-11 cannot reach because
+    in-memory transport has no parent stdin pipe to inherit.
+
+    Strict assertions mirror AS-11 success path: no `errorCode`, success
+    payload keys present, single `TextContent` with PT-BR summary.
+    """
+    repo, base_sha, head_sha = make_git_repo(
+        tmp_path,
+        base_files={"placeholder.txt": "base\n"},
+        head_files={"snippet.py": "def foo(): pass\nfoo()\n"},
+    )
+    transport = StdioTransport(
+        command=sys.executable,
+        args=["-m", "mcp_servers.semgrep_runner.server"],
+        cwd=str(repo),
+        env=_stdio_transport_env(test_rules_dir),
+    )
+    async with Client(transport, timeout=300) as client:
+        result = await client.call_tool(
+            "scan_diff",
+            {"base_ref": base_sha, "head_ref": head_sha},
+        )
+
+    assert result.is_error is False
+    assert isinstance(result.structured_content, dict)
+    assert "errorCode" not in result.structured_content
+    assert "findings" in result.structured_content
+    assert "scan_metadata" in result.structured_content
+    assert len(result.content) == 1
+    assert isinstance(result.content[0], TextContent)
+    assert "candidato" in result.content[0].text  # PT-BR summary
+
+
+# ---------------------------------------------------------------------------
+# AS-14b — scan_diff does not hang under Windows-stdio transport (timing)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Handle inheritance via Windows anonymous pipe is specific to "
+    "Win32 stdio MCP transport; POSIX does not exhibit the hang.",
+)
+async def test_as14b_scan_diff_no_hang_on_windows_stdio_transport(
+    tmp_path: Path,
+    test_rules_dir: Path,
+) -> None:
+    """AS-14b. Windows-only regression: `scan_diff` does not hang when
+    spawning git subprocesses under a real `StdioTransport`.
+
+    Without `stdin=subprocess.DEVNULL` in `_resolve_ref` /
+    `_is_shallow_repository`, the git child inherits the parent MCP
+    server's stdin pipe. On Windows, this handle inheritance via
+    anonymous pipe causes `subprocess.run` to hang until timeout,
+    accumulating ~22-23s (10s `_is_shallow_repository` + 10s
+    `_resolve_ref(base_ref)` + cold-start) before `TimeoutExpired` is
+    misclassified as `GIT_REF_NOT_FOUND` by the generic
+    `except (SubprocessError, OSError)` capture.
+
+    With the fix applied across all three subprocess sites in
+    `tools.py`, the full path (cold-start + 2 git rev-parse + semgrep
+    scan) returns in ~5-8s. The 10.0s threshold establishes a safe
+    margin between the success path (~5-8s) and the defect path
+    (~22-23s) without rejecting cold CI runs.
+
+    Root cause (proximal): handle inheritance via Windows anonymous
+    pipe used for stdio MCP transport. Fine-grained root cause (Win32
+    pipe internals + `Popen.wait()` interaction) not fully characterized
+    here; ADR-0012 post-hoc will cover. The semantic misclassification
+    (`TimeoutExpired` treated as business `GIT_REF_NOT_FOUND` instead of
+    transient) remains as documented debt addressed in ADR-0012 +
+    follow-up PR; this PR eliminates the current manifestation only.
+
+    Mirrors AS-13 as precedent for an AS-namespaced Windows-only test
+    validating an invariant the contract relies on (subprocess
+    behaviour under stdio transport).
+    """
+    repo, base_sha, head_sha = make_git_repo(
+        tmp_path,
+        base_files={"placeholder.txt": "base\n"},
+        head_files={"snippet.py": "def foo(): pass\nfoo()\n"},
+    )
+    transport = StdioTransport(
+        command=sys.executable,
+        args=["-m", "mcp_servers.semgrep_runner.server"],
+        cwd=str(repo),
+        env=_stdio_transport_env(test_rules_dir),
+    )
+    start = time.perf_counter()
+    async with Client(transport, timeout=300) as client:
+        await client.call_tool(
+            "scan_diff",
+            {"base_ref": base_sha, "head_ref": head_sha},
+        )
+    elapsed = time.perf_counter() - start
+    assert elapsed < 10.0, (
+        f"scan_diff took {elapsed:.2f}s under real StdioTransport — "
+        f"handle inheritance defect present? Verify "
+        f"stdin=subprocess.DEVNULL in _resolve_ref / "
+        f"_is_shallow_repository / semgrep subprocess in tools.py."
+    )

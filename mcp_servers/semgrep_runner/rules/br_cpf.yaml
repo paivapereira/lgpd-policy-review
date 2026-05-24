@@ -1,0 +1,22 @@
+rules:
+  - id: br-cpf
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Coleta potencial de CPF detectada. Verifique base legal de tratamento
+      sob a Política LGPD vigente.
+    metadata:
+      category: pii-collection-br
+      identifier: cpf
+    # DD-T07-3a (alt-a, ratificado em GATE 1): 1-pattern per rule.
+    # Pattern validado pela fixture br_cpf_function_param.py do pack BR
+    # (Latin square). Transitividade a outros contextos sintáticos
+    # (dict_key, attribute, log_payload) é gap documentado, pendência
+    # pós-MVP (expansão para matriz 6 x 4 = 24 snippets).
+    pattern-either:
+      - pattern: |
+          def $FN(..., cpf, ...):
+            ...
+      - pattern: |
+          def $FN(..., cpf: $T, ...):
+            ...

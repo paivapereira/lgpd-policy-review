@@ -1,0 +1,21 @@
+rules:
+  - id: br-nis-pis
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Coleta potencial de NIS/PIS detectada. Verifique base legal de
+      tratamento sob a Política LGPD vigente.
+    metadata:
+      category: pii-collection-br
+      identifier: nis-pis
+    # DD-T07-3a (alt-a): 1-pattern (em pattern-either cobrindo 5 níveis de
+    # log) per rule. Validado por br_nis_log_payload.py do pack BR (Latin
+    # square). Identifier name canonical `nis` cobre ambas semânticas
+    # NIS e PIS (intercambiáveis no INSS desde 2018, DD-T07-13). Transitividade
+    # pós-MVP.
+    pattern-either:
+      - pattern: logger.info(..., nis=$V, ...)
+      - pattern: logger.debug(..., nis=$V, ...)
+      - pattern: logger.warning(..., nis=$V, ...)
+      - pattern: logger.error(..., nis=$V, ...)
+      - pattern: logger.critical(..., nis=$V, ...)

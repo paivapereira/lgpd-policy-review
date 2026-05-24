@@ -1,0 +1,13 @@
+rules:
+  - id: br-cnpj
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Coleta potencial de CNPJ detectada. Verifique base legal de tratamento
+      sob a Política LGPD vigente.
+    metadata:
+      category: pii-collection-br
+      identifier: cnpj
+    # DD-T07-3a (alt-a): 1-pattern per rule. Validado por br_cnpj_dict_key.py
+    # do pack BR (Latin square). Transitividade pós-MVP.
+    pattern: $D["cnpj"]

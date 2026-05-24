@@ -1,0 +1,19 @@
+rules:
+  - id: br-cns-saude
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Coleta potencial de CNS-saúde detectada. Verifique base legal de
+      tratamento sob a Política LGPD vigente. Dados de saúde são categoria
+      sensível sob LGPD Art. 11; verificar base legal específica.
+    metadata:
+      category: pii-collection-br
+      identifier: cns-saude
+    # DD-T07-3a (alt-a): 1-pattern per rule. Validado por br_cns_dict_key.py
+    # do pack BR (Latin square). Identifier name canonical `cns_saude`
+    # (snake_case com qualifier para distinguir de outros CNS — Common
+    # Name Server, Container Network Service); alias `cns` não coberto
+    # no MVP (DD-T07-13). DD-T07-4: severity ERROR (única regra) — dados
+    # de saúde são categoria sensível sob LGPD Art. 11. Transitividade
+    # pós-MVP.
+    pattern: $D["cns_saude"]

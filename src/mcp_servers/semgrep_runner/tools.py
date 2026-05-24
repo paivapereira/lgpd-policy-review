@@ -149,6 +149,7 @@ def _is_shallow_repository(repo_root: Path) -> bool:
             encoding="utf-8",
             errors="replace",
             timeout=_GIT_SUBCOMMAND_TIMEOUT,
+            stdin=subprocess.DEVNULL,
         )
     except (subprocess.SubprocessError, OSError):
         return False
@@ -169,6 +170,7 @@ def _resolve_ref(ref: str, repo_root: Path) -> str | None:
             encoding="utf-8",
             errors="replace",
             timeout=_GIT_SUBCOMMAND_TIMEOUT,
+            stdin=subprocess.DEVNULL,
         )
     except (subprocess.SubprocessError, OSError):
         return None
@@ -310,6 +312,7 @@ def scan_diff(
             encoding="utf-8",
             errors="replace",
             timeout=timeout,
+            stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired:
         # (5) Timeout — subprocess.run kills child internally on

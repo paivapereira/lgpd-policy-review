@@ -67,53 +67,79 @@ e o pattern do POL pack (flat, sem subdiretórios positive/negative).
 
 ## Composição da fixture root para testes de T07
 
-Cada teste de T07 (`test_recognizers_br.py`) que precisa exercitar uma
-regra contra o pack constrói uma fixture root temporária via `tmp_path`
-do pytest, composta de:
+Cada teste de T07 (`test_recognizers_br.py`) exercita uma ou mais regras
+`br-*` contra fixtures do pack via um repositório Git temporário —
+`scan_diff` exige refs Git base/head reais (estabelecido em T06), não
+basta um diretório de arquivos. T07 implementa em
+`tests/mcp_servers/semgrep_runner/conftest.py`:
 
-- `rules/br_cpf.yaml`, `rules/br_cnpj.yaml`, ..., `rules/br_cns_saude.yaml`
-  — copiados do rule set de produção (`mcp_servers/semgrep_runner/rules/`)
-  após T07 mergeado.
-- `fixtures_under_test/` — copiados deste pack.
+- `BR_SLUGS`: tupla canônica `("br_cpf", "br_cnpj", "br_cnh",
+  "br_nis_pis", "br_titulo_eleitor", "br_cns_saude")`.
+- `PRODUCTION_RULES_DIR`: caminho absoluto para `mcp_servers/semgrep_runner/rules/`.
+- `BR_PACK_DIR`: caminho absoluto para este diretório do pack.
+- `_build_br_rules_dir(tmp_path, slugs) -> Path`: helper que copia um
+  subconjunto dos YAMLs `br_*.yaml` da produção para `tmp_path / "rules"`.
+  Usado por AS-1..AS-6 e ANC-3 que querem apenas a regra sob teste.
+- `_build_pack_repo(tmp_path, fixture_names) -> tuple[Path, str, str]`:
+  helper que monta um repositório Git via `make_git_repo` cujo head commit
+  introduz as fixtures do pack indicadas. Retorna `(repo, base_sha, head_sha)`
+  — note que é tuple, não `Path`, porque `scan_diff` precisa dos SHAs.
+- Fixtures convenience `br_rules_dir` (full set, 6 regras) e
+  `br_pack_repo` (full pack, 9 fixtures) para AS-7, AS-8, AS-9 e
+  anchors que precisam do conjunto inteiro.
 
-O servidor `semgrep-runner` é iniciado com configuração apontando para o
-rule set temporário; `scan_diff` é invocado com refs Git apontando para
-diff que introduz os snippets do pack.
-
-Pattern típico em `conftest.py` (sugestão; Code refatora):
+Pattern típico de uso em `test_recognizers_br.py`:
 
 ```python
-import shutil
-from pathlib import Path
-import pytest
-
-REPO_ROOT = Path(__file__).resolve().parents[3]
-RULES = REPO_ROOT / "mcp_servers" / "semgrep_runner" / "rules"
-PACK = REPO_ROOT / "tests" / "mcp_servers" / "semgrep_runner" / "fixtures" / "recognizers_pack_br"
-
-
-@pytest.fixture
-def rule_set_with_br_recognizers(tmp_path):
-    rules_dir = tmp_path / "rules"
-    rules_dir.mkdir(parents=True)
-    for rule_name in (
-        "br_cpf",
-        "br_cnpj",
-        "br_cnh",
-        "br_nis_pis",
-        "br_titulo_eleitor",
-        "br_cns_saude",
-    ):
-        shutil.copy(RULES / f"{rule_name}.yaml", rules_dir / f"{rule_name}.yaml")
-    return rules_dir
+from .conftest import (
+    BR_SLUGS,
+    PRODUCTION_RULES_DIR,
+    _build_br_rules_dir,
+    _build_pack_repo,
+)
 
 
-@pytest.fixture
-def fixture_pack_br(tmp_path):
-    pack_dir = tmp_path / "scan_target"
-    shutil.copytree(PACK, pack_dir)
-    return pack_dir
+def test_as1_br_cpf_matches_function_param(tmp_path, monkeypatch):
+    # AS-1 escopo: 1 regra vs 1 fixture
+    rules_dir = _build_br_rules_dir(tmp_path, ("br_cpf",))
+    repo, base_sha, head_sha = _build_pack_repo(
+        tmp_path, ("br_cpf_function_param.py",)
+    )
+    monkeypatch.chdir(repo)
+    state = load_rules(rules_dir)
+    result = tools.scan_diff(base_sha, head_sha, state)
+    # asserts subset...
+
+
+def test_as7_negative_regex_validation_no_findings(
+    tmp_path, monkeypatch, br_rules_dir
+):
+    # AS-7 escopo: 6 regras (br_rules_dir) vs 1 fixture negativa
+    repo, base_sha, head_sha = _build_pack_repo(
+        tmp_path, ("negative_regex_validation.py",)
+    )
+    monkeypatch.chdir(repo)
+    state = load_rules(br_rules_dir)
+    result = tools.scan_diff(base_sha, head_sha, state)
+    assert result.structured_content["findings"] == []
+
+
+def test_as8_placeholder_removed_only_br_rule_ids_in_findings(
+    monkeypatch, br_pack_repo
+):
+    # AS-8 escopo: rule set de produção direto vs full pack
+    repo, base_sha, head_sha = br_pack_repo
+    monkeypatch.chdir(repo)
+    state = load_rules(PRODUCTION_RULES_DIR)
+    # ...
 ```
+
+Naming divergente do sugerido nesta seção em authoring pré-T06
+(`rule_set_with_br_recognizers`, `fixture_pack_br -> Path` por
+`shutil.copytree`): T06 estabeleceu que `scan_diff` opera sobre refs Git
+reais via `make_git_repo`, não sobre directories soltos. Nomes mais
+curtos (`br_rules_dir`, `br_pack_repo`) e o sufixo `_repo` em
+`br_pack_repo` sinalizam explicitamente que retorna `tuple[Path, str, str]`.
 
 ## Identificadores sintéticos utilizados
 

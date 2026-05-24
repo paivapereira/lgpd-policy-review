@@ -1,81 +1,121 @@
-# Session Handoff #34 → #35
+# Session Handoff #35 → #36
 
-**De:** Sessão #34 (gate Milestone B exercise + descoberta de defeito scan_diff stdio)
-**Para:** Sessão #35
+**De:** Sessão #35 (Chat prep T-fix v1→v3 + Code aplicação PR #59 + gate Milestone B PASS empírico)
+**Para:** Sessão #36
 **Data:** 2026-05-24
-**Estado:** Branch de gate aberta; fix de defeito pendente em PR separada; gate re-rodada e milestoneB.md aguardam fix.
+**Estado:** PR #59 pronta para merge; chore com script patched local não-pushed; gate Milestone B PASS confirmado empíricamente; milestoneB.md draft entregue como artefato Chat (definitivo após squash hashes).
 
 ---
 
 ## 1. Estado factual do repo
 
-- **Branch atual:** `main` (sessão #34 não modificou main; toda evidência em branch aberta).
-- **Branch aberta:** `chore/gate-milestone-b-rule-set-fixture` — commits `19e0536` (pack alternativo) + `84672a5` (gate exercise script). Não mergeada por decisão metodológica: branch é evidência da descoberta, não deliverable. Merge vem junto/depois do fix.
-- **Tests:** 132 passing inalterado em main.
-- **Gate Milestone B:** FAIL — defeito empírico em `scan_diff` revelado pelo próprio gate. Documentado em learning-log §"Session #34".
-- **Estado do Milestone B:** implementation completa (sessão #33); gate descobriu débito de portabilidade Windows-stdio invisível aos 132 testes; gate só pode passar após fix.
+- **Branch atual recomendada para #36:** `main` após pull do merge da PR #59.
+- **PR #59** — `fix/scan-diff-stdin-isolation-windows-stdio` → main. 1 commit `6f9bc44`. Diff: `tools.py +3 / test_scan_diff.py +134`. **Status ao fechar #35: aprovada para merge pelo Chat; aguardando ação manual do operador.**
+- **Branch local `chore/gate-milestone-b-rule-set-fixture`** — 3 commits: `19e0536` (pack alternativo), `84672a5` (gate script v1), `34b6c05` (patch script #35). **Não pushed ao fechar #35.**
+- **Branches descartáveis pós-merge:** `fix/scan-diff-stdin-isolation-windows-stdio` (depois do squash); `test/gate-on-fix` (antigo); `test/gate-on-fix-v2` (validação #35).
+- **Untracked persistente:** `gate_b_output.json` (evidência consolidada do gate PASS, sessão #35) e `gate_b_stderr.log` (verbose stderr da #35).
+- **Tests pós-merge da PR #59:** 134 passing esperado em Windows local; 133 em Linux/macOS (AS-14b skipped).
 
-## 2. Descoberta empírica — defeito ativo de portabilidade
+## 2. Tasks pendentes para sessão #36
 
-Defeito em `src/mcp_servers/semgrep_runner/tools.py`:
+### (B) Confirmação documental do gate PASS — sessão #36 abertura
 
-- `_resolve_ref` (linha ~163) e `_is_shallow_repository` (linha similar) invocam `subprocess.run(["git", ...], cwd=..., capture_output=True, text=True, timeout=10)` **sem `stdin=`** explícito.
-- Quando servidor MCP roda sob stdio transport real (cliente externo, subprocess do servidor), o parent tem stdin como pipe vindo do cliente. Filhos de `subprocess.run` sem `stdin=` herdam esse handle → git nunca completa → `TimeoutExpired` em 10s.
-- `TimeoutExpired` é subclass de `subprocess.SubprocessError`, capturada pelo `except (SubprocessError, OSError)` → retorna `None` → fluxo emite `GIT_REF_NOT_FOUND` (business, isRetryable=False).
-- **Cadeia de error propagation classifica errado**: bug transient (deadlock por handle inheritance) vira erro semântico de business (ref inexistente). D5 anti-pattern canônico.
+- Atualizar `docs/learning-log.md` entry #34 (já existente) com 1 linha de PASS confirmation citando hash do merge da PR #59 + hash do merge da PR chore quando esta vier.
+- Atualizar `docs/learning-log.md` entry #35 (entregue como artefato Chat — `learning-log-35.md` em outputs; integrar ao log oficial).
+- ~5min Code ou pode ser absorvido pela sessão que abre PR chore.
 
-Evidência empírica (Code rodou e apagou; registrado em halt report):
-- `subprocess.run([git, ...], capture_output=True, text=True, timeout=5)` → timeout, partial_stdout=""
-- `subprocess.run([git, ...], capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL)` → rc=0, stdout=<sha>
+### (C) Push + PR de `chore/gate-milestone-b-rule-set-fixture`
 
-Defeito invisível ao pytest porque AS-11 (e demais tests do scan_diff) usam `Client(server.mcp)` in-memory — sem pipe stdio real, sem handle a herdar. Apenas gate exercise com cliente externo via stdio transport o expôs.
+- Rebase de `chore/*` sobre `main` pós-merge PR #59 (deve ser limpo; arquivos disjuntos).
+- `git push -u origin chore/gate-milestone-b-rule-set-fixture`.
+- Abrir PR via GitHub. Description cita: (a) gate PASS empírico contra `test/gate-on-fix-v2`; (b) 3 commits internos (pack + script v1 + patch #35); (c) evidência do `gate_b_output.json` consolidado.
+- Decisão pendente: incluir cleanup do `gate_b_output.json` + `gate_b_stderr.log` na PR ou diferir para housekeeping? Inclinação: defer + adicionar pattern ao `.gitignore` em housekeeping própria — separação de concerns.
+- ~30min Chat de redação + Code de push + review.
 
-## 3. Tasks pendentes para sessão #35
+### (D) Redação definitiva de `docs/milestoneB.md`
 
-### (A) PR de fix `fix/scan-diff-stdin-isolation-windows-stdio` (ou nome similar)
-- Branch nova de main.
-- **Escopo mínimo confirmado:** `stdin=subprocess.DEVNULL` em `subprocess.run` de `_resolve_ref` e `_is_shallow_repository`.
-- **Escopo provável adicional (pre-flight verifica):** `subprocess.run(["semgrep", ...])` no entry point do scan tem o mesmo padrão; defeito pode estar latente ali também. Pre-flight do prompt Code deve confirmar empiricamente (não inferir).
-- **Decisão pendente para sessão #35:** incluir separação `TimeoutExpired` vs `CalledProcessError` no error mapping (D5 classification correta) na mesma PR, ou diferir em PR subsequente? Inclinação registrada: mínimo na primeira PR + separação opcional em PR subsequente; granularidade de PR + risco baixo. Reconsiderar à luz da inspeção de `tools.py` completo na #35.
-- **Tests novos:** AS-14 inline em `tests/mcp_servers/semgrep_runner/test_scan_diff.py`, complementar a AS-11. Valida `scan_diff` sob stdio transport real (cliente externo, não in-memory). Pattern: spawn subprocess do servidor via `StdioTransport(command=sys.executable, args=["-m", "mcp_servers.semgrep_runner.server"], cwd=tmp_repo, env=...)`, invoca `scan_diff` via `Client(transport, timeout=300)`, assertar success path + assertar que `GIT_REF_NOT_FOUND` NÃO é emitido para refs válidos pre-fix-existentes.
-- **Convenções:** 2-commit split code-vs-docs no PR (per `.claude/rules/git-conventions.md`), commit messages PT-BR + HEREDOC ASCII-only, branch naming `fix/<scope>`.
-- **Pre-flight obrigatório:**
-  - `tools.py` completo (não só `Select-String`) para identificar todos os `subprocess.run` candidates.
-  - `conftest.py` atual para entender helpers reutilizáveis (especialmente `make_git_repo`).
-  - AS-11 estrutura completa (não só wire assertions) para desenhar AS-14 paralelo.
-  - Verificação de se Subprocess do Semgrep precisa do mesmo fix.
+- Draft entregue como artefato Chat (`milestoneB-draft.md` em outputs) com `<TBD>` para squash hashes.
+- Sessão #36 popula hashes pós-merges (PR #59 + PR chore).
+- Adicionar §"Limitações conhecidas" referenciando o defeito de aferição do `summarize_phase` original e sua resolução cruzada no patch da #35 — ilustra empíricamente "defeito mascarado por defeito upstream".
+- ~30min Chat para popular + revisar + integrar.
 
-### (B) Re-rodar gate Milestone B
-- Após merge do fix em main.
-- Mesmo script `scripts/gate_milestone_b_exercise.py` sem alteração.
-- Esperado: PASS (todos os 5 invariantes verdes).
-- Atualizar learning-log #34 com PASS confirmation (~15min).
+### (E) ADR-0012 pos-hoc
 
-### (C) Redigir `docs/milestoneB.md`
-- Após PASS confirmado.
-- Estrutura espelha `docs/milestoneA.md` (sessão #25), adaptada ao escopo reduzido:
-  - Header com sessão, branch, mecanismo (FastMCP Client + stdio, **não** Inspector CLI; justificar), pré-requisito procedural (Semgrep 1.163.0 + binário ASCII path do Windows + branch checkout do pack alternativo).
-  - Decisão de escopo do gate (RF-008 rule-set-axis only; pytest cobre RF-001/RF-002).
-  - Narrativa metodológica em 2 atos: tentativa #1 (descoberta de defeito) + tentativa #2 (PASS após fix). Estrutura "lessons learned" tem precedente em milestoneA.md §Insumo metodológico.
-  - Sumário 1-linha do gate (1 RF cobertaP; cenário ancorador).
-  - Fases B.1..B.4 executadas.
-  - Cleanup pós-gate.
-  - Catches detectados e endereçamento.
-  - Próximas tasks dependentes.
+- Sessão Chat própria. Não bloquear (C)/(D).
+- Dois eixos:
+  - **(E-1)** Mecânica fina Windows-stdio handle inheritance. Hipótese principal: handle inheritance do anonymous pipe Windows usado para stdio MCP + `subprocess.Popen.wait()` no parent + Win32 internals não totalmente caracterizados. Insight R-3 da #35: caracterização Win32 deveria considerar cascading inheritance em sub-processes do semgrep-core (não vimos hang com fix aplicado, mas teoricamente ortogonal e merece nota).
+  - **(E-2)** Design da separação de classes de erro (Fix-4 deferido). Três opções identificadas em review v2 do prompt T-fix: (a) signature change dos helpers + caller restructure; (b) custom exception types raised + caught em `scan_diff`; (c) outro pattern emergente da deliberação ADR.
+- Pos-hoc tem precedente projetual forte: ADR-0001 D2 amendment retroativo (Presidio→Semgrep); ADR-0004 retroativo (uv migration).
+- ~2-3h Chat dedicada.
 
-### (D) ADR pos-hoc
-- Sessão Chat própria após (C). Não bloquear (B) ou (C).
-- Inclinação registrada: ADR-0012 (novo) cobrindo dois eixos: portabilidade Windows-stdio (handle inheritance em subprocess) + error class separation (TimeoutExpired vs CalledProcessError). ADR-0002 amendment alternative cobre o segundo eixo mas não o primeiro elegantemente. Decidir em sessão #35+ à luz do que foi de fato corrigido.
-- Pos-hoc tem precedente projetual: ADR-0001 Decision 2 amendment foi retroativo após pivô Presidio→Semgrep implementado.
+### (F) PR posterior implementando ADR-0012 (E-2)
 
-### (E) Merge da branch `chore/gate-milestone-b-rule-set-fixture`
-- Junto com ou após merge da branch do fix.
-- Razão: branch existe como evidência da descoberta + artefato re-executável do gate; merge isolado antes do fix produz audit trail confuso ("script de gate mergeado sem ter passado").
+- Após ADR-0012 ratificar opção de design.
+- Inclui AS-15 com mock filtrado por comando (R2 N-S1 da #35 review): mock target precisa filtrar por `cmd[:3] == ["git", "rev-parse", "--verify"]` ou similar; senão primeira `subprocess.run` a disparar é `_is_shallow_repository`, não `_resolve_ref`, e AS-15 cobre o helper errado.
+- Adicionalmente: split AS-15 em 2 tests (um por helper) per `.claude/rules/test-strategy.md` "granularity calibrada por failure dimension expected".
+- ~3-5h Code (depende da opção ratificada em E-2).
 
-## 4. Catches catalogados (não bloqueantes para sessão #35)
+### (G) Housekeeping CLAUDE.md `§Status flags`
+
+- Drift de ≥6 linhas em 3 bullets distintos (catalogado em DD-Tfix-1 da #35 / Pin 7 da #35 Code):
+  - Bullet 1: status milestone stale ("T06 + T07 + gate pending"; T06/T07 mergeados, gate PASS).
+  - Bullet 2: contagem de tests stale ("64 passing"; real é 134 pós-#35).
+  - Bullet 3: descrição semgrep-runner stale ("scan_diff stub returning NOT_IMPLEMENTED"; scan_diff real implementado e exercido).
+- Bloqueante para Milestone C arrancar; não-bloqueante para (D)/(E)/(F).
+- Sessão housekeeping própria ou consolidada com sweep imutável-rules.
+- ~1h Chat + Code.
+
+### (H) Cleanup operacional menor
+
+- `gate_b_output.json` + `gate_b_stderr.log` em working dir (untracked).
+- Decisão: adicionar pattern `gate_b_*.json` + `gate_b_*.log` ao `.gitignore` na housekeeping (G) acima.
+- ~5min.
+
+## 3. Catches catalogados (não bloqueantes para sessão #36)
 
 | # | Item | Severidade | Locus sugerido |
 |---|------|-----------|----------------|
-| 1 | CLAUDE.md §Status flags ainda stale ("64 passing" → "132 passing"). Pendência sessão #33 não endereçada na #34. | Baixa | PR housekeeping (pode anexar à PR do fix se diff pequeno). |
-| 2 | `summarize_phase` fallback `scan_metadata.base_ref or base_ref` em `gate_milestone_b_exercise.py:168-169` mede "input refs bem formados" se scan retornar erro, não "servidor ecoou refs resolvidos". Nuance metodológica do gate. | Cosmético | Anotar em `docs/milestoneB.md` §"Limitações conhecidas" quando redigido. |
-| 3 | ADR
+| 1 | Cold-start `StdioTransport` não medido empiricamente na #35 (R-1 do Code #35). Threshold 10.0s no AS-14b é margem confortável dado defeito ~22-23s vs success ~5-8s, mas pode flake em CI Windows extremamente fria (antivírus inspecionando python.exe). | Cosmético | Ajustar threshold em PR follow-up se flake materializar; não-bloqueante. |
+| 2 | Cascading inheritance em sub-processes do semgrep-core (R-3 do Code #35). Ortogonal ao defeito empírico; não vimos hang com fix aplicado. | Substantivo conceitual | Input do ADR-0012 (E-1). |
+| 3 | `gate_b_output.json` + `gate_b_stderr.log` untracked. Evidência operacional; cleanup em housekeeping. | Cosmético | (H) + `.gitignore` pattern. |
+| 4 | Branch `chore/gate-milestone-b-rule-set-fixture` tem 3 commits internos (pack + script + patch); operador pode preferir squash em 1 commit ao abrir PR ou manter 3 para audit trail. | Estilístico | Decisão da #36 ao abrir PR. |
+| 5 | Defeitos de aferição do `summarize_phase` original (catch #2 do handoff #34→#35) foram promovidos a defeitos ativos na #35 quando fix do `subprocess.run` desbloqueou o caminho. Pattern "defeito mascarado" merece registro em milestoneB.md §"Limitações conhecidas" como ilustração metodológica. | Substantivo metodológico | (D) milestoneB.md. |
+
+## 4. Pre-flight para sessão #36
+
+Antes de abrir Chat #36 (qualquer task acima):
+
+- **Confirmar merge da PR #59 em main.** `git log main --oneline -3` mostra commit do merge; squash hash a registrar nos artefatos pendentes.
+- **Confirmar estado de branches.** `git branch -a` deve mostrar: `main` atualizada; `chore/gate-milestone-b-rule-set-fixture` local; branches descartáveis deletadas (ou ainda presentes, sem importância).
+- **Confirmar untracked.** `git status` deve listar `gate_b_output.json` + `gate_b_stderr.log` como untracked (não modificar; cleanup em (H)).
+- **Para task (C):** rebase de `chore/*` sobre `main` pós-fix deve ser limpo. Se conflitar, halt-and-escalate (significaria que algum arquivo em comum mudou pós-fix — não-esperado dado que arquivos da PR #59 e da chore são disjuntos).
+- **Para task (D):** ter em mãos squash hash da PR #59 + squash hash da PR chore (quando esta for mergeada) para popular `<TBD>` no draft.
+- **Para task (E):** carregar contexto de ADR-0001 D2 amendment + ADR-0004 como precedentes de ADR pos-hoc.
+
+## 5. Conceitos da prova relevantes para sessão #36
+
+Anotar para uso em tasks específicas:
+
+- **D5 (Reliability) — defeito empilhado em layers.** Pattern "defeito em layer-2 mascarado por defeito em layer-1" materializado em duas fases sequenciais (#34 → #35). Cobertura ratifica que PASS em um nível não atesta correção em outros níveis. Defense candidate forte para Capítulo de Método.
+
+- **D4 (Prompt Engineering) — calibração de cerimônia proporcional à complexidade.** Briefing T-gate-script-fix da #35 usou ~180 linhas (4 Pins simples + 1 DD + GATE 1 leve) vs T-fix da PR #59 com ~470 linhas v3 (9 Pins + 2 DDs + GATE 1 estruturado). Cerimônia proporcional à complexidade é skill discriminada do exam guide; aplicar em #36 — task (C) push+PR e (D) milestoneB são prep leve; (E) ADR-0012 é prep deliberativa pesada.
+
+- **D2 (Tool Design) — convergência > consistência local.** Pin 2 da #35 Code venceu inclinação do Chat: idioma do projeto (`rsplit(".", 1)[-1]` de `_short_rule_id`) prevaleceu sobre proposta nova (`endswith("rules.<name>")`). Pattern empírico para futuras tasks: prompts devem instruir Code a verificar convenções locais antes de aplicar proposições do Chat.
+
+- **D1 (Agentic Architecture) — validação antecipada via branch temporária.** Pattern de criar branch combinada local + validar + descartar é análogo conceitual a `fork_session` aplicado ao Git workflow. Reduz risk pós-merge sem comprometer trunk. Aplicar quando task #36 (F) abrir PR posterior implementando ADR-0012.
+
+---
+
+**Status do handoff:** completo. Próxima sessão Chat (#36) consume este documento + draft milestoneB + draft learning-log #35 como base.
+
+**Custo total da sessão #35:** ~3-4h Chat (prep T-fix v1→v3 + reviews + briefing T-gate-script-fix + handoff/learning-log/milestoneB authoring) + ~2.5h Code (T-fix execution PR #59 + gate script patch). Ratio Chat:Code = ~1.5:1. Proporcionalmente mais Code-pesado vs sessões prep T06/T07 (6:1) — esperado para sessão de execução + validação.
+
+---
+
+obs handoff-35-36.md:
+
+§1 "Branch local chore/gate-milestone-b-rule-set-fixture" — reescrever bullet inteiro de "3 commits internos não-pushed" para "mergeada em main como b4ec3fe (PR #60); branch deletável."
+§1 "PR #59 — squash hash <TBD>" → preencher com hash real.
+§1 "branches descartáveis pós-merge" — adicionar chore/gate-milestone-b-rule-set-fixture à lista.
+§2 task (C) — marcar como concluída com referência a PR #60 + b4ec3fe; tasks subsequentes (D/E/F/G/H) permanecem.
+§4 "Para task (C)" pre-flight — remover (concluída).

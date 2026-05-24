@@ -5744,3 +5744,161 @@ T06 (PR #56) é anexada separadamente ao learning-log conforme handoff
 Sessão Chat #35 — prep do prompt Code para PR de fix em `tools.py`. Pre-leitura conforme handoff #34→#35. Escopo: `stdin=subprocess.DEVNULL` em ambos `subprocess.run` que invocam git (`_resolve_ref`, `_is_shallow_repository`) + verificação se `subprocess.run` do próprio Semgrep tem mesmo padrão (provavelmente sim — incluir preventivamente). Separação `TimeoutExpired` vs `CalledProcessError` para classificação correta de error class (D5 transient vs business): incluir na mesma PR ou diferir? Decisão de sessão #35. AS-14 inline em `test_scan_diff.py` validando `scan_diff` sob stdio transport real (Client externo, não in-memory). Após merge: re-rodar `scripts/gate_milestone_b_exercise.py` esperando PASS; redigir `docs/milestoneB.md`; ADR pos-hoc; mergear branch atual `chore/gate-milestone-b-rule-set-fixture` em conjunto com (ou após) PR do fix.
 
 Custo estimado distribuído em 2-3 sessões: ADR ~1h Chat dedicada (pos-hoc, sessão própria); PR de fix ~1h Code + ~30min Chat review; re-rodar gate ~5min; redigir milestoneB.md ~45min; atualizar este learning-log com PASS confirmation ~15min.
+
+# Learning-log entry — sessão #35
+
+**Para aplicar:** apendar este conteúdo ao final de `docs/learning-log.md`, abaixo da entry #34. Squash hashes a popular pós-merges (PR #59 e PR chore subsequente).
+
+---
+
+## 2026-05-24 — sessão #35 — T-fix scan_diff stdin isolation (PR #59) + gate Milestone B PASS empírico
+
+**Foco.** Sessão Chat de prep prompt T-fix v1→v3 com multi-instance review canônico + Code aplicação da PR #59 (`fix/scan-diff-stdin-isolation-windows-stdio`) + briefing T-gate-script-fix para patch cirúrgico ao gate script + validação empírica do gate Milestone B PASS contra branch combinada local. Pattern de fechamento de cadeia: defeito empírico descoberto na #34 → fix + cobertura unit na #35 → gate empírico re-rodado pós-fix → defeito de aferição emerge (mascarado por defeito upstream) → patch → PASS empírico.
+
+### Status
+
+- **PR #59** (`fix/scan-diff-stdin-isolation-windows-stdio` → main, squash hash `<TBD — preencher pós-merge>`): 1 commit `6f9bc44`. Diff: `tools.py +3 / test_scan_diff.py +134`. Status ao fechar #35: aprovada pelo Chat; aguardando merge manual.
+- **Branch local `chore/gate-milestone-b-rule-set-fixture`**: 3 commits internos (`19e0536` pack alternativo + `84672a5` gate script v1 + `34b6c05` patch script #35). Não pushed; aguarda rebase pós-merge PR #59 + abertura de PR própria.
+- **Tests:** 134 passing esperado em Windows local pós-merge PR #59 (132 baseline + AS-14 cross-platform + AS-14b Windows-only); 133 em Linux/macOS (AS-14b skipped).
+- **Gate Milestone B:** PASS empírico contra branch combinada `test/gate-on-fix-v2` (5/5 invariantes verdes). Evidência consolidada em `gate_b_output.json` (untracked working dir).
+- **mypy strict + ruff:** clean.
+
+### Conceitos da prova exercitados
+
+**Domínio 1 — Agentic Architecture & Orchestration (27%)**
+
+- **D1.6 Task decomposition — bundle vs split via review independente.** Decisão load-bearing de **deferir Fix-4 inteiro** (separação `TimeoutExpired` vs `OSError` vs business nos wrappers git) para ADR-0012 + PR posterior. Trigger: convergência de dois reviews independentes da v2 do prompt (R1 C5 + R2 N-C1) mostrando type breakage arquitetural — Fix-4 retornar ErrorEnvelope dos helpers quebra type contract de `_resolve_ref → str | None` e `_is_shallow_repository → bool`; callers em `scan_diff` esperam `is None`, não Pydantic object. Solução requer signature change OU custom exception types raised + caught — decisão arquitetural não-trivial que merece ADR antecedente. Bundle inadequado dentro de PR mecânica de fix. Materializa exam guide *"selecting task decomposition patterns appropriate to the workflow"*. Defense candidate forte: quando decisão arquitetural não-trivial emerge dentro de PR mecânica, split + defer + ADR; não force bundle.
+
+- **D1.7 Session state management — validação antecipada via branch temporária descartável.** Pattern de criar branch `test/gate-on-fix-v2` localmente combinando `fix/scan-diff-stdin-isolation-windows-stdio` + `chore/gate-milestone-b-rule-set-fixture` (não-pushed) + rodar gate + descartar. Reduz risk pós-merge da PR #59 sem comprometer trunk autoritativo. Análogo conceitual a `fork_session` aplicado ao Git workflow. Sequência empírica: PR #59 fix + AS-14b unit cobre uma propriedade (timing); branch combinada + gate empírico cobre outra (RF-008 wire-real) — ortogonais, não substituíveis (ver D5 abaixo).
+
+- **D1.5 Hooks — `.claude/rules/` materializadas como instruction layer.** Briefing T-gate-script-fix citou `.claude/rules/review-patterns.md` Justificativa #2 ("exercise contra wire real expõe debt que pytest cobre por coincidência") como ancoragem do diagnóstico. Pattern de project-level rule consumida via CLAUDE.md hierarchy aplicada como argumento de design.
+
+**Domínio 2 — Tool Design & MCP Integration (18%)**
+
+- **D2 Tool description anatomy — convergência > consistência local.** Pin 2 da Code session #35 venceu inclinação do Chat sobre forma do assertion INV-1 do gate. Chat propôs `endswith("rules.<bare-name>")` baseado em convenção de diretório do projeto. Code clean leu `test_recognizers_br.py:36-39` e identificou idioma efetivamente usado nos tests existentes: `_short_rule_id(finding) = rid.rsplit(".", 1)[-1]`. Code propôs alinhamento ao idioma do projeto via `rsplit(".", 1)[-1] == "<bare-name>"` em vez do `endswith`. Chat ratificou. Defense candidate adicional: prompts T-* devem instruir Code a verificar convenções locais antes de aplicar proposições do Chat. Pattern "Code lê + propõe align" produz código melhor que "Chat infere + Code aplica".
+
+- **D2 isError flag — Option B materializado em wire real (não in-memory).** Gate Milestone B é o primeiro exercício empírico contra wire stdio real do projeto. AS-11 + 132 tests baseline usam `Client(server.mcp)` in-memory; gate usa `StdioTransport(command=sys.executable, args=["-m", "mcp_servers.semgrep_runner.server"])` com Client externo. Wire format Option B (isError=false uniforme; discriminação via presença de errorCode em structuredContent) validado empíricamente em ambos paths (success com findings e potencial error). INV-4 (wire is_error False em ambas as phases) deu PASS pré-patch — confirma que Option B funciona consistentemente sob transport real.
+
+- **D2 errorCode discrimination + canonical shape.** Defeito de leitura de campo no `summarize_phase` (lia `rules_version`/`semgrep_version` de `scan_metadata` aninhado em vez de top-level no structuredContent) ilustra que conhecimento empírico do contract canonical §5.1 importa. Patch alinhou leitura ao shape declarado: ambos os campos são irmãos de `scan_metadata`, não filhos.
+
+- **D2 MCP server configuration — env var injection via StdioTransport.** RF-008 (substituibilidade de rule set via `SEMGREP_RUNNER_ROOT`) validado empíricamente: Phase 1 spawn sem override → loader resolve default BR rule set; Phase 2 spawn com `SEMGREP_RUNNER_ROOT` override → loader resolve pack alternativo synthetic_iban. `rules_version` distinto entre phases (INV-2 PASS) prova que o env injection funcionou.
+
+**Domínio 4 — Prompt Engineering & Structured Output (20%)**
+
+- **D4 Multi-instance review canônico com diversidade de framing.** Trajetória v1→v2→v3 do prompt T-fix absorveu 30+ catches em 3 rounds independentes. Dois reviewers diferentes para a v2:
+  - **R1 (clean session)** — sem contexto da #34. Pegou catches factuais e arquiteturais: C1 comando `git rev-parse` faltando `^{commit}`; C2 errorCodes em `_envelope.py` (não `errors.py`); S1 Fix-4 reduzido a 2 classes (CalledProcessError unreachable sem `check=True`); S4 DD-Tfix-1 cerimonial.
+  - **R2 (sessão #34 que diagnosticou)** — com contexto profundo. Pegou catches de design e cobertura: C1 AS-14 cross-platform como falso verde em Linux/macOS; C2 mecânica vendida como certeza fabricada; C4 env={} risk em StdioTransport.
+  - **Convergência crítica:** R1 C5 + R2 N-C1 ambos mostraram que Fix-4 era type-broken arquiteturalmente. Single-instance review não pegaria a intersecção. Defense candidate forte: diversidade de framing (não só múltipla execução) é o que produz cobertura real em multi-instance review.
+
+- **D4 Calibração de cerimônia proporcional à complexidade.** Comparação intra-sessão #35:
+  - **Prompt T-fix v3** (PR #59): ~470 linhas; 9 Pins; 2 DDs; GATE 1 estruturado com 7 outputs esperados; 11 halt-triggers numerados. Custo: feature + design + cobertura nova.
+  - **Briefing T-gate-script-fix**: ~180 linhas; 4 Pins simples; 1 DD; GATE 1 leve com 6 halt-triggers. Custo: patch cirúrgico com 2 loci e diff literal.
+  - Razão proporcional. Skill discriminada do exam guide: *"dynamic adaptive decomposition based on intermediate findings"*. Tratar todas as tasks com o mesmo cerimonial é miscalibração.
+
+- **D4 Prompt como artefato auditável + iteração versionada.** v1 (520 linhas) → v2 (640) → v3 (470). Changelog explícito em cada versão. Trajetória bate com pattern empírico T06 v1→v5.1 e T07 v1→v4: crescimento em rounds intermediários quando catches substantivos emergem; encolhimento na convergência quando escopo se cristaliza. v3 é tipicamente última iteração; convergência observada na #35.
+
+**Domínio 5 — Context Management & Reliability (15%)**
+
+- **D5 Defeito empilhado em layers — pattern canônico materializado.** Sequência empírica completa em duas sessões sequenciais:
+  1. **132 tests passing** (cobertura unit completa pré-#34) — defeito invisível.
+  2. **Gate Milestone B #34** (cliente externo via stdio transport) — defeito de `subprocess.run` sem `stdin=` emerge.
+  3. **PR #59 fix + AS-14b** — corrige manifestação + adiciona regression unit Windows-only.
+  4. **Gate Milestone B re-rodado pós-fix #35** — expõe defeitos de aferição do `summarize_phase` que estavam mascarados (script lia campos de lugar errado, mas gate falhava antes de chegar à leitura).
+  5. **Patch ao script + Gate Milestone B pós-patch** — 5 invariantes verdes; cobertura unit + cobertura E2E ambas verdes simultaneamente.
+  - Layer-1 (transport) e layer-2 (script de aferição) defeitos só ambos visíveis após resolver layer-1 primeiro. Defense candidate forte para Capítulo de Método: validação de cobertura tem que assumir que defeitos podem estar empilhados; PASS em um nível não atesta correção em outros níveis.
+
+- **D5 Honestidade epistêmica em §2 do prompt.** v2 reescreveu §2 com hipótese explícita ("hipótese principal: handle inheritance do anonymous pipe Windows interfere com `subprocess.Popen.wait()`") em vez de afirmação fabricada ("git aguarda input"). Razão: git `rev-parse --verify` não lê stdin; explicação original era especulativa. v3 manteve. CLAUDE.md immutable rule de honestidade epistêmica materializada em artefato de prompt. ADR-0012 pos-hoc cobrirá caracterização Win32 fina; esta PR não vende o fix como resolução semântica completa — só elimina manifestação atual. Commit message e PR description #59 codificam essa distinção em §2.4 do prompt.
+
+- **D5 Misclassificação `TimeoutExpired → GIT_REF_NOT_FOUND` documentada como débito conhecido.** PR #59 elimina a *manifestação* (handle inheritance) mas não corrige a *estrutura* (TimeoutExpired colapsada como business). Decisão de deferir Fix-4 ratifica que essa distinção merece registro explícito — commit/PR description deixam claro o escopo. ADR-0012 + PR posterior endereçam o eixo de design.
+
+- **D5 Insight emergente — cascading inheritance em sub-processes do semgrep-core.** R-3 da Code session #35: mesmo com Fix-3 (stdin=DEVNULL no semgrep subprocess), o semgrep propriamente dito spawna sub-processes (semgrep-core, file scanners) que herdam handles do semgrep parent. Em teoria, handle inheritance poderia propagar para sub-sub-processes. Empíricamente não vimos hang com fix aplicado; é ortogonal ao defeito atual. Input registrado para ADR-0012 (E-1) cobertura Win32 fina.
+
+### Decisões load-bearing
+
+1. **Fix-4 deferido inteiramente para ADR-0012 + PR posterior.** Critério: type breakage arquitetural confirmado por dois reviews independentes (R1 C5 + R2 N-C1). PR #59 mantém escopo cirúrgico (Fix-1/2/3 + AS-14 + AS-14b + Companion opcional). Misclassificação `TimeoutExpired → GIT_REF_NOT_FOUND` documentada como débito conhecido em §2.4 do prompt + commit message + PR description. Precedente projetual de ADR pos-hoc: ADR-0001 D2 (Presidio→Semgrep), ADR-0004 (uv migration).
+
+2. **AS-14 cross-platform + AS-14b Windows-only (split por propriedade testada).** AS-14 valida happy path sob StdioTransport real (cross-platform). AS-14b valida invariante de timing (`elapsed < 10s`) — Windows-only via `@pytest.mark.skipif(sys.platform != "win32", ...)`. Razão: defeito é Windows-stdio específico; AS-14 cross-platform como única cobertura seria falso verde em Linux/macOS CI futuras (handle inheritance não causa hang em POSIX); AS-14b explicitamente regressão. Naming `test_as14b_*` alinha com AS-13 precedent (Windows-only test que validates mechanism invariant).
+
+3. **Threshold AS-14b = 10.0s.** Análise factual: defeito é ~22-23s (10s `_is_shallow` timeout + 10s `_resolve_ref(base)` timeout + 2-3s cold-start); success path é ~5-8s (2-3s cold-start + <1s cada git rev-parse + 1-3s scan); margem 10s separa claramente sem rejeitar CI fria. Risk de flake em CI Windows extremamente fria → ajustar em PR follow-up se materializar.
+
+4. **Bare-name match para INV-1 via `rsplit(".", 1)[-1]` (não `endswith`).** Pin 2 da Code session #35 venceu inclinação Chat. Razão: idioma do projeto (`_short_rule_id` em `test_recognizers_br.py:36-39`) usa `rsplit`; convergência cross-código reduz surface de drift. Aplicado em patch ao gate script (`34b6c05`).
+
+5. **1 commit único na PR #59 (não 2-commit split).** Pin 6 da Code session #35 confirmou que "2-commit split code-vs-docs" não está codificado em `.claude/rules/git-conventions.md` — era preferência do prompt, não regra. Com DD-Tfix-1 (Companion-1 CLAUDE.md status flag) deferido por escopo, não havia commit-docs separado de qualquer forma.
+
+6. **Companion-1 deferido para housekeeping própria.** CLAUDE.md `§Status flags` drift ≥6 linhas em 3 bullets distintos (não só contagem de tests). Critério "≤2 linhas" não satisfeito. Encaminhamento: sweep housekeeping própria antes de Milestone C arrancar.
+
+7. **Patch ao gate script aplicado diretamente em `chore/gate-milestone-b-rule-set-fixture`** (opção (a) do briefing). Audit trail limpo; branch chore é onde o script vive autoritativamente. `test/gate-on-fix-v2` é descartável (criada para validação local).
+
+### Defense candidates emergentes (cumulativos com sessões prévias, registrar para Capítulo de Método)
+
+- **Defeito empilhado em layers requer cobertura de aferição empírica em cada layer.** Pattern materializado em duas fases sequenciais (#34 descobre layer-1; #35 corrige layer-1 + descobre layer-2 + corrige layer-2). PASS em pytest unit nunca atesta correção em layers downstream; gate empírico com wire protocolar real é cobertura independente, complementar, não substituível.
+
+- **Convergência cross-código vence consistência local em decisões de naming/idioma.** Pin 2 da #35 ratificou empíricamente — Chat propõe baseado em inferência; Code lê convenção real do projeto e propõe align. Pattern operacional: prompts T-* devem instruir Code a verificar convenções locais antes de aplicar proposições do Chat.
+
+- **Validação antecipada via branch temporária combinada é cheap insurance pré-merge.** Pattern `test/gate-on-fix-v2` = `fix/<branch>` + merge `chore/<related-branch>` + validar + descartar. Análogo conceitual a `fork_session` aplicado ao Git workflow. Aplicar quando há dependência entre PRs ainda não mergeadas.
+
+- **Calibração de cerimônia proporcional à complexidade da task.** Briefing cirúrgico (T-gate-script-fix ~180 linhas) vs prompt elaborado (T-fix v3 ~470 linhas) na mesma sessão demonstra que cerimônia uniforme é miscalibração. Skill discriminada do exam guide D4.
+
+- **Type breakage emerge em pseudo-código elaborado, não em prompt abstrato.** v1 do T-fix mantinha Fix-4 abstrato; v2 elaborou pseudo-código concreto e o type breakage emergiu (E em ambos reviews). Pattern operacional: prompts que cobrem mudança de signature ou contract devem incluir pseudo-código concreto em v1 já — não esperar v2 para exposição.
+
+- **Honestidade epistêmica em prompts via "hipótese principal" vs "afirmação".** v2 reescreveu §2 com hipótese explícita em vez de mecânica fabricada. CLAUDE.md immutable rule materializada em artefato auditável. Pattern: quando mecânica fina não está totalmente caracterizada, declarar como hipótese e diferir caracterização para ADR pos-hoc.
+
+### Artefatos da sessão
+
+- **PR `#59`** — `fix/scan-diff-stdin-isolation-windows-stdio` → main (squash hash a registrar pós-merge `<TBD>`). 1 commit `6f9bc44` pre-squash. Diff: `tools.py +3 / test_scan_diff.py +134`.
+- **Branch `chore/gate-milestone-b-rule-set-fixture`** local com 3 commits internos: `19e0536` (pack alternativo synthetic_iban — sessão #34), `84672a5` (gate script v1 — sessão #34), `34b6c05` (patch script — sessão #35). Não pushed; aguarda PR posterior.
+- **Prompt-artefatos em `/mnt/user-data/outputs/` da sessão Chat:**
+  - `prompt-tfix-v1.md` (~520 linhas)
+  - `prompt-tfix-v2.md` (~640 linhas)
+  - `prompt-tfix-v3.md` (~470 linhas)
+  - `briefing-tgatescriptfix.md` (~180 linhas)
+  - `handoff-35-36.md` (este handoff)
+  - `learning-log-35.md` (este learning-log)
+  - `milestoneB-draft.md` (draft com `<TBD>` para hashes)
+- **Code review transcripts** anexados pelo João no Chat persistente da sessão #35:
+  - R1 review v1 (clean session) — 13 catches.
+  - R2 review v1 (sessão #34 que diagnosticou) — 13 catches.
+  - R1 review v2 — 6 catches (1 crítico C5, 1 médio M6, 4 cosméticos/menores).
+  - R2 review v2 — 10 catches (1 crítico N-C1, 2 substantivos N-S1/N-S2, 4 cosméticos N-Cos1-4).
+- **Code GATE 1 reports** anexados pelo João:
+  - PR #59 pre-flight (9 Pins) + ratificação Chat.
+  - Gate script patch pre-flight (4 Pins) + DD-GATE1-1 ratificação Chat.
+- **Evidência empírica do gate Milestone B:**
+  - `gate_b_output.json` (consolidated PASS, 5/5 invariantes verdes, untracked working dir).
+  - `gate_b_stderr.log` (verbose per-phase, untracked working dir).
+
+### Métricas operacionais
+
+- **Catches absorvidos cumulativamente** no prompt T-fix v1→v3: ~30+ (13 v1→v2 R1 + 13 v1→v2 R2 + 6 v2→v3 R1 + 10 v2→v3 R2; alguns convergentes).
+- **Catches no briefing T-gate-script-fix:** 1 absorção em GATE 1 (DD-GATE1-1: forma do Patch 2 — Pin 2 venceu Chat).
+- **Rounds Chat ↔ Code:** 3 rounds de review do prompt T-fix (v1, v2, v3) + 2 rounds de review do briefing (GATE 1 + ratificação) + 1 round de revalidação gate Milestone B.
+- **Tempo total sessão #35:** ~3-4h Chat + ~2.5h Code = ~5.5-6.5h. Ratio Chat:Code ≈ 1.5:1. Proporcionalmente mais Code-pesado vs sessões prep T06/T07 (6:1) — esperado para sessão de execução + validação.
+- **Tests:** baseline 132 → 134 pós-merge PR #59 (em Windows local; 133 Linux/macOS).
+- **Gate Milestone B:** FAIL #34 → FAIL #35 pré-patch → PASS pós-patch (5/5 invariantes verdes).
+- **Custo de blockers descobertos por layer:** layer-1 review (R1 verificacional) detectou 13+1 críticos arquiteturais (Fix-4 type breakage); layer-2 review (R2 diagnostic-context) detectou 13+10 críticos de design/cobertura (AS-14 falso verde cross-platform); layer-3 (Code empírico) detectou 1 catch operacional (idioma do projeto em INV-1). Sem essas três camadas, PR #59 entraria com Fix-4 type-broken OU AS-14 falso verde OU INV-1 quebrado em produção.
+
+### Próximo passo
+
+Sessão Chat #36 — abre com:
+1. Confirmação do merge da PR #59 (squash hash a registrar).
+2. Task (C) push + PR de `chore/gate-milestone-b-rule-set-fixture` (rebase sobre main pós-fix; deve ser limpo).
+3. Task (D) população dos `<TBD>` no `milestoneB-draft.md` + integração ao repo.
+
+Sessões subsequentes:
+- (E) ADR-0012 — sessão Chat própria, ~2-3h.
+- (F) PR posterior implementando ADR-0012 (E-2) — ~3-5h Code.
+- (G) Housekeeping CLAUDE.md `§Status flags` + sweep imutável-rules — sessão própria pre-Milestone C.
+
+Custo estimado próximas 4-5 sessões: ~12-18h distribuído.
+
+---
+
+**Fim da entry #35.** Integrar ao `docs/learning-log.md` no repo via direct commit (per ADR-0001 Decision 6: learning-log + session-handoff são as duas exceções ao PR workflow).
+
+---
+
+obs learning-log-35.md:
+
+§Status: "PR #59... <TBD>" → hash real; "Branch local chore/...: 3 commits" → "PR #60 mergeada em main como b4ec3fe"; remover "Não pushed".
+§Artefatos "PR #59": preencher <TBD>.
+§Artefatos "Branch chore/...": substituir por "PR #60 — chore(gate-milestone-b): gate empírico RF-008 rule-set-axis → main, squash hash b4ec3fe. 3 commits internos pre-squash: 19e0536 (pack), 84672a5 (script v1), <hash> (patch — pós-rebase regerou SHA de 34b6c05 original)."

@@ -1,0 +1,23 @@
+rules:
+  - id: br-titulo-eleitor
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Coleta potencial de título de eleitor detectada. Verifique base legal
+      de tratamento sob a Política LGPD vigente.
+    metadata:
+      category: pii-collection-br
+      identifier: titulo-eleitor
+    # DD-T07-3a (alt-a): 1-pattern (em pattern-either cobrindo variante
+    # tipada e untyped) per rule. Validado por
+    # br_titulo_eleitor_function_param.py do pack BR (Latin square).
+    # Identifier name canonical `titulo_eleitor` (snake_case sem "de");
+    # alias `titulo_de_eleitor` não coberto no MVP (DD-T07-13).
+    # Transitividade pós-MVP.
+    pattern-either:
+      - pattern: |
+          def $FN(..., titulo_eleitor, ...):
+            ...
+      - pattern: |
+          def $FN(..., titulo_eleitor: $T, ...):
+            ...

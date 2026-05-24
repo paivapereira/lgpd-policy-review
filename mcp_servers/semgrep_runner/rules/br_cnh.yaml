@@ -1,0 +1,16 @@
+rules:
+  - id: br-cnh
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Coleta potencial de CNH detectada. Verifique base legal de tratamento
+      sob a Política LGPD vigente.
+    metadata:
+      category: pii-collection-br
+      identifier: cnh
+    # DD-T07-3a (alt-a): 1-pattern per rule. Validado por
+    # br_cnh_attribute_assign.py do pack BR (Latin square). Transitividade
+    # pós-MVP. O pattern `$OBJ.cnh = $V` casa tanto Assign quanto AnnAssign
+    # — a fixture exercita ambos (linhas 14 e 21) e AS-3 admite finding
+    # subset (>=1) conforme `.claude/rules/test-strategy.md`.
+    pattern: $OBJ.cnh = $V

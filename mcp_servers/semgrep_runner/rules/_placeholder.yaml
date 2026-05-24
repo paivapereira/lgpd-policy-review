@@ -1,6 +1,0 @@
-rules:
-  - id: _t05_placeholder
-    message: Placeholder rule introduced by T05; replaced by six BR recognizers in T07.
-    severity: INFO
-    languages: [python]
-    pattern: __SEMGREP_RUNNER_T05_PLACEHOLDER_TOKEN__

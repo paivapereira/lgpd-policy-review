@@ -17,13 +17,34 @@ T06 adds two helpers used by `test_scan_diff.py`:
     on Windows via `tasklist /FI` without killing the process — CPython
     `os.kill(pid, 0)` on Windows calls `TerminateProcess`, opposite of
     POSIX. Used by AS-13.
+
+T07 adds helpers used by `test_recognizers_br.py`:
+  - `_build_br_rules_dir(tmp_path, slugs) -> Path` copies selected BR
+    rule YAMLs from the production rule set into a tmp rules dir.
+  - `_build_pack_repo(tmp_path, fixture_names) -> (Path, str, str)`
+    builds a git repo whose head commit introduces the requested
+    fixtures from the BR pack.
+  - Convenience fixtures `br_rules_dir` (all 6) and `br_pack_repo`
+    (all 9 fixtures) wrap the helpers for tests that want the full set.
 """
 from __future__ import annotations
 
+import shutil
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
+
+BR_SLUGS: tuple[str, ...] = (
+    "br_cpf",
+    "br_cnpj",
+    "br_cnh",
+    "br_nis_pis",
+    "br_titulo_eleitor",
+    "br_cns_saude",
+)
+"""Snake_case YAML basenames of the six T07 recognizers, in canonical order."""
 
 
 @pytest.fixture
@@ -175,3 +196,73 @@ def test_rules_dir(tmp_path: Path) -> Path:
         newline="\n",
     )
     return rules
+
+
+# ---------------------------------------------------------------------------
+# T07 — BR recognizers helpers and fixtures
+# ---------------------------------------------------------------------------
+
+PRODUCTION_RULES_DIR = (
+    Path(__file__).resolve().parents[3] / "mcp_servers" / "semgrep_runner" / "rules"
+)
+BR_PACK_DIR = Path(__file__).resolve().parent / "fixtures" / "recognizers_pack_br"
+
+
+def _build_br_rules_dir(tmp_path: Path, slugs: Iterable[str]) -> Path:
+    """Copy the requested BR rule YAMLs from the production rule set into a tmp dir.
+
+    Each slug is a snake_case basename (e.g. `"br_cpf"`); the file
+    `<slug>.yaml` is copied verbatim. Caller is responsible for passing
+    only slugs whose YAML exists at call time (5 of 6 slugs are absent
+    during 3.B-3.C incremental implementation).
+    """
+    rules = tmp_path / "rules"
+    rules.mkdir()
+    for slug in slugs:
+        shutil.copy(PRODUCTION_RULES_DIR / f"{slug}.yaml", rules / f"{slug}.yaml")
+    return rules
+
+
+def _build_pack_repo(
+    tmp_path: Path, fixture_names: Iterable[str]
+) -> tuple[Path, str, str]:
+    """Build a git repo whose head commit introduces the requested BR pack fixtures.
+
+    `fixture_names` are basenames within the BR pack directory (e.g.
+    `"br_cpf_function_param.py"`). The fixtures are copied verbatim into
+    the head commit. Returns the same shape as `make_git_repo`:
+    `(repo, base_sha, head_sha)`.
+    """
+    head_files = {
+        name: (BR_PACK_DIR / name).read_text(encoding="utf-8")
+        for name in fixture_names
+    }
+    return make_git_repo(
+        tmp_path,
+        base_files={"placeholder.txt": "base\n"},
+        head_files=head_files,
+    )
+
+
+@pytest.fixture
+def br_rules_dir(tmp_path: Path) -> Path:
+    """Tmp rules dir containing all six BR rule YAMLs from the production set.
+
+    Used by anchor tests (parse YAML files), AS-7 (negatives vs all 6 rules
+    cumulatively), AS-8 (placeholder removed: only br-* rule_ids), and AS-9
+    (idempotency over the full rule set). Tests that need only a subset
+    call `_build_br_rules_dir(tmp_path, ("br_X",))` directly.
+    """
+    return _build_br_rules_dir(tmp_path, BR_SLUGS)
+
+
+@pytest.fixture
+def br_pack_repo(tmp_path: Path) -> tuple[Path, str, str]:
+    """Git repo with all nine BR pack fixtures (6 positive + 3 negative) at head.
+
+    Used by AS-7, AS-8, AS-9 which need to see the full fixture set in a
+    single scan. Per-AS tests that scan a single fixture call
+    `_build_pack_repo(tmp_path, ("br_X.py",))` directly.
+    """
+    fixture_names = sorted(p.name for p in BR_PACK_DIR.glob("*.py"))
+    return _build_pack_repo(tmp_path, fixture_names)

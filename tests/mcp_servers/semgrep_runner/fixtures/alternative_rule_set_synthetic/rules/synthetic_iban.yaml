@@ -1,0 +1,21 @@
+rules:
+  - id: synthetic-iban
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Coleta candidata de IBAN (identificador financeiro europeu).
+      Verificar base legal. Fixture sintética para gate Milestone B.
+    metadata:
+      category: financial_identifier
+      identifier: iban
+      fixture: true
+      fixture_purpose: "gate Milestone B -- RF-008 rule-set-axis"
+    # Fixture rule -- gate Milestone B (RF-008 rule-set-axis). Sintetico,
+    # nao usar em producao.
+    pattern-either:
+      - pattern: |
+          def $FN(..., iban, ...):
+            ...
+      - pattern: |
+          def $FN(..., iban: $T, ...):
+            ...

@@ -5574,3 +5574,101 @@ pre-T07 (PR #57, segunda metade) sem fechamento intermediário formal. Para
 fins de catalogação, esta entrada cobre apenas a segunda metade; a entrada
 T06 (PR #56) é anexada separadamente ao learning-log conforme handoff
 #32→#33 anterior previa. Sessão #33 está reservada para prep T07.
+
+# Session #33 — 2026-05-23 — T07 Implementation Complete (Milestone B closes)
+
+## Status
+
+- **Branch merged:** `feat/semgrep-runner-T07` → `main`
+- **Tests:** 132 passing (83 baseline + 49 T07), 0 failed, 0 skipped
+- **mypy strict + ruff:** clean em 16 src/ files
+- **Milestone B implementation:** completo (T05 + T06 + T07 + housekeeping #57)
+- **Rule set BR:** 6 regras em `mcp_servers/semgrep_runner/rules/` (sem `_placeholder.yaml`)
+
+## Conceitos da prova exercitados
+
+### D1 — Agentic Architecture & Orchestration (27%)
+- AgentDefinition shape preparation (mental model — materialização deferred a Milestone C).
+- Coordinator-subagent pattern: discussão prévia + decisão de não materializar Coordinator stub em T07 (escopo do MVP).
+- Subagent context isolation princípio aplicado mentalmente (Detector recebe `base_ref`/`head_ref` explícitos quando vier).
+
+### D2 — Tool Design & MCP Integration (18%)
+- Rule pack como **data** consumida pelo MCP tool `scan_diff`; design das regras afeta downstream shape de findings.
+- `metadata.category` + `metadata.identifier` schema antecipando consumo pelo Classifier em Milestone C via RF-003.
+- `.mcp.json` global vs AgentDefinition scope per-subagent: princípio "expose broadly, restrict narrowly" ratificado.
+- FastMCP Client vs direct `tools.scan_diff` call: T06 estabeleceu direct call como pattern default; Client reservado para E2E wire format validation (AS-11 T06).
+
+### D4 — Prompt Engineering & Structured Output (20%)
+- **Multi-instance review canônico** materializado: 2 reviews independentes da v1 (19 catches absorvidos em v2), 2 reviews da v2 (17 catches absorvidos em v3), 1 review da v3 (1 blocker + 3 refinamentos em v4).
+- Iteração de prompt versionada v1→v4 espelhando T06 (v1→v5.1).
+- Subset assertion style (`.claude/rules/test-strategy.md` autoload) aplicado em AS-1..AS-6 (NEW DD-T07-AS3); strict equality reservado para AS-7/8/9 e ANC-3.
+- JSON schema implícito em metadata schema das regras (category + identifier slugs).
+- Latin square design no pack BR como técnica de cobertura mínima — transitividade implícita declarada como gap explícito.
+
+### D5 — Context Management & Reliability (15%)
+- **Tasks.md como scratchpad canonical authoritative** — handoff e learning-log são audit trail. Em divergência, tasks.md vence (lição do redirect macro: handoff dizia "T07 = Detector", tasks.md prescrevia rule pack).
+- Verification-before-inference recursivo: errei em 3 escalas (path `src/.../rules/` por simetria visual; handoff §5.2 vs §5.3; T07 escopo macro).
+- Halt-and-escalate funcionando: Code escalou DD-T07-3a via GATE 1 ao descobrir empíricamente que 4-pattern produzia findings extras (compositional behavior diferente de component behavior).
+
+## Decisões substantivas (DDs)
+
+| ID | Decisão | Locus |
+|----|---------|-------|
+| DD-T07-3a | **1-pattern per rule** (não 4-pattern como v4 prescrevia); Latin square strict; transitividade gap explícito | GATE 1 Code (empíria 1.E_intra) |
+| DD-T07-3b | Sintaxes DSL específicas ratificadas empíricamente em 1.E(a)-(d) | Pre-flight Code |
+| NEW DD-T07-AS3 | AS-1..AS-6 subset assertion (`"br-X" in rule_ids`); strict count reservado para AS-7/8/9 e ANC-3 | GATE 1 Code (`.claude/rules/test-strategy.md`) |
+| DD-T07-4 | WARNING × 5; ERROR × 1 (br-cns-saude per LGPD Art. 11) | handoff §2 |
+| DD-T07-5 | Mensagem PT-BR template documental | GATE 1 |
+| DD-T07-13 | Só forma canonical (`cns_saude`, `nis`, `titulo_eleitor`); aliases pós-MVP | GATE 1 |
+| DD-T07-16 | `metadata.category: pii-collection-br` + `metadata.identifier: <slug>` | GATE 1 |
+
+## Companion edits aplicados
+
+- `docs/tasks.md` §T07 AS-9: `line_start` → `start_line` (bug pré-existente herdado por v1 do prompt).
+- `docs/tasks.md` §T07 AS-1..AS-6: "exatamente um finding" → "ao menos um finding" (alinha subset assertion convention).
+- `tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/README.md` §Composição: shape sync `fixture_pack_br -> Path` → `br_pack_repo -> tuple[Path, str, str]`.
+
+## Defense candidates metodológicos (para TCC)
+
+1. **Tasks.md como scratchpad canonical authoritative**. Handoff e learning-log são audit trail. Em divergência, tasks.md vence. Redirect macro de T07 (handoff dizia "Detector", tasks.md prescrevia rule pack) materializa o princípio.
+
+2. **Multi-instance review canônico exige diversidade de framing**, não apenas múltiplas execuções da mesma instrução. Review B explícito como "clean session, verify-everything-against-source" detectou blockers que Review A (contexto T06) não pegou. Single-pass review do mesmo Chat que produziu v1 teria deixado passar pelo menos 2 blockers.
+
+3. **Verification-depth stratification.** Layer-1 review (consulta docs) converge para refinamentos; layer-2 review (lê código) surface blockers; layer-3 (execução empírica via pre-flight Code) surface compositional behavior errors. Severity decay monotônica quantitativa pode mascarar blockers se profundidade varia por round.
+
+4. **Compositional verification ≠ component verification.** Pre-flight de v4 validou primitivas Semgrep DSL em isolation (1.E(a)-(d), cada pattern contra seu fixture Latin-square). Code descobriu empíricamente que composite 4-pattern emergia behavior diferente (3 findings em CNH attribute fixture porque self.cnh: str = "" + driver.cnh = ... em fixture). Pre-flight deveria incluir "test as deployed" sub-fase.
+
+5. **Correções carregam risco proporcional ao scope da mudança.** Rewrite de §2 em v3 (corrigindo P1-#2 smoke pollution de v2) introduziu novo blocker P1-#1 v3 (import path `from tests.mcp_servers...` quebra em Python standalone porque `tests/__init__.py` não existe). Quando o foco está no defeito original, a superfície empírica completa não é re-verificada.
+
+6. **prep:Code ratio escala não-linearmente com complexity gradient da task.** T06 (framework integration) foi ~1h Chat prep + 7h Code = 1:7. T07 (detection semantics herdando framework T06 pronto) foi ~6h Chat prep + 1h Code = 6:1. Tasks de detection-semantics com Latin square implícito justificam prep mais profunda; tasks de framework integration concentram custo em Code empírico.
+
+7. **Estimativa Code dispersa.** v4 prescreveu 4-6h; GATE 1 Code revisou para 2.5-3.5h após DD-T07-3a 1-pattern decision; real foi ~1h. **Superestimação 2.5-6×.** Uncertainty premium da multi-round Chat prep não se traduz proporcionalmente em Code time. Defense: prep:Code ratio reflete verification-depth-modes distribution, não cost-of-rework amortization sozinho.
+
+8. **prep:Code não é só amortização de cost-of-rework Code-side — é distribuição de verification-depth-modes**. Chat faz layer-1 + layer-2 documental; Code faz layer-3 empírica. Cada modo pega catches que os outros não pegam.
+
+## Artefatos da sessão
+
+- `prompt-t07-v1.md`, `v2.md`, `v3.md`, `v4.md` (versioned, em outputs Chat).
+- Plan GATE 1 do Code com 3 ratificações.
+- PR `feat/semgrep-runner-T07` merged em `main` (2 commits split code-vs-docs).
+- 6 regras YAML BR em produção.
+- `tests/mcp_servers/semgrep_runner/test_recognizers_br.py` com 15 funções, 49 pytest items.
+- `tests/mcp_servers/semgrep_runner/conftest.py` estendido com `br_rules_dir` + `br_pack_repo`.
+
+## Drift catalogados (não bloqueantes — débito para housekeeping)
+
+- **Handoff #32→#33 + learning-log #32 declaravam "T07 = Detector subagent"**; tasks.md §T07 prescrevia rule pack BR. Audit trail divergente de scratchpad canonical. Ratifica princípio: tasks.md vence.
+- **Micro-drift §5.2 (Triager) vs §5.3 (Detector)** no handoff #32→#33. Não bloqueante.
+- **CLAUDE.md §Status flags stale**: declara "64 passing (53 policy_reader + 11 semgrep_runner + AS-1..AS-8)". Real pré-T07 era 83; pós-T07 é 132. Atualizar em housekeeping pre-T08 ou pós-Milestone B gate.
+
+## Métrica cumulativa T07
+
+- **4 rounds Chat** (v1→v4) + 1 round Code (GATE 1).
+- **~40 catches absorvidos cumulativamente** (19 v1→v2; 17 v2→v3; 4 v3→v4; 1 v4→Code).
+- **Tempo total sessão #33**: ~6h Chat prep + 1h Code = ~7h. Comparável ao T06 e ao housekeeping #57.
+- **Custo de blockers descobertos por layer**: layer-2 review (Review B) detectou 2 blockers; layer-3 (Code empírico) detectou 1 blocker (4-pattern compositional behavior). Sem essas duas camadas, T07 entraria em produção com 3 problemas estruturais.
+
+## Próximo passo
+
+- **Gate milestone-level Milestone B**: auditoria de completude vs proposta-tcc2.md §B; checklist de critérios; decisão sobre direct progression vs housekeeping pre-C.
+- Sessão #34 candidate: gate audit OU pre-C housekeeping OU authoring direto de tasks.md §Milestone C. Decidido no handoff #33→#34.

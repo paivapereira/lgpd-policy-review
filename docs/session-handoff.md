@@ -1,257 +1,140 @@
-# Handoff #32 → #33
+# Session Handoff #33 → #34
 
-## Estado atual (pós-housekeeping pre-T07 mergeado)
+**De:** Sessão #33 (T07 prompt prep + Code implementation + merge)
+**Para:** Sessão #34
+**Data:** 2026-05-23
+**Estado:** Milestone B implementation completa; gate milestone-level pendente
 
-PR #57 mergeada: `chore/housekeeping-pre-t07` — cleanup de drifts cross-doc.
-8 commits internos pre-squash colapsados via squash-merge no GitHub UI. Hash
-do squash a registrar pós-pull `<TBD>`. 83 tests passing preservados; ruff
-clean; mypy Success em 16 source files de `src/`.
+---
 
-PR #56 (T06 scan_diff completo) mergeada anteriormente na mesma sessão #32.
-Milestone B substantialmente avançado em T05+T06; T07 (Detector subagent) é
-a próxima task topológica de Milestone B — primeiro consumer real de
-`scan_diff` via FastMCP Client.
+## 1. Estado factual do repo
 
-Sessão #32 encerrada formalmente neste handoff. Sessão #33 reservada para
-prep T07.
+- **Branch atual:** `main`
+- **Tests:** 132 passing, 0 failed, 0 skipped (83 baseline + 49 T07)
+- **mypy strict:** Success em 16 src/ files
+- **ruff:** clean
+- **Último PR mergeado:** `feat/semgrep-runner-T07` (2 commits split code-vs-docs)
+- **Rule set produção:** `mcp_servers/semgrep_runner/rules/` contém 6 regras BR (`br_cpf.yaml`, `br_cnpj.yaml`, `br_cnh.yaml`, `br_nis_pis.yaml`, `br_titulo_eleitor.yaml`, `br_cns_saude.yaml`); `_placeholder.yaml` removido
+- **Conftest do componente:** estendido com fixtures `br_rules_dir` + `br_pack_repo` (paralelo ao pattern POL pack)
 
-## DDs/decisões load-bearing que persistem como contexto pós-housekeeping
+## 2. Tasks completas em Milestone B
 
-1. **Convenção bare ratificada para rule_id Semgrep.** `br-cpf`, `br-cnpj`,
-   `br-cnh`, `br-nis-pis`, `br-titulo-eleitor`, `br-cns-saude` — uma regra
-   por identificador, cobrindo N padrões via `pattern-either`. Canonical
-   examples agora coerentes com convenção tasks.md T07 e com filenames
-   `br_cpf.yaml` em `mcp_servers/semgrep_runner/rules/`. T07 implementação
-   deve usar este vocabulário.
+- T05 (rule loader + bootstrap + placeholder) — mergeada
+- T06 (scan_diff implementation + framework integration) — mergeada
+- Housekeeping #57 — mergeada
+- **T07 (six BR recognizers + placeholder removal)** — mergeada nesta sessão
 
-2. **Severity convention para regras BR ratificada.** `warning` para
-   identificadores comuns (CPF, CNPJ, CNH, NIS, título eleitor); `error`
-   apenas para casos com razão semântica forte (e.g., CNS-saúde sob LGPD
-   Art. 11 sensíveis). Coerente com Chat review T07 prescrito em tasks.md.
-   Decisão antecipada em #32 housekeeping; T07 implementa.
+**Milestone B implementation está COMPLETA.** Falta apenas o gate milestone-level (auditoria de critérios + ratificação contra proposta-tcc2.md §B).
 
-3. **mypy + ruff agora em `[dependency-groups.dev]`.** Pin oficial
-   (`mypy>=1.18`, `ruff>=0.13`) via `uv.lock`. Workaround `uv run --with
-   mypy mypy` aposentado. Comandos canônicos a partir de #33:
-   - `uv run mypy src/` para checagem do código de aplicação.
-   - `uv run ruff check .` para lint.
-   - `uv run pytest -q` para tests.
+## 3. Próximo halt — três caminhos candidatos para sessão #34
 
-4. **`[tool.mypy] exclude`** apontando para
-   `tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/`.
-   Fixtures Semgrep são deliberadamente type-incorrect pelo padrão stdlib
-   (structured logging via kwargs); excluídos do strict checking. Novos
-   fixtures adicionados em T07 ou em Provisão futura herdam o exclude
-   automaticamente — sem necessidade de `# type: ignore` per-snippet.
+### (A) Gate milestone-level Milestone B
+- Auditoria de completude contra proposta-tcc2.md §B + critérios milestone-level declarados em tasks.md
+- Validação de RF-001, RF-002, RF-008 (cobertura BR), RNF aplicáveis ao componente
+- Decisão formal: Milestone B fechado, prosseguir para C; ou pendências de C-blocker descobertas → housekeeping antes
+- **Recomendado próximo** se quiser fechar B formalmente antes de qualquer outra atividade
 
-5. **`.claude/rules/windows-tooling.md` extendido com ASCII commit
-   convention** (5 seções: Principle/Justification/How to apply/Scope +
-   header). Rule auto-carregada pelo Code em sessões futuras quando os
-   path-scoped triggers casam. Code não precisa receber lembrete no
-   prompt — convenção materializada.
+### (B) Pre-Milestone-C housekeeping
+- CLAUDE.md §Status flags stale: declara "64 passing", real é 132
+- Eventual sync cirúrgico de docs (canonical, compact) refletindo as DDs T07 ratificadas (DD-T07-3a 1-pattern, NEW DD-T07-AS3 subset assertion, DD-T07-16 metadata schema) se canonical for material para Classifier/Matcher em Milestone C
+- Verificação se cross-references entre `recognizers_pack_br/README.md` (sync feito em T07 §3.F) e outros docs ficaram coerentes pós-merge
+- ADR draft eventual sobre subset vs strict assertion style se virar pattern recorrente
 
-6. **Gate de regressão exclusion-aware com 5 exclusões cumulativas.**
-   Pattern operacional consolidado para grep-based regression checks
-   em PRs cross-doc futuras:
-   ```bash
-   git grep -nE "<token>" -- . \
-     ':!docs/learning-log.md' \
-     ':!docs/session-handoff.md' \
-     ':!docs/adr/' \
-     ':!docs/DESIGN.md' \
-     ':!src/mcp_servers/policy_reader/models.py'
-   ```
-   Exclusões justificadas como audit trail intencional (learning-log,
-   handoff, ADRs) ou audit trail cross-doc legítimo preservado em sites
-   não-tocados pela PR (DESIGN.md ADR-0005 rename note; models.py docstring
-   nova). Padrão a aplicar em futuras housekeepings cross-doc.
+### (C) Authoring direto de tasks.md §Milestone C
+- Sessão dedicada per ADR-0008 §1 (autoria de milestones futuros após gate do anterior — risco de drift se feita pré-gate)
+- Estrutura preliminar em tasks.md §"Milestones C, D — autoria deferida" já lista decomposição tentativa (5 AgentDefinitions + `.mcp.json` + Coordinator + Reporter custom tool)
+- **Não recomendado direto** — ADR-0008 prescreve gate antes; respeitar metodologia
 
-7. **`policy/clauses/POL-000.yaml` + Provisão B (fixture pack BR)
-   mergeados.** Disponíveis como fixtures base para T07:
-   - POL pack para tests de Detector que precisem invocar policy-reader
-     em integração.
-   - Recognizer pack BR para tests de scan_diff invocado pelo Detector
-     subagent.
+### Inclinação para escolha
+**(A) → (B) → (C)**, nessa ordem. Gate primeiro fecha Milestone B com auditabilidade; housekeeping pre-C limpa débitos catalogados sem alargar escopo; authoring de C com framework limpo.
 
-8. **Estado de débitos pós-PR #57.**
-   - **Zero débitos mecânicos abertos** (todos os 7 catalogados nos
-     handoffs #31+#32 fechados).
-   - **D-5 deferido**: sweep cross-doc das regras imutáveis ADR-0001
-     Decision 4 ↔ CLAUDE.md §"Immutable domain rules". Bloqueante para
-     Milestone C, não para T07. Sessão Chat dedicada ~1.5h antes do início
-     de C.
-   - **JS/TypeScript coverage**: pós-Milestone B gate milestone-level,
-     janela 15/06-30/06 caso haja capacidade. Detalhes em
-     `tasks.md` §"Pós-Milestone B aberto".
-   - **Promoções pendentes para `.claude/rules/`**: catálogo-de-débitos-
-     é-código (cristalizada em #32 Edit M-2); gates de regressão
-     exclusion-aware com dois vetores (cristalizada em #32 P-7);
-     documento de implementação externo como evolução do plan-mode pattern
-     (cristalizada em #32). Sessão metodológica retrospectiva dedicada
-     quando o número de candidates acumulados justificar.
+Se (A) revelar pendências C-blocker, vira (A) → (B) parcial → re-(A) → (C).
 
-## Conceitos de prova exercitados na sessão #32 housekeeping
+## 4. DDs em aberto que afetam Milestone C
 
-Detalhamento em `learning-log.md` entry "2026-05-23 — sessão #32
-(continuação)". Resumo:
+Antecipando: design de Milestone C terá decisões substantivas sobre:
 
-- **D1** (Agentic Architecture, 27%): plan mode externalizado como
-  artefato pre-sancionado; halt-and-escalate em Code review sobre
-  artefato-prompt.
-- **D3** (Claude Code Configuration, 20%): `.claude/rules/windows-tooling.md`
-  extendido; `[tool.mypy]` config materializada.
-- **D4** (Prompt Engineering, 20%): validation-retry loop manual em 4
-  rounds com severity decay monotônico; verification-before-inference
-  recursiva.
-- **D5** (Context Management, 15%): audit trail exclusions em gates de
-  regressão (5 exclusões cumulativas); error propagation estruturada
-  cross-system Chat ↔ Code; provenance via cascading decision.
+- **AgentDefinition shape canonical** para os 5 subagentes (Triager, Detector, Classifier, Matcher, Reporter) + Coordinator. Web search obrigatório para sintaxe atualizada do `claude-agent-sdk` (cutoff Jan/2026; SDK move rápido).
+- **`.mcp.json` shape** + per-subagent `mcp_servers` subset (DD canonical já antecipada em §5.7 matriz de architecture-overview.md).
+- **`emit_report` custom tool** schema (output do sistema).
+- **Coordinator dispatch mechanism**: `Task` tool em `allowedTools` do Coord + system prompt orientativo (não procedural).
+- **Scratchpad files** para handoff entre subagentes (Domínio 5 prova).
 
-## Pré-flight para sessão Chat de prep T07
+Não precisam ser decididas no handoff. Apenas catalogadas para sessão #34 dedicada a authoring.
 
-Verificação direta empírica antes de redigir o prompt T07. Pattern
-consolidado em sessões #28+: pre-flight verifica fatos do código real, não
-infere a partir de docs ou memória.
+## 5. Convenções importantes para sessões futuras
 
-**1. Estado real de `src/mcp_servers/semgrep_runner/`.**
+### Hierarquia de canonicalidade dos docs
+1. **tasks.md** = canonical authoritative scratchpad. Em divergência com qualquer outro doc, tasks.md vence.
+2. Handoff + learning-log = audit trail. Útil mas não normativo.
+3. ADRs + canonical specs + compact = canonical normativo para componentes implementados (semgrep-runner, policy-reader).
+
+**Lição cara da sessão #33**: handoff dizia "T07 = Detector"; tasks.md prescrevia rule pack. Eu segui o handoff por 7 turnos antes de cruzar com tasks.md. Verifique escopo contra tasks.md ANTES de iniciar pre-flight.
+
+### Multi-instance review canônico — framing diversification
+- Para próximas prompts complexas (Milestone C terá vários), **instrua reviewers com framings distintos**: uma instância "contexto da task anterior", outra "clean session verify-everything-against-source".
+- Diversidade > count.
+- Layer-1 (docs) → refinements; layer-2 (código) → blockers; layer-3 (Code empírico via pre-flight) → compositional behavior errors.
+
+### Pre-flight do Code deve incluir "test as deployed"
+- v4 prescreveu 4 sub-experimentos validando primitivas Semgrep DSL em isolation; Code descobriu compositional behavior diferente quando 4 patterns viviam juntos numa `pattern-either`.
+- Sub-fase "test composite as deployed" deveria estar em todo pre-flight de tasks que materializam composites.
+
+### Estimate Code dispersa — não corrija expectativa
+- T07 estimado em 4-6h (v4) → 2.5-3.5h (GATE 1) → 1h real. Superestimação ~3-6×.
+- Padrão observado: detection semantics herdando framework pronto é Code-cheap; framework integration é Code-expensive.
+- Para Milestone C tasks: framework integration de AgentDefinition + MCP routing provavelmente Code-expensive (T06-pattern); per-subagent prompt + tool restriction tunables provavelmente Code-cheap (T07-pattern).
+
+### Convenções imutáveis
+- 2-commit split code-vs-docs no PR
+- Commit messages PT-BR; HEREDOC body ASCII-only (per `.claude/rules/windows-tooling.md`)
+- Test naming `test_as<N>_*` (sem underscore extra); anchors `test_anchor_*`
+- Branch naming `feat/<component>-T<NN>`
+- ADR-0008 window: 1-3h por task; estouros forçam re-deliberação
+- Subset assertion para tests que exercem contrato (`.claude/rules/test-strategy.md`); strict para tests que validam invariante
+
+## 6. Pendências catalogadas (não bloqueantes)
+
+| # | Item | Severidade | Locus sugerido |
+|---|------|-----------|----------------|
+| 1 | CLAUDE.md §Status flags stale ("64 passing" → "132 passing") | baixa | Pre-Milestone-C housekeeping (sessão #34 opção B) |
+| 2 | Drift handoff/learning-log: "T07 = Detector" vs tasks.md rule pack | catalogado, não-corrigível retroativamente | Lição metodológica em §5 acima |
+| 3 | Verificação se tasks.md §"Milestone C — autoria deferida" precisa ratificação antes de authoring formal | baixa | Início de sessão #34 (A) ou (C) |
+| 4 | ADR draft eventual sobre subset vs strict assertion style se Milestone C reusar pattern | baixa | Eventual, não bloqueante |
+
+## 7. Comandos canônicos para abrir sessão #34
 
 ```bash
-# Listar tools expostas pelo server
-grep -n "@mcp.tool" src/mcp_servers/semgrep_runner/server.py
-# Confirmar: apenas scan_diff, ou há outras?
+# Baseline
+git status
+git log --oneline -10
+uv run pytest -q
+# Esperado: 132 passing
 
-# Confirmar export do componente
-cat src/mcp_servers/semgrep_runner/__init__.py
-# Confirmar pattern de export
+# Estado dos componentes Milestone B
+ls mcp_servers/semgrep_runner/rules/
+# Esperado: 6 br_*.yaml
 
-# Estado do bootstrap
-grep -n "_bootstrap\|_STATE" src/mcp_servers/semgrep_runner/server.py
-# Pattern análogo ao policy_reader/server.py?
+ls mcp_servers/policy_reader/clauses/  # ou path equivalente
+# Esperado: POL pack mergeado em Milestone A
+
+# Sanity de docs
+head -20 docs/tasks.md
+head -30 docs/learning-log.md
+# Confirmar que entry #33 está no topo
 ```
 
-**2. Pattern de import do FastMCP Client no projeto.**
+## 8. Métrica metodológica acumulada (para defense do TCC)
 
-```bash
-# Buscar usos existentes de Client (T07 vai ser o primeiro consumer real)
-git grep -nE "from fastmcp import Client|from fastmcp\.client" .
-# Esperado: 0 ou poucos matches (Client é novo no projeto pós-T07)
+- **Tasks completas com gate ratificado**: 7 (Milestone A: T01-T04; Milestone B: T05, T06, T07).
+- **Total sessões Chat**: ~33.
+- **Tempo Chat:Code ratio cumulativo**: ~50h Chat / ~12h Code ≈ 4:1. Reflexivo da metodologia prep-heavy + deliberate Code.
+- **Rounds prompt iteration médio por task**: T06 = 5; T07 = 4. Padrão estabilizando em 3-5 rounds com framework herdado.
+- **Catches detectados por verification layer cumulativo**:
+  - Layer-1 (docs): ~60% dos catches, todos refinement-level
+  - Layer-2 (código de teste): ~30% dos catches, ~50% destes são blockers
+  - Layer-3 (Code empírico): ~10% dos catches, 100% destes são compositional issues invisíveis pra layers 1-2
 
-# Confirmar versão FastMCP pinned em uv.lock
-grep -A1 '"fastmcp"' uv.lock | head -5
-# Esperado: 3.2.4 ou similar (per ADR-0001 amendment 2026-05-21)
+---
 
-# Buscar documentação FastMCP 3.x sobre Client se necessário
-# Web search: "fastmcp Client tutorial site:gofastmcp.com"
-```
-
-**3. AgentDefinition pattern — primeira AgentDefinition do projeto.**
-
-```bash
-# Confirmar que ainda não há AgentDefinition no projeto
-git grep -nE "AgentDefinition|agent_definition" -- . ':!docs/' ':!*.md'
-# Esperado: 0 matches em código (Milestone C introduz)
-
-# Pre-leitura obrigatória de architecture-overview
-sed -n '/^## 5\./,/^## 6\./p' docs/architecture-overview.md
-# Especialmente §5.2 Detector + §5.7 matriz de restrições por subagent
-
-# Pre-leitura .mcp.json se existir
-cat .mcp.json 2>/dev/null || echo "(no .mcp.json yet)"
-# Confirmar exposição de semgrep-runner para Detector via mcp_servers field
-```
-
-**4. Provisão B (recognizer pack BR) — disponibilidade.**
-
-```bash
-# Confirmar pack mergeado
-ls tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/
-
-# Confirmar estrutura conforme T07 §Files previstos
-ls tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/*.py | wc -l
-# Esperado: ~9 arquivos (6 positivos + 3 negativos + README)
-
-# Confirmar exclusão mypy ativa
-uv run mypy tests/mcp_servers/semgrep_runner/fixtures/recognizers_pack_br/
-# Esperado: Success: 0 source files
-```
-
-**5. Decisão substantiva pré-prompt.**
-
-Antes de redigir o prompt T07, deliberar:
-
-- **Escopo da T07**: apenas Detector (single AgentDefinition) ou também
-  Coordinator stub para orquestrar invocação? Boundary clarification.
-- **AgentDefinition em qual diretório**: `src/agents/` novo? ou inline
-  em `src/coordinator.py`? Pattern do projeto pós-T07.
-- **Tests fixture root assembly** análogo ao policy_reader pattern, ou
-  algo diferente para subagent? Pre-leitura `tests/mcp_servers/policy_reader/
-  test_bootstrap.py` para pattern operacional.
-- **Carregamento de regras Semgrep `br_*.yaml`**: T07 cria os arquivos
-  YAML em `mcp_servers/semgrep_runner/rules/` (substitui placeholder de
-  T05)? Ou T07 é apenas o Detector subagent + tests, com criação de
-  `br_*.yaml` em task separada T08? Boundary crítica — afeta
-  ordem topológica de Milestone B e estimativa de custo.
-
-**6. Custo estimado T07.**
-
-Prep Chat ~2-3h (multi-round se justificado, espelha T06) + Code ~3-4h.
-Pattern: pre-flight ambicioso + plan-mode + GATE 1 + Fase 2 com gates
-intermediários conforme prescrito em
-`.claude/rules/spec-driven-workflow.md`.
-
-## Sugestão de início para sessão #33
-
-Começar com pre-flight verification (passos 1-4 acima) sob commit limpo de
-`main` pós-housekeeping. Resultado do pre-flight é input para deliberação
-do passo 5 (boundary clarification). Boundary fechada → redação prompt T07
-v1.
-
-**Não pular pre-flight.** Padrão consolidado em #28+: anomalias de
-pre-flight emergem ao mapear empiricamente, não ao verificar isoladamente
-contra docs. Cada sessão Code pre-flight ambicioso pagou dividendos em
-implementation surprises absorvidas sem rework arquitetural (T04 wire-shape,
-T06 exits 4/5 unreachable, T06 shallow signal em JSON, T06 snippet
-"requires login").
-
-## Próximo halt esperado em #33
-
-Pre-flight T07 verification report ou plan mode T07 (GATE 1 deliberation
-com DDs). Sessão #32 oficialmente encerrada neste handoff.
-
-## Artefatos chave da sessão #32
-
-- **PR #56** (mergeado): T06 scan_diff completo. Detalhes em learning-log
-  entry T06.
-- **PR #57** (mergeado): housekeeping pre-T07 (8 commits internos).
-  Hash squash `<TBD>`.
-- **`prompt-t06-v5.1.md`**: prompt final de T06 implementação. Appendix
-  de 25 catches. Referência para metodologia de prompt-redação T07.
-- **`housekeeping-pre-t07-IMPL.md` FINAL** (767 linhas): documento de
-  implementação consolidado. Audit trail descartável pós-merge; lições
-  absorvidas no learning-log entry #32 (continuação).
-- **Learning log entries**: T06 (anexar separadamente) + #32
-  (continuação housekeeping, este handoff).
-
-## Status da prova (Claude Certified Architect — Foundations)
-
-Sessão #32 (T06 + housekeeping) exercitou conceitos dos 5 domínios:
-
-- **D1 27%**: GATE 1 + Fase 3 faseada em T06; plan mode externalizado +
-  halt-and-escalate em housekeeping.
-- **D2 18%**: scan_diff completo em T06 (subprocess Semgrep + 6 errorCodes
-  + Option B wire format).
-- **D3 20%**: `.claude/rules/windows-tooling.md` extendido; `[tool.mypy]`
-  config materializada; mypy/ruff em dev-deps.
-- **D4 20%**: validation-retry em 5 rounds (T06 prompt) + 4 rounds
-  (housekeeping artefato). Severity decay monotônico empiricamente
-  observado em ambos.
-- **D5 15%**: long context exercitado (housekeeping consumiu múltiplos
-  arquivos cross-component); audit trail exclusions com 5 exclusões
-  cumulativas; error propagation estruturada Chat ↔ Code.
-
-Trajetória de sessão #32 (T06 + housekeeping) é defense candidate forte
-para Capítulo de Método — multi-round validation-retry sobre dois tipos
-de artefato distintos (código de aplicação T06; documento de plano
-housekeeping) com mesmo pattern operacional, mesma convergência empírica,
-mesma capacidade de absorver implementation surprises via halt-and-
-escalate. Pattern generaliza além do tipo de output.
+**Sessão #34 abre com:** decidir entre (A)/(B)/(C). Inclinação: (A).

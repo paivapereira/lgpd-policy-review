@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-05-01; Decision 2 amended in-place 2026-05-21 (session #28) to reflect stack realignment formalized in ADR-0010 (Presidio → Semgrep) and the introduction of formal version pins (`fastmcp==3.2.4`, `pydantic==2.13.4`, `mcp==1.27.1`, `semgrep==1.163.0`).
+Accepted — 2026-05-01; Decision 2 amended in-place 2026-05-21 (session #28) to reflect stack realignment formalized in ADR-0010 (Presidio → Semgrep) and the introduction of formal version pins (`fastmcp==3.2.4`, `pydantic==2.13.4`, `mcp==1.27.1`, `semgrep==1.163.0`); Decision 3 amended in-place 2026-05-22 (session #29 housekeeping) to deprecate `LGPD-Art-7-I`-form cláusula IDs in favor of opaque `POL-NNN` IDs per ADR-0005 RF-008 (framework-agnostic IDs); Decision 4 amended in-place 2026-05-24 (session #36) to sync the three immutable domain rules with CLAUDE.md operational text (R1 substantive design change ratified by ADR-0005 D2; R2 example drift fix; R3 operational refinement).
 
 ## Amendment scope (2026-05-21)
 
@@ -15,13 +15,70 @@ Amendment landed in-place rather than as a successor ADR because (a) the origina
 
 The original wording survives in the git history at the pre-amendment commit. Decisions 1, 4, 5, and 6 are intact (D3 amended in-place 2026-05-22, see Amendment scope (2026-05-22) below).
 
+## Amendment scope (2026-05-24)
+
+Decision 4 is amended in-place. All three immutable rules are replaced
+by text byte-identical to CLAUDE.md §"Immutable domain rules", which
+records the operational invariants actually adopted by the project.
+
+The three rules in the pre-amendment text reflected a design state that
+had been superseded by subsequent ADRs and never propagated back:
+
+- **R1 — substantive design change, not drift.** The original
+  formulation, "Human escalation on legal–policy conflict" with
+  `requires_human=true` flag, presupposed a runtime mechanism in which
+  the agent would arbitrate disagreements between the LGPD statute and
+  an internal Policy directive. That design was abandoned in session
+  #04 (2026-05-06) in favor of "no fabricated certainty" with the four
+  verdicts (`compliant`, `violation_candidate`, `indeterminate`,
+  `not_applicable`) — and structurally precluded altogether by ADR-0005
+  Decision 2 (session #16), which made `legal_framework` a top-level
+  immutable field of the loaded Policy, eliminating the category of
+  "Lei vs diretriz conflict at runtime" by construction. The Policy is
+  internally consistent under a single declared framework; conflict
+  resolution is an authoring-time concern, not a runtime one. CLAUDE.md
+  was updated in #04 to the adopted design; ADR-0001 D4 carried the
+  abandoned vocabulary until this amendment.
+
+- **R2 — drift of example, plus operational refinement.** The original
+  cited `LGPD-Art-7-I` as the canonical clause ID example. The
+  Amendment scope (2026-05-22) of D3 declared this form deprecated in
+  favor of opaque `POL-NNN` identifiers; CLAUDE.md already uses
+  `POL-007`. This amendment carries that fix into D4 and adds the
+  `statutory_reference` field reference, which CLAUDE.md materializes
+  as the locus of the legal-text mapping (per ADR-0005 D1 and the
+  canonical schema in `policy/SCHEMA.md` §5.1).
+
+- **R3 — technical refinement, not divergence.** The original
+  prescribed schema-versioned compatibility in principle; CLAUDE.md
+  materializes the two-axis form (`policy_schema_version` for
+  structure, `policy_version` for content) with explicit
+  `compatible_schema_range`. This amendment aligns the ADR text to the
+  operational mechanism.
+
+This sync is the "dedicated semantic deliberation Chat session
+scheduled before Milestone C kickoff" referenced in the Amendment
+scope (2026-05-22) below. Materialized in session #36, 2026-05-24,
+before Milestone C task authoring.
+
+Amendment landed in-place rather than as a successor ADR because (a)
+two of the three rules (R2, R3) are operational refinement, not
+substantive change; (b) R1 is substantive design change but the new
+design has been the de facto invariant since #04 and is documented in
+CLAUDE.md, learning-log #04, and ADR-0005 D2 — this amendment closes
+the sync gap, not commits to a novel design. Pattern follows D2
+amendment (2026-05-21) and D3 amendment (2026-05-22).
+
+The original wording survives in the git history at the pre-amendment
+commit.
+
 ## Amendment scope (2026-05-22)
 
 Decision 3 is amended in-place. The original formulation, authored 2026-05-01 in session #01, prescribed cláusula IDs in "stable Portuguese form (e.g., `LGPD-Art-7-I`), never translated." ADR-0005 (multi-client policy architecture, session #16, 2026-05-14) formalized the property RF-008 (framework substitution without code change): a cláusula ID literally containing "LGPD" is by definition not framework-agnostic, contradicting the central thesis. The amendment realigns D3 to the opaque `POL-NNN` form already materialized in real artifacts: `policy/clauses/POL-000.yaml`, fixtures POL-001..POL-004, CLAUDE.md §"Languages", architecture-overview.md. The mapping from cláusula to legal source moves entirely to the `statutory_reference` field of each clause.
 
 Amendment landed in-place rather than as a successor ADR because (a) the original D3 was language convention guidance, not a deliberated architectural decision; (b) the substantive replacement (framework-agnostic IDs as RF-008 property) is documented in ADR-0005 and materialized in `policy/clauses/` — this amendment is sync, not novel commitment. The pattern follows Decision 2's in-place amendment (2026-05-21) and ADR-0008's amendment (2026-05-16).
 
-The original wording survives in the git history at the pre-amendment commit. Note also that Immutable Rule 2 in Decision 4 still cites `LGPD-Art-7-I` as an example — that wider sync between CLAUDE.md §"Immutable domain rules" and ADR-0001 Decision 4 is deferred to a dedicated semantic deliberation Chat session scheduled before Milestone C kickoff.
+The original wording survives in the git history at the pre-amendment commit.
 
 ## Context
 
@@ -227,42 +284,64 @@ the project's two-audience structure.
 
 ### 4. Three immutable domain rules in CLAUDE.md
 
-Three rules are recorded in `CLAUDE.md` under "Immutable domain rules"
-and must not be relaxed in code, prompts, or design without explicit
-user instruction *and* a dedicated ADR superseding this one for that
-specific rule:
+Three rules express the core academic thesis of the project. They are
+recorded in `CLAUDE.md` under "Immutable domain rules" (always-loaded
+by Claude Code, ensuring per-session visibility) and must not be
+relaxed in code, prompts, or design without explicit user instruction
+*and* either an in-place amendment to this Decision or a dedicated ADR
+superseding it for the specific rule. The text below is byte-identical
+to CLAUDE.md; parallel sync between the two documents is mandatory on
+any future modification.
 
-1. **Human escalation on legal–policy conflict.** When the system
-   detects a conflict between the LGPD statute and an internal Policy
-   directive, it never decides automatically; it emits a structured
-   escalation flag (`requires_human=true`) preserving both
-   interpretations verbatim and stops further automated action on that
-   finding.
+1. **No fabricated certainty.** When the system cannot decide
+   compliance with confidence — because the verification requires
+   runtime observation, upstream behavior, or context the static
+   analysis of a PR cannot see — it must return the verdict
+   `indeterminate` with `verification_scope` indicating the dimension
+   a human reviewer must verify manually. The system never fabricates
+   `compliant` or `violation_candidate` to appear conclusive. The four
+   valid verdicts are `compliant`, `violation_candidate`,
+   `indeterminate`, `not_applicable`.
 
 2. **Citation of stable clause IDs.** Every finding, suggestion, or
-   block produced by the agent must cite the stable clause ID (e.g.,
-   `LGPD-Art-7-I`) it relies on. Findings without a clause citation
-   are invalid output and must be rejected by validation.
+   block produced by the agent must cite the stable `clause_id` (opaque
+   identifier with `POL-` prefix, e.g., `POL-007`) of the clause it
+   relies on. The `statutory_reference` field of the clause carries the
+   mapping to the legal text (lei, artigo, parágrafo, inciso, alínea).
+   Findings without a `clause_id` citation are invalid output and must
+   be rejected by validation.
 
-3. **Schema-versioned policy compatibility.** The system declares which
-   `policy_schema_version` range it supports. Schema-changing PRs
-   require a major bump; content-only PRs require at least a minor
-   bump. Policies outside the declared compatibility range are rejected
-   at load time.
+3. **Two-axis policy versioning with declared compatibility.** The
+   policy is versioned along two independent axes:
+   `policy_schema_version` for the structural schema of the YAML files,
+   and `policy_version` for the textual content of the clauses. The
+   system declares which `policy_schema_version` range it supports via
+   `compatible_schema_range`. A pull request that changes the schema
+   (clause structure, ID format, required fields) requires a major bump
+   of `policy_schema_version`. A pull request that changes only the
+   textual content of clauses (without schema change) requires at
+   minimum a minor bump of `policy_version`. The system must reject at
+   load time any policy whose `policy_schema_version` falls outside its
+   declared compatibility range.
 
 **Rationale.** These three rules translate the academic thesis of the
 project into operational invariants. Violating them in code or design
-is not a bug — it invalidates the academic contribution. Recording them
-as immutable, with override gated behind a new ADR, prevents accidental
-relaxation under implementation pressure.
+is not a bug — it invalidates the academic contribution. Recording
+them as immutable, with override gated behind ADR ceremony, prevents
+accidental relaxation under implementation pressure. Maintaining the
+text byte-identical to CLAUDE.md eliminates the bifurcation risk
+documented in the Amendment scope (2026-05-24) above: any future
+modification must be a synchronous edit to both files.
 
 **Consequences.** The agent will refuse to take actions that violate
-these rules, even when prompted — this was tested empirically in
-session 1 (see learning-log: the "Vamos adicionar Flask" pushback test,
-which invoked the related stack-immutability convention from
-CLAUDE.md). Cost: less flexibility during exploration, since any
-adjustment requires the formal ADR ceremony. This cost is accepted as
-the price of provenance.
+these rules, even when prompted — tested empirically in session #01
+(see learning-log: the "Vamos adicionar Flask" pushback test, which
+invoked the related stack-immutability convention from CLAUDE.md).
+Cost: less flexibility during exploration, since any adjustment
+requires the amendment ceremony. This cost is accepted as the price of
+provenance. Mandatory parallel sync to CLAUDE.md adds editorial
+overhead per amendment but eliminates the silent-bifurcation failure
+mode that motivated this 2026-05-24 sync.
 
 ### 5. Git workflow: Conventional Commits, feature branches, squash-merge
 

@@ -5902,3 +5902,271 @@ obs learning-log-35.md:
 §Status: "PR #59... <TBD>" → hash real; "Branch local chore/...: 3 commits" → "PR #60 mergeada em main como b4ec3fe"; remover "Não pushed".
 §Artefatos "PR #59": preencher <TBD>.
 §Artefatos "Branch chore/...": substituir por "PR #60 — chore(gate-milestone-b): gate empírico RF-008 rule-set-axis → main, squash hash b4ec3fe. 3 commits internos pre-squash: 19e0536 (pack), 84672a5 (script v1), <hash> (patch — pós-rebase regerou SHA de 34b6c05 original)."
+
+# Learning Log — entry sessão #37
+
+Anexar ao final de `docs/learning-log.md` via direct commit
+(per ADR-0001 D6).
+
+---
+
+## #37 — 2026-05-25 — Autoria de design de Milestone C: header + coordinator-skeleton + plano de specs leves dos subagentes
+
+**Escopo da sessão.** Sessão Chat dedicada à autoria de design de
+Milestone C. Diferente de #27 (decomposição de tasks de Milestone B
+sob spec preexistente do semgrep-runner), esta sessão operou em
+território de design ainda não materializado — specs dos cinco
+subagentes + coordinator + custom tool `emit_report` + `.mcp.json`
+do projeto. Resultado: header de Milestone C decomposto em capability
++ RFs + provisões; coordinator-skeleton produzido como artefato Chat;
+plano de ordem híbrida de redação das 6 specs (coordinator-skeleton →
+Reporter-flesh → Triager-sanity → Detector → Classifier → Matcher →
+coordinator-flesh-completo) ratificado.
+
+Quatro outputs Chat materializados em `/mnt/user-data/outputs/`:
+coordinator-skeleton-37.md; tasks-md-milestone-c-diff-37.md;
+session-handoff-37-to-38.md; este entry.
+
+**Conceitos da prova exercitados.**
+
+*Domínio 1 — Agentic Architecture & Orchestration.* D1.2 + D1.3
+coordinator-subagent + single responsibility aplicados concretamente
+ao desenho do coordinator como Python main loop (não AgentDefinition)
+após pesquisa empírica do SDK em `platform.claude.com/docs/en/agent-sdk/subagents`
+que revelou restrição "subagents cannot spawn their own subagents".
+D1.6 task decomposition aplicada em duas dimensões: pipeline fixa de 5
+etapas (prompt chaining) escolhida sobre dynamic decomposition por
+alinhamento explícito com Task Statement 1.6 do exam guide
+(multi-aspect review of a diff é exemplo canônico de prompt chaining).
+D1.3 subagent context isolation materializado em decisão de scratchpad
+audit-only + state passing inline (output da etapa N injetado no
+prompt da N+1 via JSON serializado; subagentes em contexto fresco a
+cada query).
+
+*Domínio 2 — Tool Design & MCP Integration.* D2.2 resource vs tool
+exercitada em decisão sobre vocabularies single load point:
+`policy://vocabularies` declarado universalmente compartilhável em
+arch-overview §5.4, coordinator ganha acesso pontual como exceção
+ratificada via three-beats. D2.3 tool distribution + scoped access
+materializado em whitelist `EXPECTED_SERVERS = {"policy-reader", "semgrep-runner"}`
+no parser do `.mcp.json`: fail loud em server fora do whitelist
+impede surpresa silenciosa. D2 custom tool + in-process MCP server:
+`emit_report` via `@tool` + `create_sdk_mcp_server(name="reporter-tools")`
+exposta apenas no Reporter AgentDefinition; tool authorization é
+mecanismo que materializa invariante arquitetural "Reporter como
+único locus emissor" (§4.3 arch-overview).
+
+*Domínio 3 — Claude Code Configuration & Workflows.* D3 `.mcp.json`
+como single source consumido por Claude Code dev + coordinator
+runtime (decisão M2). Whitelist é blindagem contra dev adicionar
+server por motivo Claude Code e esquecer de remover. D3 `.claude/rules/`
+referência nominal a `git-conventions.md` (PR `chore/sync-adr-references`
+como diff clean Chat-revisable) + `mcp-testing.md` (AS de teste do
+whitelist em task futura).
+
+*Domínio 5 — Context Management & Reliability.* D5 scratchpad pattern
+calibrado para A' (Python orquestrando query() separadas): pattern do
+exam guide endereça context degradation em agentes long-running, não
+em multiple query() com contexto fresco. Reframe pós-Code review: em
+A', scratchpad é audit/provenance + crash recovery + CI artifact, não
+context degradation mitigation. Conceito mais preciso aqui é Task
+Statement 5.3 (structured error context + partial results enabling
+intelligent recovery). D5 provenance via citation chain preservada:
+trinca `(policy_schema_version, policy_version, legal_framework)`
+propagada verbatim do policy-reader até cada finding do Report
+(RNF-002 bound a Milestone C). D5 error propagation aplicada a
+pipeline multi-agente: Pydantic validation falha → halt; MCP isError
+→ retry vs halt por errorCode; ReportNotEmitted (Reporter sem
+emit_report) → erro estruturado via inspeção message stream em
+Python, não hook.
+
+**Decisões tomadas.**
+
+- **Capability + RFs do gate de Milestone C.** RF-003 pleno + RF-004
+  pleno + RF-005 pleno + RF-006 + RF-007 pleno + RF-008 pleno +
+  RNF-002. Cobertura mais larga do que "tentative" original de
+  tasks.md (003, 004-pleno, 006, 008-pleno) — RF-005 pleno e RF-007
+  pleno adicionados por análise; RNF-002 adicionada por antecipação de
+  evolução SDR β.
+- **Coordinator pattern A'** (Python prompt chaining, query() por
+  etapa, agents={} contendo só o subagente da vez). Não-AgentDefinition.
+  Trade-off ratificado contra A (main agentic): pipeline fixa
+  determinística favorece prompt chaining per Task Statement 1.6.
+- **Scratchpad S2'** (filesystem audit-only via coordinator write;
+  state passing inline JSON; subagentes sem Read sobre scratchpad).
+  Vence S2-canônica do exam guide por simplificar tool authorization
+  sem perda funcional na pipeline fixa (Code review absorvido).
+- **`.mcp.json` M2** single source + whitelist obrigatório
+  `EXPECTED_SERVERS = {"policy-reader", "semgrep-runner"}` com fail
+  loud.
+- **emit_report dual sink** (`@tool` em `src/coordinator/tools.py`;
+  grava `99-report.json` + retorna payload via tool result; captura
+  pelo coordinator via inspeção message stream em Python; enforcement
+  ReportNotEmitted via Python, não hook).
+- **Vocabularies single load point** em coordinator §3.0 (acesso
+  pontual a `policy://vocabularies`, exceção ratificada via three-beats
+  Beat 1 a arch-overview §5.1 + §5.7).
+- **Halt-conditions caminho (i)** — Reporter sempre invocado, mesmo
+  em skip path (Triager) ou findings vazios (Detector zero
+  candidates). Preserva §4.3 "Reporter como único locus emissor" sob
+  substituição de arch-overview §3 mermaid (`skip → END` → `skip →
+  Reporter`).
+- **SDR como serializador downstream (pattern β)** — Report JSON é
+  canônico; transformação Report → SDR CSV (LGPD Art. 37 audit) é
+  consumer downstream (GitHub Action ou job de governança), não
+  responsabilidade do sistema multi-agente. Três garantias de design
+  no MVP preservam compatibilidade: superset de campos, audit
+  metadata top-level (`report_id`, `report_emitted_at`), separação
+  Reporter ↔ serializadores externos.
+- **Multi-spec em `docs/specs/subagents/`** com coordinator.md como
+  hub do workflow. Pattern dual canonical+compact de ADR-0003
+  abandonado por aplicabilidade (subagent specs têm contract surface
+  comportamental, não wire format MCP; já são compact-sized 1-2
+  páginas). Justificativa registrada em coordinator.md skeleton
+  header + a ratificar em ADR-0012 retroativo.
+- **Template como hipótese de trabalho destilado no Reporter-flesh**
+  per `docs/specs/_template.md` §método-de-destilação caminho (b).
+  Caminho (a) "decidir clareza estrutural suficiente, autorar
+  template upfront" rejeitado como overconfident.
+- **Ordem híbrida de redação:** coordinator-SKELETON (sessão #37) →
+  Reporter-FLESH (#38; destila template) → Triager-SANITY (#38) →
+  Detector → Classifier → Matcher (#38-#39) →
+  coordinator-FLESH-COMPLETO (#39+).
+- **Cross-reference rules 1-6 ratificadas** como anti-drift discipline
+  para multi-spec; Rule 6 explicitamente: §3 (Output) de cada
+  subagent spec é canonical I/O boundary citado verbatim downstream
+  (Rule 6 corrigida pós-Code review item 3 — typo §4 do draft).
+
+**Defense candidates emergentes.**
+
+- **Pattern "pre-flight grep Code" para design proposals tocando docs
+  autoritativos preexistentes.** Empirizado em #37: três rounds de
+  Code review pegaram (i) env vars fabricados (POLICY_DIR/RULES_DIR
+  em vez de reais POLICY_READER_ROOT/SEMGREP_RUNNER_ROOT); (ii)
+  divergência metodológica silenciosa contra `_template.md` (template
+  upfront vs destilação); (iii) conflitos diretos com arch-overview
+  §5.1 (coordinator carregando vocabularies viola "sem acesso direto
+  a MCP servers") + arch-overview §3 mermaid (skip → END) ↔ RF-006
+  literal (findings vazio possível "se Triager decidiu skip OU se
+  nenhum candidato foi detectado" implica pipeline atravessa
+  Reporter). Reframe operacional do Code (não disciplinar): Chat
+  opera em proposta conversacional, Code opera em verificação contra
+  repo verbatim. Mecanismo: design proposals tocando docs
+  autoritativos ⇒ pre-flight grep Code ~5min antes de skeleton se
+  materializar, com Chat passando lista de docs autoritativos
+  relevantes (arch-overview, REQUIREMENTS.md, ADRs específicos).
+  Defense candidate forte para Capítulo de Método, agregado ao
+  pattern "Chat propõe / Code verifica" desde #21+.
+
+- **Pattern "argumentação assimétrica entre Chat e Code estabiliza
+  decisão de design quando ambos lados têm mérito".** Empirizado em
+  #37 na deliberação sobre vocabularies load (a) vs (b): Chat
+  oscilou 3 vezes (inclinação inicial (a) com argumento exam-guide
+  impreciso → pivô para (b) "regra bit-stable" → pivô final (a) com
+  argumento "cleaner prompts" trazido pelo Code). Reframe: Chat
+  oscilando em judgment calls de gap pequeno NÃO é falha de opinião;
+  é absorção legítima de argumentos novos emergentes do Code review.
+  Decisão final ancora em ponderação cumulativa, não em primeira
+  inclinação preservada por orgulho. Custo: rounds adicionais de
+  review. Ganho: decisão mais robusta defensavelmente.
+
+- **Pattern "template upfront é overconfident; destilação preserva
+  método registrado".** Empirizado em #37 quando Code identificou
+  `docs/specs/_template.md` §7-8 prescrevendo "derivar
+  `_template-subagent.md` na primeira spec de subagente da semana 3
+  (mesmo método de destilação aplicado a este template)". Eu propus
+  template upfront com 10 seções; Code identificou que estrutura
+  emerge da primeira spec redigida, não de intuição prévia, mesmo
+  quando arch-overview §5 estabeleceu fronteiras. Defense candidate:
+  "método de destilação registrado é mais conservador que template
+  upfront em domínio onde estrutura não está empiricamente validada".
+
+**Validações empíricas.**
+
+- **Multi-round Code review com 3 reviews independentes em sequência
+  produziu 8+ catches load-bearing distribuídos em 4 classes.**
+  Review 1 (pós-Bloco 2): factual em env vars + reframe conceitual
+  do scratchpad (exam guide pattern aplicado impropriamente). Review
+  2 (pós-Bloco 3 template): método de destilação ignorado + ADR-0003
+  silenciosamente abandonado + seções faltantes (§Critérios de
+  aceitação + §Review pass three-beats) + 5 refinamentos pontuais.
+  Review 3 (pós-skeleton): conflitos diretos com arch-overview
+  (vocabularies + halt-conditions) + drift de auto-consistência
+  (Rule 6 cita §4, template tem §3) + whitelist defensivo + clarity
+  + ADR numbering drift no repo. Padrão emergente: granularidade do
+  review escala com proximidade da materialização do artefato.
+  Reviews iniciais (conceituais) catch macro; reviews finais
+  (skeleton concreto) catch micro + drift de auto-consistência.
+
+- **Reframing do meta-padrão "invenção arquitetural silenciosa" para
+  "divisão de trabalho funcionando".** Catch importante do Code
+  (não auto-flagelação): Chat opera em proposta conversacional, Code
+  opera em verificação contra repo verbatim. Drift que cruza
+  fronteira só aparece no segundo. Mecanismo operacional emergente
+  documentado: pre-flight grep Code com lista de docs autoritativos.
+  Não é disciplina pessoal corrigível por esforço — é especificação
+  de processo divisão de trabalho.
+
+- **Cross-reference rule 6 (Output como canonical I/O boundary)
+  catch própria.** Skeleton ratificou rules 1-6 anti-drift e
+  imediatamente caiu em uma (Rule 6 citou §4 quando template tem
+  Output em §3). Leitura irônica do Code; conserto trivial mas catch
+  load-bearing antes de Reporter-flesh herdar drift de cross-ref.
+
+- **ADR numbering drift detectado e catalogado.** session-handoff
+  §(E)+(F) e milestoneB.md citam "ADR-0012 pos-hoc" para
+  Windows-stdio E-2, que foi absorvido em ADR-0011 mergeada.
+  Housekeeping `chore/sync-adr-references` proposto antes de
+  Milestone C citar ADR-0012 em qualquer artefato novo.
+
+**Métricas operacionais.**
+
+- 3 rounds Code review distribuídos pela sessão, 8+ catches
+  load-bearing absorvidos.
+- 4 outputs Chat materializados (~1100 linhas combinadas).
+- 0 commits em main durante a sessão; toda materialização em
+  `/mnt/user-data/outputs/`. Sessão Chat pura.
+- Custo estimado: ~3.5-4h Chat. Ratio Chat:Code = ∞:0 (sem Code
+  execution; Code reviews assíncronos consumidos pelo Chat).
+- 7 decisões load-bearing fechadas (Bloco 1 capability+RFs; Bloco 2
+  cinco decisões arquiteturais; Bloco 3 estrutura+ordem); 3 decisões
+  adiadas para sessões posteriores (gate milestone-level mechanism;
+  schema "Report vazio" para Reporter-flesh; tasks T11+).
+
+**Artefatos produzidos.**
+
+Quatro outputs Chat em `/mnt/user-data/outputs/`:
+
+- `coordinator-md-skeleton-37.md` — skeleton do
+  `docs/specs/subagents/coordinator.md` patcheado conforme decisões
+  sessão #37 + 3 rounds Code review.
+- `tasks-md-milestone-c-diff-37.md` — diff aplicável de 4 blocos
+  para `docs/tasks.md`, materializando header de Milestone C.
+- `session-handoff-37-to-38.md` — handoff para sessão #38, listando
+  estado factual + 13 tasks pendentes ordenadas + pre-flight para
+  Reporter-flesh.
+- `learning-log-entry-37.md` — este entry.
+
+Pendência crítica para sessão Code curta antes de #38: aplicar 4
+outputs ao repo via 4 ações independentes (direct commits + 1 PR
+mecânica). Detalhamento em handoff §4.
+
+**Próximo passo.**
+
+Sequência operacional antes de sessão #38:
+
+1. Apply coordinator-skeleton (direct commit ou PR; decisão pendente).
+2. Apply tasks.md diff (PR `docs/tasks-milestone-c-header`).
+3. (Opcional) Apply housekeeping ADR-0012 stale → ADR-0011 (PR
+   `chore/sync-adr-references`).
+4. Apply learning-log + session-handoff (direct commits).
+
+Sessão #38 Chat — Reporter-flesh-first. Custo estimado ~1-1.5h Chat
+normal; ~2-2.5h se template hipótese sessão #37 quebrar em alguma
+seção. Triager-sanity pode caber na mesma sessão se tempo permitir.
+
+Sessões subsequentes (#38-#39): Detector → Classifier → Matcher,
+depois coordinator-flesh-completo, depois companion edits
+arch-overview, depois ADR-0012 retroativo, depois decomposição de
+tasks T11+, depois benchmark de PRs sintéticos, depois gate
+milestone-level.

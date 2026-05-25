@@ -65,19 +65,24 @@ These rules express the core thesis of the project. Violating them in code, prom
 
 - **Repository age:** mid development — Milestone A closed in session #25
   (gate milestone-level via MCP Inspector CLI mode, evidence in
-  `docs/milestoneA.md`); Milestone B in progress (Provisão A + Provisão B
-  + canonical-sync-D + T05 skeleton merged through #29; T06 + T07 + gate
-  pending).
-- **Tests:** 64 passing (53 policy_reader + 11 semgrep_runner anchor +
-  AS-1..AS-8). Ruff clean, mypy strict clean.
+  `docs/milestoneA.md`); Milestone B closed in session #35 (gate
+  milestone-level PASS empirically against stdio transport real, evidence
+  in `docs/milestoneB.md`); Milestone C authoring deferred to dedicated
+  Chat session post-housekeeping pre-C.
+- **Tests:** 134 passing local Windows, 133 Linux/macOS (AS-14b
+  skipped). Composição: 53 policy_reader + 11 semgrep_runner anchor
+  (AS-1..AS-8) + 21 test_scan_diff + 49 test_recognizers_br + AS-14
+  cross-platform + AS-14b Windows-only. Ruff clean, mypy strict clean.
 - **CI:** not configured yet (Milestone D).
 - **MCP servers:** policy-reader fully operational — 3 of 3 resources
   (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`)
   + 3 of 3 tools (`get_clause`, `find_clauses_by_law_article`,
-  `check_applicability`). semgrep-runner skeleton operational —
-  `scan_diff` stub returning `NOT_IMPLEMENTED` envelope, loader with
-  deterministic SHA-256 `rules_version`, T06 (scan_diff full
-  implementation) is next Code session.
+  `check_applicability`). semgrep-runner fully operational — `scan_diff`
+  implementation complete with 6 errorCodes per canonical §5, BR rule
+  pack (6 recognizers: CPF, CNPJ, CNH, NIS/PIS, título de eleitor,
+  CNS-saúde), exercised end-to-end via FastMCP stdio transport in gate
+  Milestone B PASS. Windows-stdio handle inheritance hardened
+  (`stdin=subprocess.DEVNULL` per PR #59).
 - **Subagents:** designed (Triager, Detector, Classifier, Matcher,
   Reporter, plus coordinator), not implemented (Milestone C).
 - **Policy:** schema v0.1.0 stable; POL-000 (definitional, universal

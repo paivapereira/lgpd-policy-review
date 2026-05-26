@@ -180,8 +180,9 @@ Output Pydantic-validado, gravado em `02-detector.json`.
 
 Sem branching condicional: zero candidatos é caso válido
 (`findings: []` propaga ao Classifier → Matcher → Reporter; Reporter
-formata Report final sem invenção de campo discriminador no
-coordinator).
+formata Report final propagando verbatim o `run_outcome`
+pré-computado pelo coordinator a partir de estado observável
+(DD-1.2 V2); Reporter não inventa nem reclassifica discriminador).
 
 ### §3.3 Etapa 3 — Classifier
 

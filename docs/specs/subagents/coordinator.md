@@ -450,10 +450,10 @@ Cenários estruturados que o coordinator trata:
   tool_use) → mesmo path de Pydantic validation falha (payload bruto
   = "").
 - **Múltipla invocação de `emit_report` na mesma query do Reporter**
-  → decisão deferida para Reporter-flesh; opções: primeira vence +
-  warn, última vence, halt + erro estruturado. Inclinação: halt
-  (anti-pattern não deveria ocorrer; sinaliza bug em system_prompt
-  do Reporter).
+  → halt com `MultipleReportEmissions` erro estruturado (DD-10.1
+  ratificada V3; anti-pattern sinaliza bug em system_prompt do
+  Reporter). Implementação em §3.5 (commit 1428d1a) + entrada na
+  tabela acima.
 - **`ToolUseBlock` sem `.input` attribute** (defensivo, edge case de
   SDK version incompat) → `MalformedToolUseBlock` erro estruturado;
   sugere versão de SDK abaixo do mínimo da Provisão MC-E.

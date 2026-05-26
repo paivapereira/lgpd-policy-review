@@ -198,7 +198,7 @@ A inclusão do resource `policy://vocabularies` (sem acesso às tools do `policy
 
 **Input.** Lista de candidatos classificados (com `structured_context` completo).
 
-**Output.** Lista de findings: `[{candidate_ref, clause_id, verdict, verification_scope?, requires_human_review?, evidence}]` onde `verdict ∈ {compliant, violation_candidate, indeterminate, not_applicable}`. Cada veredito carrega trinque de provenance `(policy_schema_version, policy_version, legal_framework)` retornado pelas tools do `policy-reader`.
+**Output.** Lista de findings: `[{candidate_ref, policy_clause_ref, verdict, verification_scope?, requires_human_review?, evidence}]` onde `verdict ∈ {compliant, violation_candidate, indeterminate, not_applicable}`. Cada veredito carrega trinque de provenance `(policy_schema_version, policy_version, legal_framework)` retornado pelas tools do `policy-reader`. O campo `policy_clause_ref` é obrigatório e presente em todos os quatro vereditos, incluindo `not_applicable` — preserva audit trail de qual cláusula foi avaliada-e-descartada.
 
 **Justificativa do escopo.** Matcher é o único subagente autorizado a invocar tools do `policy-reader` e o único autorizado a emitir vereditos. Restrição de tools materializa a regra: ninguém mais pode "espiar" cláusulas para inferir veredito atalhando o protocolo. Sem acesso ao filesystem, o Matcher é forçado a confiar no `structured_context` que recebe — qualquer informação do código que ele precise vem do Classifier, não de leitura própria. Isso amarra a fronteira contratual entre as etapas 2 e 3.
 
@@ -242,7 +242,7 @@ No MVP, o sistema posta findings como inline review comments no PR via GitHub Ac
 
 Concretamente, o que aparece no PR:
 
-- **Por candidato com finding não-`compliant`**: inline comment na linha do snippet, citando `clause_id`, veredito, e — quando aplicável — `verification_scope` ou `requires_human_review`.
+- **Por candidato com finding não-`compliant`**: inline comment na linha do snippet, citando `policy_clause_ref`, veredito, e — quando aplicável — `verification_scope` ou `requires_human_review`.
 - **No body do PR (review summary)**: contagem agregada por veredito, `report_id` para rastreabilidade, link para o Report JSON completo (artefato da Action).
 - **Em `not_applicable` e `compliant`**: silêncio. Postar comment para confirmar conformidade poluiria o PR e treinaria revisores a ignorar comments do bot.
 

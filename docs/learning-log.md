@@ -6170,3 +6170,70 @@ depois coordinator-flesh-completo, depois companion edits
 arch-overview, depois ADR-0012 retroativo, depois decomposição de
 tasks T11+, depois benchmark de PRs sintéticos, depois gate
 milestone-level.
+
+---
+
+## Sessão #38 — 2026-05-26 (entry parcial: DD-21 ratchet)
+
+**Modo de operação.** Chat dedicada. Decisão arquitetural única
+(DD-21) ratificada e aplicada via Code session curta. Branch
+`docs/dd-21-policy-clause-ref` separada de
+`docs/coordinator-context-tightening` por audit chain (DD-21 é
+tema distinto do cleanup de coordinator §3.2/§3.5/§5).
+
+**Decisões fechadas.**
+
+- **DD-21 ratificada — Opção A.** `policy_clause_ref` propagado
+  verbatim do `policy-reader` (canonical §4.3) em vez de renomear
+  para `clause_id` no Report. Campo presente em todos os 4
+  vereditos, incluindo `not_applicable`.
+
+- **DD-3.3 ratchet implícito.** DD-3.3 (sessão #38 Chat, sem
+  persistência no repo) prescrevia omissão de `clause_id` em
+  `not_applicable`; substituída por DD-21. Versão corrente:
+  presença incondicional do `policy_clause_ref` em todos os 4
+  vereditos + nomenclatura preservada do `policy-reader`.
+
+**Justificativa em quatro eixos.**
+
+1. **Arquitetural** — separação de planos epistêmicos (DESIGN.md
+   tese central) materializada visualmente no JSON do Report.
+2. **Empírica** — impl real do `policy-reader` (Milestone B PASS;
+   `src/mcp_servers/policy_reader/models.py` linhas 237/252/268/286
+   declaram `policy_clause_ref: str` obrigatório em todas as 4
+   variantes de veredito) é ground truth; precede RF-006 (redigido
+   Fase 1) em maturidade.
+3. **Audit substantivo** — LGPD Art. 37 / SDR β precisa de
+   `policy_clause_ref` em `not_applicable` para registrar qual
+   cláusula foi avaliada-e-descartada.
+4. **Cronológico-epistêmico** — impl validada > doc pre-impl.
+
+**Edits aplicados ao repo (branch `docs/dd-21-policy-clause-ref`).**
+
+- `docs/REQUIREMENTS.md` linhas 61, 86, 117 — 3 renames `clause_id`
+  → `policy_clause_ref`; em RF-006 também remove cláusula de
+  omissão em `not_applicable`.
+- `docs/architecture-overview.md` linhas 201, 245 — 2 renames; a
+  ref em §4.2 `clauses/` (linha 105) preserva `clause_id` por ser
+  identidade da cláusula na Política, não ref ao campo no Report.
+- `docs/learning-log.md` — esta entry.
+
+**Achado empírico durante execução.** Plano Chat estimou ~17
+ocorrências de `clause_id` em `docs/REQUIREMENTS.md`; grep real
+retornou 3 (inflação de memória, não drift de doc). Stop condition
+do plano disparou; escalation devolveu OK para prosseguir com
+escopo reduzido (decomposição determinística: todos os 3 renames
+inequivocamente Report/Matcher refs).
+
+**Não aplicado neste PR.** Demais ocorrências de `clause_id` em
+specs do `policy-reader` (`canonical.md`, `compact.md`),
+learning-log histórico, tasks.md, ADRs — são refs à identidade
+da cláusula na Política, ou histórico de raciocínio que preserva
+o original para audit. Diretrizes forward-looking para futura
+redação de Reporter spec §3.2/§6.3/§8.3 e Matcher spec output
+Pydantic model catalogadas em sessão Chat, não materializadas
+neste repo.
+
+**Próximo passo.** Reporter-flesh e Matcher-flesh seguem
+cronograma original. DD-7.1, DD-7.4, findings #3-#8 retomados em
+próxima sessão Chat após merge deste PR.

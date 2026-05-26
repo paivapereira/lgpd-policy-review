@@ -1,6 +1,6 @@
 # Tasks — Implementação Fase 2
 
-**Status.** Milestone A fechado em sessão #25 (gate milestone-level via MCP Inspector CLI mode; evidence pack em docs/milestoneA.md). Milestone B em progresso pós-#29 — Provisão A + Provisão B + canonical-sync-D + T05 skeleton merged; T06 + T07 + gate milestone-level pendentes. Milestones C, D referenciados nominalmente; autoria deferida para após gate milestone-level do milestone anterior completar.
+**Status.** Milestone A fechado em sessão #25 (gate milestone-level via MCP Inspector CLI mode; evidence pack em docs/milestoneA.md). Milestone B fechado em sessão #35 (gate milestone-level PASS empírico contra RF-008 rule-set-axis; evidence em docs/milestoneB.md; PRs #59 + #60 mergeadas). Milestone C em autoria de design — coordinator.md skeleton v2 aplicado via PR #63 sob A'' (system_prompt direto sem AgentDefinition) + (b2) (subagentes mantêm acesso direto a policy://vocabularies via ReadMcpResourceTool per ADR-0005 D4) + quíntupla canônica do lockdown agent CI/CD-headless + quatro camadas de enforcement (defense candidate D2.3); Gate 1 PASS empírico (sessão Code #38, claude-agent-sdk==0.2.87, script tracked em scripts/smoke_tests/sdk_tooluseblock_shape/); specs leves dos cinco subagentes em redação ordem Reporter → Triager → Detector → Classifier → Matcher (sessão #38+); tasks T11+ a decompor pós-specs. Milestone D referenciado nominalmente; autoria deferida.
 
 **Governance.** ADR-0008 amended (2026-05-16) — granularidade de 8-12 tasks de 1-3h agrupadas em milestones; gate task-level (function tests + revisão Chat independente) e gate milestone-level (manual exercise contra RFs). Tasks neste documento ancoram função; milestones ancoram capability declarada em `docs/REQUIREMENTS.md`.
 
@@ -378,6 +378,179 @@ Custo estimado: ~1.5-2h Chat de deliberação dos snippets/padrões + ~30min Cod
 
 ---
 
+## Milestone C — Pipeline multi-agente operacional local
+
+**Capacidade entregue.** Pipeline multi-agente operacional como sistema
+integrado executável localmente: coordinator Python orquestra cinco
+subagentes (Triager → Detector → Classifier → Matcher → Reporter) via
+chamadas sequenciais `query()` do `claude-agent-sdk` com
+`system_prompt` direto em `ClaudeAgentOptions` (pattern A''),
+configuradas como lockdown agent CI/CD-headless via quíntupla canônica
+(`system_prompt` + `allowed_tools` + `permission_mode="dontAsk"` +
+`setting_sources=[]` + `strict_mcp_config=True`); consumindo MCP
+servers `policy-reader` e `semgrep-runner` via `.mcp.json` do projeto
+com quatro camadas de enforcement (coordinator parsing + whitelist
+EXPECTED_SERVERS; SDK isolation via `setting_sources=[]` +
+`strict_mcp_config=True`; per-etapa `allowed_tools` allowlist;
+`permission_mode="dontAsk"` denial enforcement de unmatched tools);
+Classifier e Matcher acessam `policy://vocabularies` diretamente via
+`ReadMcpResourceTool` (granularidade per-server per SDK Python);
+handoff explícito de output entre etapas via scratchpad audit-only +
+propagação estruturada de erros (contrato de exceptions
+`CoordinatorStartupError`/`SubagentValidationFailed`/`SubagentUnresponsive`/
+`ReportNotEmitted`/`MalformedToolUseBlock`); emitindo Report JSON
+consolidado via tool customizada `emit_report` exposta exclusivamente
+ao Reporter (dual sink: scratchpad audit + captura via
+`ToolUseBlock.input` no message stream). Validável end-to-end via
+execução manual de coordinator script contra PRs sintéticos no
+repositório. Integração CI/CD (GitHub Action) permanece deferida para
+Milestone D.
+
+**RFs/RNFs cobertas no gate milestone-level.**
+- RF-003 pleno (Classifier subagente real consumindo output do
+  Detector).
+- RF-004 pleno (Matcher subagente real avaliando candidatos via
+  `check_applicability`, com filtro MVP-collection-only operando em
+  runtime end-to-end).
+- RF-005 pleno (`indeterminate` como veredito real emitido pelo Matcher
+  contra context insuficiente para análise estática).
+- RF-006 (Report agregado emitido via `emit_report` do Reporter; dual
+  sink coordinator stream + scratchpad).
+- RF-007 pleno (composição intra-jurisdição end-to-end demonstrável:
+  duas Políticas com `accepted_law_identifiers` distintos produzem
+  Reports diferentes sem alteração de código).
+- RF-008 pleno (substituição de framework end-to-end demonstrável:
+  pipeline inteira roda com Política mock GDPR sem alterar `src/`).
+- RF-009 (rastreabilidade: trinca `(policy_schema_version,
+  policy_version, legal_framework)` propagada do `policy-reader` até
+  cada finding do Report; provenance temporal e jurisdicional
+  preservada por construção do Matcher).
+
+**RFs precondicionais** (entregues em Milestones A+B, consumidas por C
+mas não bound ao gate de C): RF-001 (detecção sintática via
+semgrep-runner), RF-002 (identificadores brasileiros).
+
+**RNF-001 e RNF-002 não bound a Milestone C.** RNF-001
+(reprodutibilidade) é propriedade sistêmica observável em CI
+cross-system (Milestone D). RNF-002 (posicionamento operacional
+informativo / não-bloqueio de merge) é observável apenas na camada
+de integração CI/CD (status check do workflow), pertence a
+Milestone D.
+
+**Gate milestone-level.** A redigir em sessão Chat dedicada após
+tasks T11+ completarem gate task-level. Mecanismo conforme ADR-0008
+§3: manual exercise via harness Python (script
+`scripts/exercise_pipeline.py` ou análogo) invocando o coordinator
+com `--base-ref`, `--head-ref`, `--policy-dir`, `--rules-dir`, contra
+série de PRs sintéticos check-ados no repositório (branches
+`synthetic/pr-<cenário>`). Validação compara Report JSON emitido
+contra Report esperado também versionado no repo. Cobertura: um
+cenário por RF declarada acima (Dado/Quando/Então). Placeholder neste
+documento; detalhamento + catálogo de PRs sintéticos em sessão futura.
+
+**Gate pré-coordinator-flesh (concluído).** Gate 1 PASS empírico
+documentado em `docs/specs/subagents/coordinator.md` §11 (PR #63),
+ratchet via smoke-test em
+`scripts/smoke_tests/sdk_tooluseblock_shape/smoke_test.py` contra
+`claude-agent-sdk==0.2.87`. Três TCs (`ToolUseBlock.input` shape;
+quíntupla canônica end-to-end; underscore naming resolve) passaram +
+achados AC1 (tool search ON por default; stream contém
+`ToolUseBlock`s intermediários) e AC2 (tipos de message no stream)
+absorvidos no skeleton. Não bloqueia mais nenhuma autoria de spec.
+
+### Pré-implementação Milestone C — provisões a fechar fora deste documento
+
+**Provisão MC-A — autoria das specs leves dos seis agentes**
+(coordinator + 5 subagentes) em `docs/specs/subagents/`. Pattern
+multi-spec com coordinator.md como hub do workflow (decisão sessão
+#37, ratificada #38). Cinco convenções de cross-reference + Rule 6
+(Output como canonical I/O boundary) ratificadas em coordinator.md §9.
+Ordem de redação híbrida:
+
+1. ✓ coordinator-SKELETON v2 (sessões #37+#38; aplicado via PR #63 como
+   `docs/specs/subagents/coordinator.md`)
+2. Reporter-FLESH (sessão #38; destila `_template-subagent.md`)
+3. Triager-SANITY (sessão #38; testa se template super-fitou)
+4. Detector → Classifier → Matcher (sessões #38-#39; complexidade
+   crescente)
+5. coordinator-FLESH-COMPLETO (sessão #39+; integra learnings das 5
+   specs)
+
+Bloqueia início de tasks T11+. Não bloqueia housekeeping ADR (Provisão
+MC-C), companion edit arch-overview (Provisão MC-B), nem adoção de
+dependência SDK (Provisão MC-E).
+
+**Provisão MC-B — companion edit arch-overview (three-beats Beat 2)**.
+Patch único aplicável em `docs/architecture-overview.md` §3 mermaid:
+substituir `T -->|skip| END[Sem ação]` por `T -->|skip| R[Reporter]`,
+catalogado em coordinator.md §10. Aplicar em sessão Code curta
+(~10-15min) após coordinator-flesh-completo. Bloqueia tasks T11+
+(skeleton do coordinator cita three-beats Beat 2 como pendente).
+
+(Provisão MC-B encolhida vis-à-vis proposta #37: decisão (b2) da
+sessão #38 elimina os dois patches anteriores §5.1 + §5.7 que tocavam
+acesso de coordinator a `policy://vocabularies`. Sob (b2), coordinator
+não acessa o resource; Classifier e Matcher mantêm acesso direto via
+`ReadMcpResourceTool` per ADR-0005 Decision 4.)
+
+**Provisão MC-C — housekeeping ADR-0012 stale → ADR-0011**. PR isolada
+`chore/sync-adr-references` substituindo refs stale "ADR-0012" por
+"ADR-0011" (Windows-stdio E-2 foi absorvido em ADR-0011 mergeada).
+Targets:
+
+- `docs/milestoneB.md` linhas 50, 102, 106, 107, 112, 114 (todas
+  refs stale, substituição mecânica).
+- `docs/learning-log.md` — múltiplas linhas com triagem caso-a-caso:
+  forward refs legítimas a "ADR-0012 retroativo Milestone C" são
+  **preservadas** (apontam para ADR futura); refs stale para
+  Windows-stdio E-2 substituídas por "ADR-0011".
+
+Libera número ADR-0012 para retroativo Milestone C. Sessão Code
+~15-20min. Não bloqueia Reporter-flesh, mas obrigatória antes de
+ADR-0012 ser citada em qualquer artefato novo.
+
+**Provisão MC-D — benchmark de PRs sintéticos para gate milestone-level**.
+Catálogo de 6-8 branches `synthetic/pr-<cenário>` no repo, cada uma
+com Dado/Quando/Então de uma RF declarada. Análogo a fixture pack BR
+de Milestone B em estrutura. A redigir em sessão Chat dedicada após
+specs dos subagentes fecharem (sessões #39-#40). Bloqueia gate
+milestone-level, não tasks T11+ individuais.
+
+**Provisão MC-E — adoção de `claude-agent-sdk` como dependência**. PR
+mecânica `chore/add-claude-agent-sdk-dependency`:
+
+- `pyproject.toml` ganha `claude-agent-sdk>=0.2.0,<1.0` em
+  `[project.dependencies]` (baseline empírico 0.2.87 do smoke-test
+  Gate 1; piso 0.2.0 confortável acima do mínimo `>=0.1.59` para
+  `setting_sources=[]` documentado em coordinator.md §8 (evolução
+  SDK); teto `<1.0` blindagem contra major bump hipotético
+  que pode quebrar surface estável atual).
+- `uv.lock` regenerado via `uv lock`.
+- ADR-0001 (stack canônica) ganha amendment registrando adição.
+
+Bloqueia início de tasks T11+ (T11 importará `claude_agent_sdk`).
+Não bloqueia Reporter-flesh nem demais redações de spec. Sessão Code
+~15-20min, single commit. Catalogada como provisão nova em sessão
+#38 após Code Eureka achado lateral (uv.lock zero matches para
+`claude-agent-sdk` antes do smoke-test).
+
+### Tasks T11+
+
+**Status.** A decompor após specs leves dos subagentes fecharem
+(Provisão MC-A) E adoção de dependência SDK completar (Provisão
+MC-E). Decomposição tentativa em sessão Chat dedicada (§(L) do
+handoff #37→#38); provavelmente 5-7 tasks de 1-3h cada cobrindo:
+`emit_report` custom tool + Reporter query implementation; Triager +
+Detector queries; Classifier + Matcher queries (com `ReadMcpResourceTool`
+para vocabularies); coordinator main loop com state passing + error
+propagation + `.mcp.json` parsing + whitelist + quíntupla canônica
+em cada query; smoke-test end-to-end com PR sintético mínimo.
+
+Granularidade final deliberada em sessão Chat dedicada de
+decomposição, análoga à #27 que decompôs Milestone B em T05-T07.
+
+---
+
 ## Companion edits cross-doc
 
 PRs separados ou commits internos de PRs principais, fora do escopo de implementação Code de uma task específica. Não bloqueantes para a task à qual estão anexados, anotados aqui para não perder o débito.
@@ -389,6 +562,51 @@ PRs separados ou commits internos de PRs principais, fora do escopo de implement
 - README pin de Semgrep: documenta `uv tool install semgrep==1.163.0` como prerequisite na seção Setup, alongside Python 3.12.7 via pyenv-win e Node 24, conforme ADR-0010.
 - ADR-0001 Decision 2 amendment in-place: alinha stack canônica à realidade — Semgrep (substitui Presidio menção); FastMCP 3.2.4 pin formal; Pydantic 2.13.4 pin formal; MCP 1.27.1 pin formal. Espelha pattern de amendment in-place de ADR-0008 (2026-05-16).
 
+**Pendências cross-doc abertas pós-sessão #38** (consolidar em
+Provisão MC-B de Milestone C — companion edit arch-overview):
+
+- **arch-overview §3 mermaid** — substituir `T -->|skip| END[Sem ação]`
+  por `T -->|skip| R[Reporter]` (three-beats em coordinator.md §10).
+
+(Patches §5.1 e §5.7 anteriormente catalogados em proposta #37 foram
+**removidos** sob decisão (b2) da sessão #38: coordinator não acessa
+`policy://vocabularies`; Classifier e Matcher mantêm acesso direto
+via `ReadMcpResourceTool` per ADR-0005 Decision 4 textbook case.)
+
+**Pendência ADR (consolidar em Provisão MC-C — housekeeping):**
+
+- Refs stale "ADR-0012" em `docs/milestoneB.md` linhas 50, 102, 106,
+  107, 112, 114 apontando para Windows-stdio E-2 (que foi absorvido
+  em ADR-0011 mergeada). Substituir mecanicamente por "ADR-0011".
+- Refs stale "ADR-0012" em `docs/learning-log.md` (múltiplas linhas
+  — triagem caso-a-caso). Preservar forward refs legítimas a
+  "ADR-0012 retroativo Milestone C"; substituir refs stale para
+  Windows-stdio E-2 por "ADR-0011".
+
+Libera ADR-0012 para retroativo Milestone C (ADR cobre divergências
+metodológicas + decisões load-bearing A'', (b2), M2, S2', dual sink
+emit_report, quíntupla canônica, quatro camadas de enforcement
+D2.3).
+
+**Pendência de dependência (consolidar em Provisão MC-E):**
+
+- Adicionar `claude-agent-sdk>=0.2.0,<1.0` em `pyproject.toml` +
+  regenerar `uv.lock`. Bloqueia início de tasks T11+ (T11 importará
+  `claude_agent_sdk`); não bloqueia redação de specs.
+
+**Débito técnico catalogado (não bloqueia Milestone C; investigação
+em sessão Code curta dedicada):**
+
+- **Convenção `is_error`/`isError` em FastMCP servers existentes.**
+  SDK Python do `claude-agent-sdk` usa `is_error: True` (snake_case);
+  SDK TypeScript e wire format MCP usam `isError: true` (camelCase).
+  FastMCP 3.2.4 (pinada em RNF-001) tem convenção própria. Servers
+  existentes `policy-reader` e `semgrep-runner` foram implementados
+  em Milestones A+B antes desta divergência ser catalogada;
+  investigação `grep -r "isError\|is_error" src/` + checagem da
+  convenção FastMCP recomendada pode revelar débito latente. Sessão
+  Code curta ~20-30min; sem bloqueio até que apareça empiricamente.
+
 ---
 
 ## Pós-Milestone B aberto
@@ -399,12 +617,24 @@ Pendências de evolução conhecidas que NÃO bloqueiam progresso para Milestone
 
 ---
 
-## Milestones C, D — autoria deferida
+## Milestone D — autoria deferida
 
-Estrutura e tasks dos milestones subsequentes são autoradas em sessões Chat dedicadas após o gate milestone-level do milestone imediatamente anterior completar. Razão metodológica: ADR-0008 §1 calibra tarefas a 1-3h sob escopo de capability estabilizada — pré-autoria de milestones futuros corre o risco de drift contra learnings emergentes da implementação do milestone corrente.
+Estrutura e tasks de Milestone D são autoradas em sessão Chat dedicada
+após o gate milestone-level de Milestone C completar. Razão
+metodológica: ADR-0008 §1 calibra tarefas a 1-3h sob escopo de
+capability estabilizada — pré-autoria corre risco de drift contra
+learnings emergentes da implementação do milestone corrente.
 
-Escopo proposto a seguir é estrutura preliminar, não normativa até autoria formal. Boundaries entre tasks dentro de cada milestone ficam para a sessão de autoria correspondente:
+Escopo proposto a seguir é estrutura preliminar, não normativa até
+autoria formal. Boundaries entre tasks dentro do milestone ficam para
+a sessão de autoria correspondente:
 
-- **Milestone C — Pipeline multi-agente operacional local.** RFs: 003, 004-pleno, 006, 008-pleno. Decomposição tentativa: cinco AgentDefinitions com `mcp_servers` e `allowed-tools` por papel + `.mcp.json` do projeto; custom tool `emit_report` + Reporter; coordinator com Task tool dispatch, scratchpad para handoff entre subagentes, error propagation.
-
-- **Milestone D — CI/CD + validação empírica.** RFs: 006-integração, RNF-001, RNF-002, proposta-tcc2 §4.f. Decomposição tentativa: GitHub Action workflow YAML + posting de findings via API como inline review comments, não-bloqueante; benchmark sintético ~200 snippets + execução de validação + Report consolidado.
+- **Milestone D — CI/CD + validação empírica.** RFs: 006-integração,
+  RNF-001, RNF-002, proposta-tcc2 §4.f. Decomposição tentativa:
+  GitHub Action workflow YAML + posting de findings via API como
+  inline review comments, não-bloqueante; benchmark sintético ~200
+  snippets + execução de validação + Report consolidado; potencialmente
+  `--strict-mcp-config` flag CLI (equivalente CLI ao
+  `strict_mcp_config=True` programático já em uso pelo coordinator)
+  apontando para `.github/mcp-ci.json` dedicada, isolando config CI
+  contra interferência de configs locais do runner.

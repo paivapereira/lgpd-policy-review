@@ -138,6 +138,7 @@ async for msg in query(
     prompt=build_triager_prompt(pr_metadata),
     options=ClaudeAgentOptions(
         system_prompt=TRIAGER_SYSTEM_PROMPT,
+        tools=["Read", "Glob"],
         allowed_tools=["Read", "Glob"],
         mcp_servers={},
         permission_mode="dontAsk",
@@ -164,6 +165,7 @@ async for msg in query(
     prompt=build_detector_prompt(pr_metadata, triager_output),
     options=ClaudeAgentOptions(
         system_prompt=DETECTOR_SYSTEM_PROMPT,
+        tools=["Read"],
         allowed_tools=["Read", "mcp__semgrep-runner__scan_diff"],
         mcp_servers={"semgrep-runner": SEMGREP_RUNNER_CONFIG},
         permission_mode="dontAsk",
@@ -188,6 +190,7 @@ async for msg in query(
     prompt=build_classifier_prompt(detector_output),
     options=ClaudeAgentOptions(
         system_prompt=CLASSIFIER_SYSTEM_PROMPT,
+        tools=["Read", "Grep"],
         allowed_tools=[
             "Read",
             "Grep",
@@ -250,6 +253,7 @@ async for msg in query(
     prompt=build_matcher_prompt(classifier_output),
     options=ClaudeAgentOptions(
         system_prompt=MATCHER_SYSTEM_PROMPT,
+        tools=["Read"],
         allowed_tools=[
             "Read",
             "ListMcpResourcesTool",    # listar resources de policy-reader
@@ -283,6 +287,7 @@ async for msg in query(
     prompt=build_reporter_prompt(matcher_output_or_skip),
     options=ClaudeAgentOptions(
         system_prompt=REPORTER_SYSTEM_PROMPT,
+        tools=["Read"],
         allowed_tools=["Read", "mcp__reporter_tools__emit_report"],
         mcp_servers={"reporter_tools": reporter_sdk_server},
         permission_mode="dontAsk",

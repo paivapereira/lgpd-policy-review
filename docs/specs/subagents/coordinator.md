@@ -284,30 +284,77 @@ ação para emitir veredicts.
 ### §3.5 Etapa 5 — Reporter
 
 ```python
-async for msg in query(
-    prompt=build_reporter_prompt(matcher_output_or_skip),
-    options=ClaudeAgentOptions(
-        system_prompt=REPORTER_SYSTEM_PROMPT,
-        tools=["Read"],
-        allowed_tools=["Read", "mcp__reporter_tools__emit_report"],
-        mcp_servers={"reporter_tools": reporter_sdk_server},
-        permission_mode="dontAsk",
-        setting_sources=[],
-        strict_mcp_config=True,
-    ),
-):
-    # AssistantMessage carrega ToolUseBlocks. Stream pode conter
-    # múltiplos ToolUseBlocks antes do emit_report — tool search está
-    # ON por default no SDK (confirmado empiricamente smoke-test #38),
-    # e injeta ToolUseBlock de ToolSearch antes do tool real. Filter
-    # por block.name garante captura do payload correto, ignorando
-    # blocks intermediários audit-only.
-    if hasattr(msg, "content") and msg.content:
-        for block in msg.content:
-            if isinstance(block, ToolUseBlock) and \
-               block.name == "mcp__reporter_tools__emit_report":
-                report_payload = block.input  # ratificado smoke-test #38
-                ...
+final_result: ResultMessage | None = None
+emit_report_seen = False
+report_payload: dict | None = None
+
+# try/except wrap: SDK pode emitir ResultMessage E levantar exceção
+# na mesma execução (AC-5 #38b empirical). Preservar final_result
+# capturado antes do raise permite discriminação tri-axial pós-loop;
+# sem final_result, é falha de stream genuína.
+try:
+    async for msg in query(
+        prompt=build_reporter_prompt(matcher_output_or_skip),
+        options=ClaudeAgentOptions(
+            system_prompt=REPORTER_SYSTEM_PROMPT,
+            tools=["Read"],                # DD-12.6: context restriction
+            allowed_tools=["Read", "mcp__reporter_tools__emit_report"],
+            mcp_servers={"reporter_tools": reporter_sdk_server},
+            permission_mode="dontAsk",
+            setting_sources=[],
+            strict_mcp_config=True,
+            max_turns=3,                   # DD-10.4: retry budget
+        ),
+    ):
+        if isinstance(msg, ResultMessage):
+            final_result = msg
+        # AssistantMessage carrega ToolUseBlocks. Stream pode conter
+        # múltiplos ToolUseBlocks antes do emit_report — tool search
+        # está ON por default no SDK (confirmado empiricamente
+        # smoke-test #38; AC-2 #38b ratificou), e injeta ToolUseBlock
+        # de ToolSearch antes do tool real. Filter por block.name
+        # garante captura do payload correto, ignorando blocks
+        # intermediários audit-only.
+        if isinstance(msg, AssistantMessage) and msg.content:
+            for block in msg.content:
+                if isinstance(block, ToolUseBlock) and \
+                   block.name == "mcp__reporter_tools__emit_report":
+                    if emit_report_seen:
+                        raise MultipleReportEmissions(
+                            first_payload=report_payload,
+                            second_payload=block.input,
+                        )
+                    emit_report_seen = True
+                    report_payload = block.input  # ratificado smoke-test #38
+except Exception as exc:
+    # SDK may yield ResultMessage and raise (AC-5 #38b empirical).
+    # If we captured final_result, fall through to discrimination;
+    # otherwise, this is a stream-level failure.
+    if final_result is None:
+        raise CoordinatorStreamFailure(stage="reporter") from exc
+
+# DD-10.4 V3 — discriminação tri-axial:
+# denials → subtype → emit_report_seen.
+denials = (final_result.permission_denials or []) if final_result else []
+if denials and not emit_report_seen:
+    raise ReporterPermissionDenied(
+        denials=denials,
+        subtype=final_result.subtype if final_result else None,
+    )
+
+if final_result and final_result.subtype == "error_max_turns":
+    raise ReporterTurnsExhausted(
+        num_turns=final_result.num_turns,
+        errors=final_result.errors,
+    )
+
+if not emit_report_seen:
+    raise ReportNotEmitted(
+        subtype=final_result.subtype if final_result else None,
+    )
+
+# Success path: report_payload populated; coordinator returns to
+# caller (§3.6).
 ```
 
 Onde `reporter_sdk_server` é instância de `create_sdk_mcp_server`
@@ -371,9 +418,26 @@ Cenários estruturados que o coordinator trata:
   direto com input mínimo (ver §3.1).
 - **Detector retorna zero candidatos** → não-erro; pipeline prossegue
   normalmente até §3.5 com `findings: []` propagando.
-- **Reporter não invocou `emit_report`** → `ReportNotEmitted` erro
-  estruturado; enforcement via inspeção do message stream em Python,
-  não via PostToolUse hook.
+- **Família de errorCodes do Reporter** (DD-10.4 V3, três errorCodes
+  discriminados por sinais observáveis distintos):
+  - **`ReporterTurnsExhausted`** — `final_result.subtype ==
+    "error_max_turns"`. `isRetryable=True` (payload complexo; retry
+    com `max_turns` maior pode resolver).
+  - **`ReportNotEmitted`** — `subtype == "success"` E
+    `emit_report_seen == False` E `permission_denials == []`.
+    `isRetryable=False` (bug em system_prompt ou input; retry mecânico
+    não corrige). Enforcement via inspeção do message stream em
+    Python, não via PostToolUse hook (decisão sessão #37, ratificada
+    #38).
+  - **`ReporterPermissionDenied`** — `final_result.permission_denials
+    != []`. `isRetryable=False` (lockdown configuration bug; retry
+    mecânico não corrige). Inspeção pós-loop obrigatória (AC-2/AC-4
+    #38c — `subtype` pode ser `"success"` apesar de denial; sem
+    inspeção, coordinator declararia success falsamente).
+
+  Discrimination ordering: denials → subtype → emit_report_seen
+  (denials é signal mais forte de falha estrutural; subtype é signal
+  secundário; emit_report_seen é signal de business outcome).
 - **`.mcp.json` declara server fora do whitelist `EXPECTED_SERVERS`**
   → halt no startup com erro estruturado (`CoordinatorStartupError`;
   ver §6).

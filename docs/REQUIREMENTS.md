@@ -58,7 +58,7 @@
 **Critério.**
 - **Dado** candidato com `operation_type: collection` e Política contendo cláusula aplicável,
 - **quando** o Matcher avalia,
-- **então** o finding contém `clause_id` da cláusula aplicada e `verdict` em `{compliant, violation_candidate, indeterminate, not_applicable}`.
+- **então** o finding contém `policy_clause_ref` da cláusula aplicada e `verdict` em `{compliant, violation_candidate, indeterminate, not_applicable}`.
 
 - **Dado** candidato com `operation_type` em qualquer valor do vocabulário diferente de `collection` (e.g., `use`, `storage`, `disclosure_by_transmission`, `erasure`),
 - **quando** o Matcher avalia,
@@ -83,7 +83,7 @@
 
 ### RF-006 — Report agregado em JSON estruturado
 
-**Descrição.** Sistema consolida todos os vereditos do PR em um Report JSON único, auditável, emitido via tool customizada `emit_report` exclusiva do subagente Reporter. Cada finding do Report contém minimamente: localização (`file`, `line`), `rule_id`, `data_categories`, `operation_type`, `verdict`, e `clause_id` quando `verdict ∈ {compliant, violation_candidate, indeterminate}` (omitido em `not_applicable`), além de `evidence` ou `verification_scope` conforme o veredito, e a trinca de provenance da Política (ver RF-009). O Report é o único output observável externamente — todos os demais artefatos são internos ao pipeline.
+**Descrição.** Sistema consolida todos os vereditos do PR em um Report JSON único, auditável, emitido via tool customizada `emit_report` exclusiva do subagente Reporter. Cada finding do Report contém minimamente: localização (`file`, `line`), `rule_id`, `data_categories`, `operation_type`, `verdict`, e `policy_clause_ref` em todo finding, independentemente do veredito (presença incondicional, incluindo em `not_applicable` — preserva audit trail substantivo de qual cláusula foi avaliada-e-descartada; nome propagado verbatim do `policy-reader`, ver `docs/specs/policy-reader/canonical.md` §4.3), além de `evidence` ou `verification_scope` conforme o veredito, e a trinca de provenance da Política (ver RF-009). O Report é o único output observável externamente — todos os demais artefatos são internos ao pipeline.
 
 **Critério.**
 - **Dado** PR processado até a etapa do Reporter sem falha terminal,
@@ -114,7 +114,7 @@
 **Critério.**
 - **Dado** sistema rodando sob Política LGPD válida (`legal_framework: LGPD`, vocabulários em `policy/vocabularies/LGPD/`) e produzindo Report sobre PR de teste,
 - **quando** o operador substitui `policy/policy.yaml` e o conteúdo de `policy/vocabularies/LGPD/` por equivalentes GDPR (`legal_framework: GDPR`, vocabulários em `policy/vocabularies/GDPR/`) e reinicia os MCP servers, sem editar nenhum arquivo sob `src/`,
-- **então** rerodar o mesmo PR produz Report válido sob o novo framework, com `clause_id`s pertencentes à Política GDPR e `legal_framework: GDPR` na provenance de todo finding.
+- **então** rerodar o mesmo PR produz Report válido sob o novo framework, com `policy_clause_ref`s pertencentes à Política GDPR e `legal_framework: GDPR` na provenance de todo finding.
 
 **Refs.** ADR-0005 Decisions 1, 2, 5; `DESIGN.md` (Validação global).
 

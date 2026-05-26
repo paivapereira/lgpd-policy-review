@@ -473,7 +473,11 @@ fica para flesh completo):
 | `CoordinatorStartupError` | `.mcp.json` whitelist falha, env vars inválidas, scratchpad criação falha | Não |
 | `SubagentValidationFailed` | Pydantic falha em output do subagente | Não (no MVP) |
 | `SubagentUnresponsive` | Timeout/connection error em `query()` | Sim (transient) |
-| `ReportNotEmitted` | Reporter terminou query sem invocar `emit_report` | Não |
+| `CoordinatorStreamFailure` | Exception levantada durante `async for` sem `ResultMessage` capturado | Não (stream-level failure) |
+| `ReportNotEmitted` | Reporter terminou query sem invocar `emit_report` (`subtype="success"` E `emit_report_seen=False` E `permission_denials=[]`) | Não |
+| `ReporterTurnsExhausted` | Reporter atingiu `max_turns` sem invocar `emit_report` (`subtype="error_max_turns"`) | Sim (retry com `max_turns` maior) |
+| `ReporterPermissionDenied` | `permission_denials` populado no `ResultMessage` final (lockdown bug) | Não (lockdown configuration) |
+| `MultipleReportEmissions` | Reporter invocou `emit_report` mais de uma vez na mesma query | Não (anti-pattern em system_prompt) |
 | `MalformedToolUseBlock` | `ToolUseBlock` sem campos esperados | Não (sinaliza SDK incompat) |
 
 **Nota sobre nomenclatura de envelope de erro MCP.** SDK Python usa

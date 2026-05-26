@@ -6237,3 +6237,57 @@ neste repo.
 **Próximo passo.** Reporter-flesh e Matcher-flesh seguem
 cronograma original. DD-7.1, DD-7.4, findings #3-#8 retomados em
 próxima sessão Chat após merge deste PR.
+
+---
+
+## Gate 6 — `tools=[]` em SDK 0.2.87 (sessão Code dedicada, 2026-05-26)
+
+**Hipótese.** `tools=[]` (lista vazia explícita) em
+`ClaudeAgentOptions` remove todos built-ins do contexto do modelo,
+deixando apenas MCP tools de `mcp_servers={...}` + `allowed_tools=[...]`
+visíveis. Equivale a "allowlist vazia". Não verificado pela doc canônica
+do SDK — `tools: list[str] | ToolsPreset | None = None` não especifica
+semântica de lista vazia. Precedent conceitual ambíguo: `setting_sources`
+mudou semântica em 0.1.60 (`[]` passou de "default" para "carregar nada").
+
+**Resultado.** **PASS_H_EMPTY_LOCKDOWN** — hipótese principal ratificada
+empiricamente. Smoke-test em
+`scripts/smoke_tests/sdk_tools_empty_list/` rodou 3 cenários × 2 runs (6
+queries) via `uv run --with claude-agent-sdk==0.2.87`. Discriminação
+behavioral, não inspeção de SystemMessage.
+
+**Evidência.** Por cenário (2 runs cada):
+
+| Scenario              | echo (run1, run2) | bash (run1, run2) | verbalize_absence  | num_turns |
+|-----------------------|-------------------|-------------------|--------------------|-----------|
+| S1_baseline_none      | 1, 1              | **1, 1**          | False, False       | 4, 4      |
+| S2_hypothesis_empty   | 1, 1              | **0, 0**          | True, True         | 2, 2      |
+| S3_sanity_read_only   | 1, 1              | 0, 0              | True, True         | 2, 2      |
+
+S2 (`tools=[]`) comportamento idêntico a S3 (`tools=['Read']`), ratifica
+hipótese principal. S1 (`tools=None`) baseline com Bash attempted como
+controle positivo. Verbalização de S2 qualitativamente indistinguível de
+S3 (e.g., S2 run2: *"For the second task: I cannot call the Bash
+tool..."*).
+
+**Implicação para finding #3 do review V2.** Pivot procede. Coordinator
+§3.4 (Reporter) e §3.5 (Matcher) podem substituir `tools=["Read"]` por
+`tools=[]` em PR separado per pattern de PR sequencing. Mudança alinha
+o coordinator com recomendação Anthropic oficial
+(`platform.claude.com/docs/en/agent-sdk/custom-tools`) sobre context
+restriction via `tools` field em vez de `disallowed_tools=[...]`.
+
+**Side findings.** (a) `ToolSearch` aparece apenas em S1 (`tools=None`);
+S2 e S3 carregam schema MCP inline (num_turns=2 vs 4) — `tools=[]` herda
+benefício de turn economy. (b) `permission_denials=[]` em S2/S3 porque
+modelo não TENTA Bash (signal de contexto, não de execution). (c)
+Smoke-test mantém pattern empírico de discriminação behavioral usado em
+#38, #38b, #38c; introspecção de `SystemMessage.tools` foi considerada
+mas evitada (shape do SDK menos estável que comportamento do modelo).
+
+**Próximo passo.** Smoke-test consolidado em
+`scripts/smoke_tests/sdk_tools_empty_list/{smoke_test.py, README.md}`
+para reprodutibilidade pós-upgrade do SDK. Edit cirúrgico a
+`coordinator.md` §3.4 e §3.5 substituindo `tools=["Read"]` por
+`tools=[]` é proposto para PR separado (não escopo deste Gate). Demais
+findings (#1, #2, #4-#8) do review V2 continuam em backlog Chat.

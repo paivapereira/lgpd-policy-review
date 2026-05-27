@@ -124,7 +124,7 @@ not when convenience suggests otherwise.
 
 ## References
 
-- `docs/learning-log.md` sessão #22 entry — context of the decision
+- `docs/process/learning-log.md` sessão #22 entry — context of the decision
   and three-round review that surfaced it.
 - `src/mcp_servers/policy_reader/tools.py` `_format_law_reference` —
   the canonical implementation.

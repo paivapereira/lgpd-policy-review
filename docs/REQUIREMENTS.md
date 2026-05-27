@@ -1,6 +1,6 @@
 # Requirements — Sistema de code review de Proteção de Dados assistido por agentes
 
-**Escopo.** Contrato de aceitação global do sistema descrito em `docs/proposta-tcc2.md`. Cada item declara capacidade externa observável; é verificável por inspeção do comportamento do sistema sem julgamento subjetivo. Detalhes internos (contratos de componente, formato de payload, semântica de tools) vivem nas specs e ADRs referenciadas, não aqui.
+**Escopo.** Contrato de aceitação global do sistema descrito em `docs/process/proposta-tcc2.md`. Cada item declara capacidade externa observável; é verificável por inspeção do comportamento do sistema sem julgamento subjetivo. Detalhes internos (contratos de componente, formato de payload, semântica de tools) vivem nas specs e ADRs referenciadas, não aqui.
 
 **Convenção.** `RF-NNN` para requisitos funcionais; `RNF-NNN` para não-funcionais. IDs são citáveis em `docs/tasks.md` e em mensagens de commit (e.g., `Refs: RF-005`). Cada item tem descrição, critério de aceitação no formato Dado/Quando/Então (RFs) ou referência arquitetural (RNFs), e refs ao material-fonte.
 

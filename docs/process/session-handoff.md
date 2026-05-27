@@ -43,12 +43,12 @@ Outputs Chat em `/mnt/user-data/outputs/`:
    mudanças semânticas além das listadas".
 
 3. **`learning-log-entry-42.md`** — entry sessões #41+#42 para anexar
-   a `docs/learning-log.md` via direct commit (per ADR-0001 D6). 8
+   a `docs/process/learning-log.md` via direct commit (per ADR-0001 D6). 8
    defense candidates registrados; conceitos D1+D2+D4+D5 da prova
    exercitados.
 
 4. **`session-handoff-42-to-next.md`** — este documento. Para
-   integrar em `docs/session-handoff.md` via direct commit (per
+   integrar em `docs/process/session-handoff.md` via direct commit (per
    ADR-0001 D6).
 
 5. **`reflow_v2.py`** — script utility one-off do reflow do
@@ -162,14 +162,14 @@ Outputs Chat em `/mnt/user-data/outputs/`:
 
 ### (B) Apply learning-log entry #42 (direct commit ~5min)
 
-- Anexar `learning-log-entry-42.md` ao final de `docs/learning-log.md`.
+- Anexar `learning-log-entry-42.md` ao final de `docs/process/learning-log.md`.
 - Direct commit em main per ADR-0001 D6.
 - Não bloqueia (A); idealmente após (A) para que learning-log refletir
   estado mergeado do coordinator v3.
 
 ### (C) Apply session-handoff (direct commit ~5min)
 
-- Substituir conteúdo de `docs/session-handoff.md` pelo conteúdo
+- Substituir conteúdo de `docs/process/session-handoff.md` pelo conteúdo
   deste documento (`session-handoff-42-to-next.md`).
 - Direct commit em main per ADR-0001 D6.
 - Pré-requisito para abertura da sessão Triager-sanity (consumido

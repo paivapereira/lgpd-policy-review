@@ -2,7 +2,7 @@
 
 ## Principle
 
-`docs/session-handoff.md` is a diff-log meta-document. Edits
+`docs/process/session-handoff.md` is a diff-log meta-document. Edits
 between sessions are expressed as applicable diff blocks in
 markdown code-fences, preserving cross-session blame
 traceability.
@@ -16,7 +16,7 @@ of what each session changed in the handoff state.
 
 ## When to apply
 
-- Any modification to `docs/session-handoff.md` between sessions:
+- Any modification to `docs/process/session-handoff.md` between sessions:
   express as one or more diff blocks. Do not edit in-place
   silently.
 - Closure of a session that revises pendência horizons (e.g.,

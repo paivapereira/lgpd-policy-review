@@ -62,7 +62,7 @@ Project uses [uv](https://docs.astral.sh/uv/) as the unified tool for:
 
 - Project depends on the uv binary being installable on the developer's machine. Mitigation: uv is single-binary no-admin install on Windows 11; empirically lower friction than the alternative stack (pip + pyenv-win + separate Python installer) that ADR-0001 originally implied.
 - `uv.lock` is a uv-specific format. Migration to a different manager requires lockfile translation (not pyproject.toml rewrite). Acceptable given uv's interface-over-PEP-621 design.
-- ADR-0001 §2 prose now drifts symbolically from the operative tooling (still mentions pyenv-win, leaves FastMCP unpinned). Drift is acknowledged in this ADR's "Supersedes" header and in `docs/session-handoff.md` cleanup list; substantive authority lives in ADR-0004 plus `pyproject.toml` plus `uv.lock`. Editorial sync of ADR-0001 prose is optional and may be deferred indefinitely.
+- ADR-0001 §2 prose now drifts symbolically from the operative tooling (still mentions pyenv-win, leaves FastMCP unpinned). Drift is acknowledged in this ADR's "Supersedes" header and in `docs/process/session-handoff.md` cleanup list; substantive authority lives in ADR-0004 plus `pyproject.toml` plus `uv.lock`. Editorial sync of ADR-0001 prose is optional and may be deferred indefinitely.
 
 ## Migration path
 
@@ -71,5 +71,5 @@ Not applicable. The project already operates under uv (`uv_build` in `pyproject.
 ## Companion edits in this PR
 
 - `CLAUDE.md` §"Stack (canonical)" — add a "Dependency manager" bullet citing uv and `uv.lock`; update the FastMCP line to specify 3.x.
-- `docs/session-handoff.md` — three references removed: "ADR-0001 em débito (FastMCP 3.x; ADR-0004 reservado)" in the artifact-state list; "ADR-0004 ... decisão pendente. Bloqueia T01" in the Milestone A proposal blockers; "ADR-0001 sync com `uv.lock` real (...) ADR-0004 ainda pendente" in the editorial cleanup list. The optional editorial sync of ADR-0001 prose is preserved as a low-priority bullet without the ADR-0004 dependency.
-- `docs/learning-log.md` session #17 entry, sub-section "Refinamento intra-sessão (continuação 2026-05-16)" — note ADR-0004 as second in-session work alongside the ADR-0008 amendment.
+- `docs/process/session-handoff.md` — three references removed: "ADR-0001 em débito (FastMCP 3.x; ADR-0004 reservado)" in the artifact-state list; "ADR-0004 ... decisão pendente. Bloqueia T01" in the Milestone A proposal blockers; "ADR-0001 sync com `uv.lock` real (...) ADR-0004 ainda pendente" in the editorial cleanup list. The optional editorial sync of ADR-0001 prose is preserved as a low-priority bullet without the ADR-0004 dependency.
+- `docs/process/learning-log.md` session #17 entry, sub-section "Refinamento intra-sessão (continuação 2026-05-16)" — note ADR-0004 as second in-session work alongside the ADR-0008 amendment.

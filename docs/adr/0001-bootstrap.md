@@ -105,7 +105,7 @@ Three contextual constraints shape every decision below:
    started. The first PR (initial `CLAUDE.md`) was merged via squash in
    session 1, so the branch → PR → merge → delete-branch flow is already
    tested empirically. The decisions below were made on 2026-05-01 during
-   the first work session (see `docs/learning-log.md` entry
+   the first work session (see `docs/process/learning-log.md` entry
    `2026-05-01 — bootstrap-claude-md-d3` for the empirical validation of
    the CLAUDE.md adherence tests).
 
@@ -118,7 +118,7 @@ Three contextual constraints shape every decision below:
 | 3 | Languages: English for code, Portuguese for legal content | Authoring any artifact; verifying language choice; cross-reference with ADR-0006 |
 | 4 | Three immutable domain rules in CLAUDE.md | Designing any agent or tool path; reviewing for invariant violation; reasoning about escalation, citation, or schema-version |
 | 5 | Git workflow: Conventional Commits, feature branches, squash-merge | Opening a PR; naming a branch; writing a commit message |
-| 6 | Direct-commit allowlist for two metadocuments (permanent convention) | Touching `docs/session-handoff.md` or `docs/learning-log.md`; proposing to add a third file to the allowlist |
+| 6 | Direct-commit allowlist for two metadocuments (permanent convention) | Touching `docs/process/session-handoff.md` or `docs/process/learning-log.md`; proposing to add a third file to the allowlist |
 
 ## Decision
 
@@ -369,8 +369,8 @@ initial `CLAUDE.md` PR.
 Two specific files are committed directly to `main` without a PR, as
 permanent convention rather than temporary exception:
 
-- `docs/session-handoff.md`
-- `docs/learning-log.md`
+- `docs/process/session-handoff.md`
+- `docs/process/learning-log.md`
 
 Everything else — including this ADR, future ADRs, code, configuration,
 README updates, and policy content — follows the standard PR workflow
@@ -394,8 +394,8 @@ on bootstrap status. It applies forever, for these two files. By the
 same logic, no other file qualifies — adding a third file to this
 allowlist requires a new ADR with explicit justification.
 
-**Consequences.** The git history of `docs/session-handoff.md` and
-`docs/learning-log.md` is non-bisectable in the conventional sense
+**Consequences.** The git history of `docs/process/session-handoff.md` and
+`docs/process/learning-log.md` is non-bisectable in the conventional sense
 (direct commits intermingled with squash-merges). Acceptable because
 neither file is part of the build, tests, or runtime. All other files
 remain bisectable.
@@ -418,7 +418,7 @@ remain bisectable.
 ## Pendências decorrentes (operational, not part of this decision)
 
 These are not architectural decisions; they are tasks that follow from
-the decisions above and are tracked in `docs/session-handoff.md` for
+the decisions above and are tracked in `docs/process/session-handoff.md` for
 visibility. Listed here only for cross-reference.
 
 - `.python-version` file at repo root pinning `3.12.7`.

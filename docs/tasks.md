@@ -1,6 +1,6 @@
 # Tasks — Implementação Fase 2
 
-**Status.** Milestone A fechado em sessão #25 (gate milestone-level via MCP Inspector CLI mode; evidence pack em docs/milestoneA.md). Milestone B fechado em sessão #35 (gate milestone-level PASS empírico contra RF-008 rule-set-axis; evidence em docs/milestoneB.md; PRs #59 + #60 mergeadas). Milestone C em autoria de design — coordinator.md skeleton v2 aplicado via PR #63 sob A'' (system_prompt direto sem AgentDefinition) + (b2) (subagentes mantêm acesso direto a policy://vocabularies via ReadMcpResourceTool per ADR-0005 D4) + quíntupla canônica do lockdown agent CI/CD-headless + quatro camadas de enforcement (defense candidate D2.3); Gate 1 PASS empírico (sessão Code #38, claude-agent-sdk==0.2.87, script tracked em scripts/smoke_tests/sdk_tooluseblock_shape/); specs leves dos cinco subagentes em redação ordem Reporter → Triager → Detector → Classifier → Matcher (sessão #38+); tasks T11+ a decompor pós-specs. Milestone D referenciado nominalmente; autoria deferida.
+**Status.** Milestone A fechado em sessão #25 (gate milestone-level via MCP Inspector CLI mode; evidence pack em docs/process/milestoneA.md). Milestone B fechado em sessão #35 (gate milestone-level PASS empírico contra RF-008 rule-set-axis; evidence em docs/process/milestoneB.md; PRs #59 + #60 mergeadas). Milestone C em autoria de design — coordinator.md skeleton v2 aplicado via PR #63 sob A'' (system_prompt direto sem AgentDefinition) + (b2) (subagentes mantêm acesso direto a policy://vocabularies via ReadMcpResourceTool per ADR-0005 D4) + quíntupla canônica do lockdown agent CI/CD-headless + quatro camadas de enforcement (defense candidate D2.3); Gate 1 PASS empírico (sessão Code #38, claude-agent-sdk==0.2.87, script tracked em scripts/smoke_tests/sdk_tooluseblock_shape/); specs leves dos cinco subagentes em redação ordem Reporter → Triager → Detector → Classifier → Matcher (sessão #38+); tasks T11+ a decompor pós-specs. Milestone D referenciado nominalmente; autoria deferida.
 
 **Governance.** ADR-0008 amended (2026-05-16) — granularidade de 8-12 tasks de 1-3h agrupadas em milestones; gate task-level (function tests + revisão Chat independente) e gate milestone-level (manual exercise contra RFs). Tasks neste documento ancoram função; milestones ancoram capability declarada em `docs/REQUIREMENTS.md`.
 
@@ -498,9 +498,9 @@ não acessa o resource; Classifier e Matcher mantêm acesso direto via
 "ADR-0011" (Windows-stdio E-2 foi absorvido em ADR-0011 mergeada).
 Targets:
 
-- `docs/milestoneB.md` linhas 50, 102, 106, 107, 112, 114 (todas
+- `docs/process/milestoneB.md` linhas 50, 102, 106, 107, 112, 114 (todas
   refs stale, substituição mecânica).
-- `docs/learning-log.md` — múltiplas linhas com triagem caso-a-caso:
+- `docs/process/learning-log.md` — múltiplas linhas com triagem caso-a-caso:
   forward refs legítimas a "ADR-0012 retroativo Milestone C" são
   **preservadas** (apontam para ADR futura); refs stale para
   Windows-stdio E-2 substituídas por "ADR-0011".
@@ -575,10 +575,10 @@ via `ReadMcpResourceTool` per ADR-0005 Decision 4 textbook case.)
 
 **Pendência ADR (consolidar em Provisão MC-C — housekeeping):**
 
-- Refs stale "ADR-0012" em `docs/milestoneB.md` linhas 50, 102, 106,
+- Refs stale "ADR-0012" em `docs/process/milestoneB.md` linhas 50, 102, 106,
   107, 112, 114 apontando para Windows-stdio E-2 (que foi absorvido
   em ADR-0011 mergeada). Substituir mecanicamente por "ADR-0011".
-- Refs stale "ADR-0012" em `docs/learning-log.md` (múltiplas linhas
+- Refs stale "ADR-0012" em `docs/process/learning-log.md` (múltiplas linhas
   — triagem caso-a-caso). Preservar forward refs legítimas a
   "ADR-0012 retroativo Milestone C"; substituir refs stale para
   Windows-stdio E-2 por "ADR-0011".

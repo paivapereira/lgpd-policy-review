@@ -11,11 +11,11 @@
 ## Context
 
 The project adopted Spec-Driven Development (SDD) as formal methodology
-in `docs/proposta-tcc2.md` §7, with four canonical phases: Specify, Plan,
+in `docs/process/proposta-tcc2.md` §7, with four canonical phases: Specify, Plan,
 Implement, Validate. The Plan phase produces `docs/tasks.md`, decomposing
 implementation into discrete tasks consumed by Code one at a time.
 
-Initial planning for `docs/tasks.md` in `docs/session-handoff.md` targeted
+Initial planning for `docs/tasks.md` in `docs/process/session-handoff.md` targeted
 15-25 tasks calibrated to 30-60 minute implementation sessions, following
 granularity conventions of frameworks like GitHub Spec Kit.
 
@@ -202,11 +202,11 @@ its authoring.
 
 - `CLAUDE.md` — append a one-line pointer to this ADR in the section
   governing task workflow.
-- `docs/proposta-tcc2.md` — add a paragraph to §7 (Metodologia) citing
+- `docs/process/proposta-tcc2.md` — add a paragraph to §7 (Metodologia) citing
   Rajasekaran 2026 and stating the SDD calibration adopted here, with
   the bibliographic entry added to §11.
-- `docs/learning-log.md` — entry for session #17 references this ADR.
-- `docs/session-handoff.md` — pendência entry for `docs/tasks.md`
+- `docs/process/learning-log.md` — entry for session #17 references this ADR.
+- `docs/process/session-handoff.md` — pendência entry for `docs/tasks.md`
   authoring updated to cite this ADR as governing.
 
 ## Amendment companion edits (2026-05-16)
@@ -218,8 +218,8 @@ its authoring.
   the actual content landed in `.claude/rules/spec-driven-workflow.md`
   during the rules migration of session #22 (PR-3 housekeeping);
   location corrected 2026-05-22.
-- `docs/learning-log.md` — session #17 entry annotates the in-place
+- `docs/process/learning-log.md` — session #17 entry annotates the in-place
   amendment, preserving the original entry and adding the amendment
   rationale as a sub-section.
-- `docs/session-handoff.md` — pendência entry for `docs/tasks.md`
+- `docs/process/session-handoff.md` — pendência entry for `docs/tasks.md`
   authoring reflects amended ADR-0008 as governing.

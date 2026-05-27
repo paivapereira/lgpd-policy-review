@@ -14,7 +14,7 @@ Amendment landed in-place rather than as a successor ADR because the substantive
 
 ## Context
 
-The architecture declared in `docs/proposta-tcc2.md` §6 is explicitly
+The architecture declared in `docs/process/proposta-tcc2.md` §6 is explicitly
 multi-client: the system targets clients across jurisdictions (LGPD as
 exemplary MVP, GDPR as the natural next instance), with the Policy
 artifact under `policy/` customized per client. The implementation
@@ -27,7 +27,7 @@ This ADR formalizes the separation already implicit in the proposta
 and materializes it across the documentation layer in advance of the
 Fase 2 implementation work. The decisions below were taken in session
 #15 (Chat) under the "Defaults arquiteturais consolidados" header of
-`docs/session-handoff.md`; this ADR lifts them out of the handoff
+`docs/process/session-handoff.md`; this ADR lifts them out of the handoff
 (operational document) into the ADR record (decision document).
 
 This ADR does not change the schema versioning rule of ADR-0002

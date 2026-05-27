@@ -12,7 +12,7 @@
 - Caminho (b2) para `policy://vocabularies` access: subagentes carregam diretamente via `ReadMcpResourceTool`, coordinator não pré-carrega; preserva ADR-0005 Decision 4 textbook case (com nuance de granularidade per-server discutida em §3.3).
 - Quíntupla canônica + quatro camadas de enforcement como pattern arquitetural do lockdown agent CI/CD-headless (defense candidate forte D2.3).
 
-Número ADR-0012 fica reservado pendente PR `chore/sync-adr-references` removendo refs stale "ADR-0012" em `docs/milestoneB.md` (linhas 50, 102, 106, 107, 112, 114) + triagem caso-a-caso em `docs/learning-log.md` (forward refs legítimas a "ADR-0012 retroativo Milestone C" preservadas; refs stale para Windows-stdio E-2 absorvido em ADR-0011 substituídas por "ADR-0011").
+Número ADR-0012 fica reservado pendente PR `chore/sync-adr-references` removendo refs stale "ADR-0012" em `docs/process/milestoneB.md` (linhas 50, 102, 106, 107, 112, 114) + triagem caso-a-caso em `docs/process/learning-log.md` (forward refs legítimas a "ADR-0012 retroativo Milestone C" preservadas; refs stale para Windows-stdio E-2 absorvido em ADR-0011 substituídas por "ADR-0011").
 
 **Companion edit arch-overview pendente** (three-beats em §10): patch único — `docs/architecture-overview.md` §3 mermaid substitui `T -->|skip| END[Sem ação]` por `T -->|skip| R[Reporter]`.
 
@@ -443,7 +443,7 @@ Esclarecimento load-bearing (corrige inconsistência do skeleton #38): **`ToolUs
 - ADR-0005 (multi-client / framework-agnostic; §Decision 4 textbook case Resource vs Tool — preservado em capability sob (b2); granularidade per-server-via-built-in-tools documentada como nuance em ADR-0012)
 - ADR-0008 (task decomposition e verification)
 - ADR-0011 (Windows-stdio handle inheritance; cascading risk)
-- **ADR-0012 retroativo Milestone C** (a redigir; cobre divergências metodológicas + decisões load-bearing A'', (b2), M2, S2', dual sink emit_report, quíntupla canônica, quatro camadas de enforcement D2.3; **citação pendente PR `chore/sync-adr-references`** removendo refs stale ADR-0012 → ADR-0011 em `docs/milestoneB.md` e triagem em `docs/learning-log.md`).
+- **ADR-0012 retroativo Milestone C** (a redigir; cobre divergências metodológicas + decisões load-bearing A'', (b2), M2, S2', dual sink emit_report, quíntupla canônica, quatro camadas de enforcement D2.3; **citação pendente PR `chore/sync-adr-references`** removendo refs stale ADR-0012 → ADR-0011 em `docs/process/milestoneB.md` e triagem em `docs/process/learning-log.md`).
 
 **Specs dos subagentes:**
 - `docs/specs/subagents/reporter.md` — **primeira a redigir; destila `_template-subagent.md`** (ordem híbrida sessão #37)

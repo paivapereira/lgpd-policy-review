@@ -75,4 +75,4 @@ Catalogados em coordinator.md §11 (Gate 1 status PASS). Resumo:
 
 - [`docs/specs/subagents/coordinator.md`](../../../docs/specs/subagents/coordinator.md) §11 Gates pré-coordinator-flesh
 - [`docs/REQUIREMENTS.md`](../../../docs/REQUIREMENTS.md) RF-006 (Reporter como locus emissor; subjacente ao gate)
-- [`docs/learning-log.md`](../../../docs/learning-log.md) entry #38 (a redigir)
+- [`docs/process/learning-log.md`](../../../docs/process/learning-log.md) entry #38 (a redigir)

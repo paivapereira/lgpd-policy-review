@@ -64,7 +64,7 @@ Formato por entry:
 - Repositório `paivapereira/lgpd-policy-review` no GitHub
 - README.md inicial (commit 68e69c5 via servidor GitHub)
 - CLAUDE.md raiz com 74 linhas, hash 522229b
-- docs/learning-log.md (este arquivo)
+- docs/process/learning-log.md (este arquivo)
 - Pasta de trabalho `C:\Users\joaoguilherm.pereira\dev\`
 
 ### Validações empíricas
@@ -150,7 +150,7 @@ da stack canônica, três regras imutáveis com racional). Estrutura
   monorepo + MIT, stack canônica, idiomas, três regras imutáveis,
   workflow git, direct-commit allowlist permanente.
 - **Direct-commit allowlist permanente.** Apenas
-  `docs/session-handoff.md` e `docs/learning-log.md` vão direto em
+  `docs/process/session-handoff.md` e `docs/process/learning-log.md` vão direto em
   `main`. Não é exceção de bootstrap; é convenção permanente
   baseada em ausência de signal de revisão. Adicionar terceiro
   arquivo à allowlist requer ADR específico.
@@ -746,7 +746,7 @@ redação de artefatos longos.
   MCP servers + ADR-0002; semana 3 = specs dos cinco subagentes;
   implementação imediatamente após cada bloco de spec.
 
-- **`docs/proposta-tcc2.md` redigido e mergeado** (PR via fluxo
+- **`docs/process/proposta-tcc2.md` redigido e mergeado** (PR via fluxo
   padrão). Reescrita do zero a partir do architecture-overview,
   removendo enquadramento prova-primeiro/TCC-subproduto da
   proposta-tcc.md original (preservada fora de docs/ como
@@ -783,7 +783,7 @@ redação de artefatos longos.
 ### Artefatos criados
 
 - `docs/architecture-overview.md` (PR mergeado)
-- `docs/proposta-tcc2.md` (PR mergeado)
+- `docs/process/proposta-tcc2.md` (PR mergeado)
 - `CLAUDE.md` reescrita parcial substantiva (PR mergeado)
 - `README.md` reescrita parcial substantiva (PR mergeado)
 - `proposta-tcc.md` original preservada fora de docs/ como
@@ -1232,7 +1232,7 @@ session-handoff para detalhes.
 
 **Nota meta — calibração tardia do SCHEMA.md.** Primeiro rascunho saiu prolixo (~500 linhas) por interpretação inadequada do consumidor — tratado como "documento que cobre tudo exaustivamente" quando o consumidor real é humano de referência. Após pergunta do João sobre quem consome, comprimiu para ~258 linhas mantendo Apêndices densos. Lição: validar consumidor antes de redigir documento, não depois.
 
-**Próximo passo.** Ver `docs/session-handoff.md`.
+**Próximo passo.** Ver `docs/process/session-handoff.md`.
 
 ---
 
@@ -1448,7 +1448,7 @@ Sessão #15 abre com **agenda dupla, primeira hora dedicada a artefatos de docum
 
 ## 2026-05-14 — sessão #16 — Fase 1 (multi-client architecture rewrite) complete
 
-**Foco.** Fechamento da arquitetura multi-cliente declarada em `docs/proposta-tcc2.md` §6 via reescrita documental coordenada em 7 commits sequenciais na branch `arch/multi-client-policy-rewrite`. Sem código de implementação — toda a sessão viveu na camada de docs (`architecture-overview.md`, ADR-0005, `SCHEMA.md`, specs canonical+compact dos dois servers, `DESIGN.md` novo, learning-log, session-handoff). Materializa a separação estrutural/jurisdicional já implícita na proposta e cristaliza-a antes do início da Fase 2.
+**Foco.** Fechamento da arquitetura multi-cliente declarada em `docs/process/proposta-tcc2.md` §6 via reescrita documental coordenada em 7 commits sequenciais na branch `arch/multi-client-policy-rewrite`. Sem código de implementação — toda a sessão viveu na camada de docs (`architecture-overview.md`, ADR-0005, `SCHEMA.md`, specs canonical+compact dos dois servers, `DESIGN.md` novo, learning-log, session-handoff). Materializa a separação estrutural/jurisdicional já implícita na proposta e cristaliza-a antes do início da Fase 2.
 
 ### Conceitos da prova exercitados
 
@@ -1572,7 +1572,7 @@ Conteúdo canônico de cada decisão em ADR correspondente; aqui só registro do
   - `docs/adr/0006-language-conventions.md` (Portuguese non-ADR docs convention + English jurisdictional vocab tokens).
   - Patches em `docs/specs/policy-reader/canonical.md` e `compact.md` (collect → collection).
 - ADR-0008 a materializar em PR dedicado nesta sessão de fechamento.
-- Atualização de `docs/proposta-tcc2.md` §7 com calibração SDD e §11 com duas novas referências.
+- Atualização de `docs/process/proposta-tcc2.md` §7 com calibração SDD e §11 com duas novas referências.
 - Atualização de `CLAUDE.md` com pointer a ADR-0008.
 
 ### Pendências para sessão #18+
@@ -1595,7 +1595,7 @@ Discussão pré-#18 sobre cobertura RF-por-task no Milestone A revelou conflaç�
 - §3: gate split em **task-level** (function-specific pytest + independent Chat review) e **milestone-level** (manual exercise validando cada Dado/Quando/Então das RFs declaradas em §2). Tripartite per-task original colapsa em duas mecânicas no scope correto.
 - Header do ADR ganha bloco "Amendment scope (2026-05-16)" registrando rationale, perímetro e justificativa.
 
-**Companion edits aplicadas na mesma transação:** `CLAUDE.md` §"Working methodology" reescrito; `docs/session-handoff.md` (pendência #18 e prompt de abertura) atualizados; este registro.
+**Companion edits aplicadas na mesma transação:** `CLAUDE.md` §"Working methodology" reescrito; `docs/process/session-handoff.md` (pendência #18 e prompt de abertura) atualizados; este registro.
 
 **ADR-0004 também aterrissou na mesma extensão da sessão.** uv + FastMCP 3.x — número reservado desde #14, decisão substantiva agora registrada. Ratifica de-facto state operado desde #14 (pyproject.toml com uv_build, .python-version pinning 3.12.7, uv.lock versionado, FastMCP 3.x na skeleton). Rationale: lockfile reprodutibilidade (primário, gatilho "vai ser usado por outras pessoas na empresa"), Python version isolation (secundário que virou primário após falha empírica de pyenv-win com 3.14 paralelo), performance/no-admin/CLI familiarity (terciários). Supersede parcial de ADR-0001 §2. Companion edits: CLAUDE.md §"Stack (canonical)" ganhou bullet de dependency manager e versão de FastMCP; três entradas em session-handoff atualizadas (pendência ADR-0004 removida, drift de ADR-0001 reframed como editorial não-bloqueante).
 
@@ -1613,7 +1613,7 @@ Discussão pré-#18 sobre cobertura RF-por-task no Milestone A revelou conflaç�
 
 **Domínio 3 — Claude Code Configuration & Workflows (20%)**
 
-- **D3 `.claude/rules/` vs `.claude/skills/` vs `.claude/commands/`.** Discussão extensa sobre o primitivo correto para automação de geração de ADR/handoff/learning-log. Conclusão: rules path-scoped para convenções aplicáveis automaticamente quando Code toca o path (`docs/adr/**`, `docs/learning-log.md`); skills para procedimentos pesados com `context: fork`; commands para invocação explícita. Decisão deliberada: camada mecânica vai para rules; camada deliberativa permanece em Chat. Anti-padrão identificado: skill que "gera ADR completo" reintroduziria o problema de ADR-0007 (Code racionalizando rationale).
+- **D3 `.claude/rules/` vs `.claude/skills/` vs `.claude/commands/`.** Discussão extensa sobre o primitivo correto para automação de geração de ADR/handoff/learning-log. Conclusão: rules path-scoped para convenções aplicáveis automaticamente quando Code toca o path (`docs/adr/**`, `docs/process/learning-log.md`); skills para procedimentos pesados com `context: fork`; commands para invocação explícita. Decisão deliberada: camada mecânica vai para rules; camada deliberativa permanece em Chat. Anti-padrão identificado: skill que "gera ADR completo" reintroduziria o problema de ADR-0007 (Code racionalizando rationale).
 - **D3 Plan mode vs direct execution.** Prompt do PR-30 desenhado como direct execution (não plan mode) por critério explícito: trabalho mecânico, sem multiple valid approaches a deliberar, com pausas pré-identificadas para input humano. Heurística destilada: plan mode para *o que fazer*; direct execution para *como aplicar exatamente isso*.
 - **D3 CLAUDE.md ↔ ADR drift surface.** Code identificou no relatório de simulação que CLAUDE.md duplica trechos de ADRs (escopo MVP, language conventions), criando surface de drift. Decisão registrada como tópico para sessão Chat dedicada (não cleanup mecânico): trade-off entre CLAUDE.md sempre carregado (precisa ser self-sufficient) vs single-source-of-truth nos ADRs.
 
@@ -1697,7 +1697,7 @@ Quatro débitos cross-doc no canonical.md estão anotados em `docs/tasks.md` §C
 - **Escopo MVP operacional:** `docs/adr/0007-mvp-collection-only-scope.md` (apenas `operation: collection` invoca matching no MVP v0.1.0; outras 21 operações do vocabulário retornam `not_applicable` com `reason` MVP-scope).
 - **Stack management:** `docs/adr/0004-uv-fastmcp-3x.md` (uv como gerenciador, FastMCP 3.x).
 - **Pack teste de check_applicability:** `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/README.md` (AS coverage por arquivo, pattern de fixture root assembly, ressalvas).
-- **Processo de cristalização da sessão #18:** `docs/learning-log.md` (entry 2026-05-16).
+- **Processo de cristalização da sessão #18:** `docs/process/learning-log.md` (entry 2026-05-16).
 
 ## Pre-flight pins para a sessão #19 (Code, T01)
 
@@ -2280,7 +2280,7 @@ disciplina estrutural explícita.
 Sessão #21 (Chat) — prep de canonical-sync-B do policy-reader (decisão
 de design). Estrutura proposta: ~1h Chat de prep + ~30min Code de
 aplicação + ~30min Chat review. Após merge: T02b. Ver
-`docs/session-handoff.md` para pre-flight pins detalhados.
+`docs/process/session-handoff.md` para pre-flight pins detalhados.
 
 ---
 
@@ -4362,7 +4362,7 @@ têm complexidade própria.
 
 # Learning-log entry — sessão #24
 
-**Para aplicar:** apendar este conteúdo ao final de `docs/learning-log.md`, abaixo
+**Para aplicar:** apendar este conteúdo ao final de `docs/process/learning-log.md`, abaixo
 da última entry existente (#23 close). Seções abaixo são literais — copiar
 verbatim, ajustando apenas o hash de squash de T04 quando você fizer `git pull`
 após o merge para popular o `<TBD>` no audit trail.
@@ -4585,7 +4585,7 @@ após o merge para popular o `<TBD>` no audit trail.
 
 - **Housekeeping cross-doc pós-T04.** 4 débitos em `docs/tasks.md`
   §Companion edits cross-doc:
-  1. Sync `docs/session-handoff.md` ↔ split Milestone A/B (legado pré-T04).
+  1. Sync `docs/process/session-handoff.md` ↔ split Milestone A/B (legado pré-T04).
   2. Sync canonical.md `structured_context` campos + `evidence`/`reason`
      em §4.3 (2 sub-itens legado pré-T04 — `evidence`/`reason` é o drift
      1 do housekeeping pós-T03 que ficou parcial, mais o débito de
@@ -4781,7 +4781,7 @@ débitos cosméticos. Decisão na hora.
 
 **Artefatos produzidos.**
 
-- `docs/milestoneA.md` — gate report Milestone A (5 RFs ancoradas empiricamente, 5 fases A.1-A.5 documentadas, 8 débitos enumerados, insumo metodológico). Commit 6 da PR #47.
+- `docs/process/milestoneA.md` — gate report Milestone A (5 RFs ancoradas empiricamente, 5 fases A.1-A.5 documentadas, 8 débitos enumerados, insumo metodológico). Commit 6 da PR #47.
 - PR #47 `chore/housekeeping-post-t04` — 7 commits internos, pytest 53/53 verde em cada commit individualmente, 8 débitos consolidados, §Companion edits cross-doc esvaziado.
 - `docs/specs/policy-reader/canonical.md` §3.1 + §4.3 sync (shape `article_sources_summary`, 4 campos de `StructuredContext`, discriminação evidence/reason/verification_scope).
 - `docs/specs/policy-reader/canonical.md` §4.1/§4.2/§4.3 + `docs/specs/policy-reader/compact.md` §5.2/§5.3 — examples renderizados sincronizados com fix de ordinal condicional.
@@ -5164,7 +5164,7 @@ CLAUDE.md §Immutable domain rules) crítico antes de Milestone C arrancar.
 
 - **D5 Amendment scope blocks com audit trail intencional — gates exclusion-aware.** Edits 2.B.1 (ADR-0001 D3) e 2.B.2 (ADR-0005 D1+D2) usam pattern Amendment scope H2 paralelo ao Context. Por design, o bloco preserva citações do estado original (`"originally prescribed cláusula IDs in 'stable Portuguese form (e.g., LGPD-Art-7-I)'"`) como audit trail. Consequência: gates de regressão `git grep -nE 'LGPD-Art-7-I'` retornam matches legítimos. Pattern correto: `git grep -nE 'TOKEN' . -- ':!arquivo-com-audit-trail.md'` + `git grep -c "TOKEN" arquivo` qualitativo. **Defense candidate forte**: gates de regressão precisam ser exclusion-aware quando edits preservam tokens originais como audit trail intencional. Replicar em toda futura PR que use Amendment scope.
 
-- **D5 Patch documento como fóssil — handoff é template-overwrite forward-looking.** O `docs/session-handoff.md` em main pós-#29 (db2d2c8) era "patch documento" estilizado com "Locate/Substitute by" referenciando ancorras inexistentes em `tasks.md` (lista A-G que nunca existiu naquele formato). Provavelmente proposta de uma sessão Chat anterior nunca materializada como reestruturação real do tasks.md. Identificado no Chat review v2 do prompt T30-Hk durante prep. **Defense candidate forte**: handoff é template-overwrite por sessão, forward-looking, prosa direta — não patch acumulativo. Esta sessão #30 abandona o vocabulário "Locate/Substitute" no handoff novo da #31 justamente por causa desse anti-pattern detectado. Documentos de coordenação entre sessões precisam ter convenção de forma explícita e estável; mudança silenciosa de forma sem decisão deliberada acumula débito documental.
+- **D5 Patch documento como fóssil — handoff é template-overwrite forward-looking.** O `docs/process/session-handoff.md` em main pós-#29 (db2d2c8) era "patch documento" estilizado com "Locate/Substitute by" referenciando ancorras inexistentes em `tasks.md` (lista A-G que nunca existiu naquele formato). Provavelmente proposta de uma sessão Chat anterior nunca materializada como reestruturação real do tasks.md. Identificado no Chat review v2 do prompt T30-Hk durante prep. **Defense candidate forte**: handoff é template-overwrite por sessão, forward-looking, prosa direta — não patch acumulativo. Esta sessão #30 abandona o vocabulário "Locate/Substitute" no handoff novo da #31 justamente por causa desse anti-pattern detectado. Documentos de coordenação entre sessões precisam ter convenção de forma explícita e estável; mudança silenciosa de forma sem decisão deliberada acumula débito documental.
 
 ### Decisões
 
@@ -5181,7 +5181,7 @@ CLAUDE.md §Immutable domain rules) crítico antes de Milestone C arrancar.
 - Prompt-artefatos em `/mnt/user-data/outputs/`: `prompt-t30-housekeeping.md` (v1, 725 linhas), `prompt-t30-housekeeping-v2.md` (776 linhas), `prompt-t30-housekeeping-v3.md` (803 linhas) — três versões como evidência de multi-instance review iterativo.
 - Dois Chat reviews independentes do prompt (entre v1→v2 e entre v2→v3), anexados como documentos pelo João nas mensagens do Chat persistente da sessão #30.
 - Plano GATE 1 do Code com 10 DDs (DD-1 a DD-10) e 2 escalações para Chat (DD-7 numérica + DD-8 ratificação semântica do new_str da §7 proposta-tcc2).
-- Novo `docs/session-handoff.md` substituindo o pós-#29 como direct commit em main (close formal da #30 + abertura da #31 T06).
+- Novo `docs/process/session-handoff.md` substituindo o pós-#29 como direct commit em main (close formal da #30 + abertura da #31 T06).
 
 ### Próximo passo
 
@@ -5191,7 +5191,7 @@ Pre-flight em particular: verificação direta empírica antes de redigir (estad
 
 # Learning Log — entrada T06
 
-Anexar a `docs/learning-log.md` no projeto, abaixo das entradas anteriores (T05, Provisão A, etc).
+Anexar a `docs/process/learning-log.md` no projeto, abaixo das entradas anteriores (T05, Provisão A, etc).
 
 ---
 
@@ -5741,13 +5741,13 @@ T06 (PR #56) é anexada separadamente ao learning-log conforme handoff
 
 ## Próximo passo
 
-Sessão Chat #35 — prep do prompt Code para PR de fix em `tools.py`. Pre-leitura conforme handoff #34→#35. Escopo: `stdin=subprocess.DEVNULL` em ambos `subprocess.run` que invocam git (`_resolve_ref`, `_is_shallow_repository`) + verificação se `subprocess.run` do próprio Semgrep tem mesmo padrão (provavelmente sim — incluir preventivamente). Separação `TimeoutExpired` vs `CalledProcessError` para classificação correta de error class (D5 transient vs business): incluir na mesma PR ou diferir? Decisão de sessão #35. AS-14 inline em `test_scan_diff.py` validando `scan_diff` sob stdio transport real (Client externo, não in-memory). Após merge: re-rodar `scripts/gate_milestone_b_exercise.py` esperando PASS; redigir `docs/milestoneB.md`; ADR pos-hoc; mergear branch atual `chore/gate-milestone-b-rule-set-fixture` em conjunto com (ou após) PR do fix.
+Sessão Chat #35 — prep do prompt Code para PR de fix em `tools.py`. Pre-leitura conforme handoff #34→#35. Escopo: `stdin=subprocess.DEVNULL` em ambos `subprocess.run` que invocam git (`_resolve_ref`, `_is_shallow_repository`) + verificação se `subprocess.run` do próprio Semgrep tem mesmo padrão (provavelmente sim — incluir preventivamente). Separação `TimeoutExpired` vs `CalledProcessError` para classificação correta de error class (D5 transient vs business): incluir na mesma PR ou diferir? Decisão de sessão #35. AS-14 inline em `test_scan_diff.py` validando `scan_diff` sob stdio transport real (Client externo, não in-memory). Após merge: re-rodar `scripts/gate_milestone_b_exercise.py` esperando PASS; redigir `docs/process/milestoneB.md`; ADR pos-hoc; mergear branch atual `chore/gate-milestone-b-rule-set-fixture` em conjunto com (ou após) PR do fix.
 
 Custo estimado distribuído em 2-3 sessões: ADR ~1h Chat dedicada (pos-hoc, sessão própria); PR de fix ~1h Code + ~30min Chat review; re-rodar gate ~5min; redigir milestoneB.md ~45min; atualizar este learning-log com PASS confirmation ~15min.
 
 # Learning-log entry — sessão #35
 
-**Para aplicar:** apendar este conteúdo ao final de `docs/learning-log.md`, abaixo da entry #34. Squash hashes a popular pós-merges (PR #59 e PR chore subsequente).
+**Para aplicar:** apendar este conteúdo ao final de `docs/process/learning-log.md`, abaixo da entry #34. Squash hashes a popular pós-merges (PR #59 e PR chore subsequente).
 
 ---
 
@@ -5893,7 +5893,7 @@ Custo estimado próximas 4-5 sessões: ~12-18h distribuído.
 
 ---
 
-**Fim da entry #35.** Integrar ao `docs/learning-log.md` no repo via direct commit (per ADR-0001 Decision 6: learning-log + session-handoff são as duas exceções ao PR workflow).
+**Fim da entry #35.** Integrar ao `docs/process/learning-log.md` no repo via direct commit (per ADR-0001 Decision 6: learning-log + session-handoff são as duas exceções ao PR workflow).
 
 ---
 
@@ -5905,7 +5905,7 @@ obs learning-log-35.md:
 
 # Learning Log — entry sessão #37
 
-Anexar ao final de `docs/learning-log.md` via direct commit
+Anexar ao final de `docs/process/learning-log.md` via direct commit
 (per ADR-0001 D6).
 
 ---
@@ -6216,7 +6216,7 @@ tema distinto do cleanup de coordinator §3.2/§3.5/§5).
 - `docs/architecture-overview.md` linhas 201, 245 — 2 renames; a
   ref em §4.2 `clauses/` (linha 105) preserva `clause_id` por ser
   identidade da cláusula na Política, não ref ao campo no Report.
-- `docs/learning-log.md` — esta entry.
+- `docs/process/learning-log.md` — esta entry.
 
 **Achado empírico durante execução.** Plano Chat estimou ~17
 ocorrências de `clause_id` em `docs/REQUIREMENTS.md`; grep real
@@ -6294,7 +6294,7 @@ findings (#1, #2, #4-#8) do review V2 continuam em backlog Chat.
 
 # Learning Log — entry sessões #41 + #42
 
-Anexar ao final de `docs/learning-log.md` via direct commit
+Anexar ao final de `docs/process/learning-log.md` via direct commit
 (per ADR-0001 D6).
 
 ---

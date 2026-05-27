@@ -65,9 +65,9 @@ These rules express the core thesis of the project. Violating them in code, prom
 
 - **Repository age:** mid development — Milestone A closed in session #25
   (gate milestone-level via MCP Inspector CLI mode, evidence in
-  `docs/milestoneA.md`); Milestone B closed in session #35 (gate
+  `docs/process/milestoneA.md`); Milestone B closed in session #35 (gate
   milestone-level PASS empirically against stdio transport real, evidence
-  in `docs/milestoneB.md`); Milestone C authoring deferred to dedicated
+  in `docs/process/milestoneB.md`); Milestone C authoring deferred to dedicated
   Chat session post-housekeeping pre-C.
 - **Tests:** 134 passing local Windows, 133 Linux/macOS (AS-14b
   skipped). Composição: 53 policy_reader + 11 semgrep_runner anchor

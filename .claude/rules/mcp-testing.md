@@ -13,7 +13,7 @@ Materialized in session #25 (Milestone A gate). Initial gate
 attempt used MCP Inspector UI; mid-exercise pivot to
 `npx @modelcontextprotocol/inspector --cli ...` because UI clicks
 could not be replayed against the same state for the evidence
-pack. CLI commands archived in `docs/milestoneA.md` are
+pack. CLI commands archived in `docs/process/milestoneA.md` are
 reproducible by any future reviewer.
 
 ## When to apply

@@ -20,7 +20,7 @@ Two phases, each with its own subprocess (fresh Client, fresh transport):
 Phase 3 evaluates five invariants over the two phase outputs (rule_id
 axis, rules_version distinct, semgrep_version identical, wire is_error
 False uniformly, refs resolved to 40-hex). Phase 4 prints a consolidated
-JSON to stdout suitable for citation in `docs/milestoneB.md`.
+JSON to stdout suitable for citation in `docs/process/milestoneB.md`.
 
 This script replaces the MCP Inspector CLI attempt; the Inspector's
 client-side request timeout default was too short for the Windows cold

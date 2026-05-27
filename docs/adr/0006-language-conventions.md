@@ -16,7 +16,7 @@ ADR-0001 and `CLAUDE.md` ("Languages" section) declare the foundational language
 
 Two derived conventions emerged across sessions #04 through #11 and crystallized in session #16 with the multi-client architecture, but were never written down:
 
-1. **Technical documentation in Portuguese.** Specs (`docs/specs/<component>/canonical.md` and `compact.md`), `docs/architecture-overview.md`, `docs/DESIGN.md`, `docs/REQUIREMENTS.md`, `policy/SCHEMA.md`, `docs/learning-log.md`, `docs/session-handoff.md` — the operational documentation layer that explains the system to the author and to future maintainers — are written in Portuguese. The convention was inherited from the author's working language and never declared. Tracked as a debt in [`docs/learning-log.md:1518`](docs/learning-log.md#L1518) since session #16.
+1. **Technical documentation in Portuguese.** Specs (`docs/specs/<component>/canonical.md` and `compact.md`), `docs/architecture-overview.md`, `docs/DESIGN.md`, `docs/REQUIREMENTS.md`, `policy/SCHEMA.md`, `docs/process/learning-log.md`, `docs/process/session-handoff.md` — the operational documentation layer that explains the system to the author and to future maintainers — are written in Portuguese. The convention was inherited from the author's working language and never declared. Tracked as a debt in [`docs/process/learning-log.md:1518`](docs/process/learning-log.md#L1518) since session #16.
 
 2. **Jurisdictional-vocabulary tokens in English.** The four YAML files at `policy/vocabularies/<framework>/` (`operation.yaml`, `lawful_basis.yaml`, `control.yaml`, `out_of_scope.yaml`) declare token values via the `name:` field in English snake_case (e.g., `collection`, `consent`, `consent_required`, `unmodeled_special_category`). The Portuguese human-readable label lives in the `description:` field of each entry. No document declares this; the convention was applied implicitly when the vocabularies were extracted from `SCHEMA.md` §9 in PR #22.
 
@@ -31,8 +31,8 @@ The following document classes are authored in Portuguese:
 - `docs/architecture-overview.md`
 - `docs/DESIGN.md`
 - `docs/REQUIREMENTS.md`
-- `docs/learning-log.md`
-- `docs/session-handoff.md`
+- `docs/process/learning-log.md`
+- `docs/process/session-handoff.md`
 - `docs/specs/<component>/canonical.md` and `compact.md`
 - `policy/SCHEMA.md`
 

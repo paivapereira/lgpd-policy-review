@@ -1,347 +1,279 @@
-# Session Handoff #37 → #38
+# Session Handoff #42 → próxima sessão (Triager-sanity)
 
-**De:** Sessão #37 (Chat dedicada — autoria de design do header de
-Milestone C + skeleton do coordinator.md + plano de specs leves dos
-subagentes)
-**Para:** Sessão #38 (próxima Chat — Reporter-flesh-first per ordem
-híbrida ratificada)
-**Data:** 2026-05-25
-**Estado:** Decisões Bloco 1+2+3 fechadas; coordinator-skeleton
-produzido como artefato Chat em `/mnt/user-data/outputs/`; diff
-aplicável de tasks.md catalogado; learning-log entry #37 a integrar
-em main.
+**De:** Sessões #41+#42 (Chat consolidada — Reporter-FLESH
+consolidation + Reporter spec 0.3.0 + coordinator v3 sub-packaging)
+**Para:** Próxima Chat — Triager-sanity per ordem híbrida ratificada
+**Data:** 2026-05-27
+**Estado:** Reporter spec 0.3.0 mergeada em main; coordinator v3
+produzido como output Chat aguardando direct commit; learning-log
+entry #42 e este handoff a integrar em main.
 
 ---
 
 ## 1. Estado factual do repo
 
-- **Branch atual recomendada para #38:** `main` (sessão #37 não tocou
-  código; produziu artefatos Chat).
-- **Milestone B fechado:** PR #59 (squash hash a verificar em main) +
-  PR #60 (squash hash `b4ec3fe`) mergeadas. Gate Milestone B PASS
-  empírico contra `test/gate-on-fix-v2`, evidence consolidada em
-  `gate_b_output.json` (untracked working dir, cleanup pendente).
-- **CLAUDE.md `§Status flags` sincronizado em #36** conforme handoff
-  #35→#36 §(G).
-- **Sweep imutável-rules (ADR-0001 D4 ↔ CLAUDE.md `§Immutable domain rules`)
-  consolidado em #36.**
-- **Tests pós-merge da PR #59 em main:** 134 passing (Windows local;
-  133 Linux/macOS, AS-14b skipped).
-- **Untracked operacional residual:** `gate_b_output.json` +
-  `gate_b_stderr.log` em working dir (catalogado em #35 handoff §(H);
-  cleanup ainda pendente).
+- **Branch atual recomendada para Triager-sanity:** `main` (após
+  aplicação dos 3 direct commits abaixo).
+- **Reporter spec 0.3.0 mergeada em main** como
+  `docs/specs/subagents/reporter.md` (~946 linhas, hard-wrap removido).
+- **coordinator v2 em main** como `docs/specs/subagents/coordinator.md`
+  (~890 linhas, hard-wrap presente). v3 produzido em `/mnt/user-data/outputs/`
+  pending direct commit em branch `chore/sync-coordinator-with-reporter-0.3.0`.
+- **PR #66 + PR #67 (Reporter spec author + Gate 6 tools=[] smoke-test)
+  mergeadas** em main. Evidência empírica de `tools=[]` em
+  `scripts/smoke_tests/sdk_tools_empty_list/` reproducível.
+- **Tests pós-merge da Reporter spec:** doc-only PR, sem regressão de
+  suite. Pipeline ainda não implementado (Milestone C pré-T11+).
 
-## 2. Artefatos produzidos em #37
+## 2. Artefatos produzidos em #41+#42
 
-Quatro outputs Chat em `/mnt/user-data/outputs/`:
+Outputs Chat em `/mnt/user-data/outputs/`:
 
-1. **`coordinator-md-skeleton-37.md`** (~340 linhas) — skeleton
-   patcheado do `docs/specs/subagents/coordinator.md`. Aplica decisões
-   Bloco 1+2+3 da sessão. Inclui:
-   - Pendência metodológica no header (template destilation + abandono
-     ADR-0003 dual; ratificadas em ADR-0012 retroativo Milestone C
-     futuro).
-   - §3 Workflow com decisão "Reporter sempre invocado" (caminho i da
-     halt-conditions deliberation).
-   - §6 com whitelist `EXPECTED_SERVERS` obrigatório + AS de teste
-     catalogada.
-   - §10 com três patches arch-overview pendentes (three-beats Beat 1
-     proposed; Beat 2 e 3 pendentes).
-   - §9 Rule 6 corrigida para "§3 (Output)" (typo §4 do draft inicial).
+1. **`reporter.md` v0.3.0** (946 linhas) — **já mergeada** como
+   `docs/specs/subagents/reporter.md`. Substituída neste working
+   tree.
 
-2. **`tasks-md-milestone-c-diff-37.md`** — diff aplicável de quatro
-   blocos para `docs/tasks.md`. Materializa header de Milestone C
-   (capability + RFs + provisões + tasks T11+ placeholder). PR mecânica
-   `docs/tasks-milestone-c-header` em sessão Code ~20-30min.
+2. **`coordinator.md` v3** (517 linhas) — pending merge. Sub-packaging
+   dos 6 surgical edits prescritos em §10.5 da Reporter spec + Edit
+   3 estendido (factory pattern alinhado a Reporter spec §4.8;
+   ratificado via second-pass review da própria sessão #42 caminho
+   (A)) + cross-ref incidental ratificado em §3.5 `max_turns=3` +
+   reflow mecânico (hard-wrap removido) por consistência com Reporter
+   spec 0.3.0. Invariante explicitada no header status: "zero
+   mudanças semânticas além das listadas".
 
-3. **`session-handoff-37-to-38.md`** — este documento. Para integrar
-   em `docs/session-handoff.md` via direct commit (per ADR-0001 D6).
+3. **`learning-log-entry-42.md`** — entry sessões #41+#42 para anexar
+   a `docs/learning-log.md` via direct commit (per ADR-0001 D6). 8
+   defense candidates registrados; conceitos D1+D2+D4+D5 da prova
+   exercitados.
 
-4. **`learning-log-entry-37.md`** — entry da sessão #37 para anexar a
-   `docs/learning-log.md` via direct commit.
+4. **`session-handoff-42-to-next.md`** — este documento. Para
+   integrar em `docs/session-handoff.md` via direct commit (per
+   ADR-0001 D6).
 
-## 3. Decisões fechadas em #37 (consolidadas)
+5. **`reflow_v2.py`** — script utility one-off do reflow do
+   coordinator (90 linhas Python). **Não promovido ao repo** —
+   aguardar validação empírica em 2+ specs (próximas: Triager,
+   Detector, Classifier, Matcher) antes de promover para
+   `scripts/utils/`. Catalogado em catches §5.
 
-### Bloco 1 — Capability + RFs
+## 3. Decisões fechadas em #41+#42 (consolidadas)
 
-- **Capability statement** (vai para §Milestone C novo em tasks.md):
-  pipeline multi-agente operacional como sistema integrado executável
-  localmente; coordinator Python orquestra cinco subagentes; .mcp.json
-  com whitelist; scratchpad audit-only; dual sink emit_report.
-- **RFs/RNFs bound ao gate de C:** RF-003 pleno + RF-004 pleno +
-  RF-005 pleno + RF-006 + RF-007 pleno + RF-008 pleno + RNF-002.
-- **Gate milestone-level adiado** para sessão própria; mecanismo
-  proposto é harness Python contra PRs sintéticos check-ados no repo.
+### Reporter spec 0.3.0 (mergeada)
 
-### Bloco 2 — Decisões arquiteturais
+- **Cross-check #3 removido** (vocab membership é semântica do
+  Matcher per §2.4 + §8.3 da Reporter spec, não shape do Reporter).
+  4 cross-checks finais.
+- **Postura A ratificada sobre quíntupla canônica**: 5 elementos
+  preservados como "quíntupla canônica de denial-on-miss" no
+  vocabulário; `system_prompt` separado como role definition; `tools`
+  separado como context restriction / eixo ortogonal availability.
+- **Reporter spec §1.5 como locus authoritative** da aritmética de
+  retry budget (`max_turns=3` = 1 initial emit + até 2 retries);
+  outros loci citam por referência. Reduz lost-in-the-middle em
+  parâmetros que aparecem em múltiplos contextos.
+- **§9.6 removido** como duplicação de coordinator §10 three-beats.
+- **Gate numbering 4→5 reordenado** (Gate 5 sdk_reporter_prompt
+  pré-implementação T11+).
+- **Locus pinado dos módulos pré-implementação**: `src/coordinator/
+  {models, constants, system_prompts, tools}.py` (4 módulos
+  separados ratificados via web_fetch de
+  https://platform.claude.com/docs/en/agent-sdk/custom-tools que
+  confirma que doc oficial não prescreve estrutura — decisão por
+  blame auditability + ADR-0001 D3 portuguese-only). Aplica a
+  qualquer subagent spec subsequente que cite módulos.
+- **Few-shot exemplar fix**: sintaxe `emit_report({...})` flat (não
+  wrap em `payload` key). Bug-magnet detectado em second-pass
+  review.
+- **Hardening**: `legal_framework: Literal["LGPD"]` + `report_id`
+  UUID v4 regex + `os.replace` Windows-native em §4.9.
 
-- **Coordinator pattern A'** (Python orquestra; cada etapa é `query()`
-  separada com `agents={}` contendo só o subagente da vez). Não-AgentDefinition.
-- **Scratchpad S2'** (audit-only via coordinator write; state passing
-  inline via JSON serializado no prompt; subagentes sem Read sobre
-  scratchpad).
-- **.mcp.json M2** (single source no root; coordinator parseia em
-  runtime; whitelist `EXPECTED_SERVERS = {"policy-reader", "semgrep-runner"}`
-  com fail-loud em server fora do whitelist).
-- **emit_report dual sink** (grava `99-report.json` + retorna payload
-  via tool result; localização em `src/coordinator/tools.py` via
-  `@tool` + `create_sdk_mcp_server(name="reporter-tools")`; enforcement
-  "Reporter chamou emit_report?" via inspeção message stream em
-  Python, não hook).
-- **Vocabularies single load point** (coordinator §3.0 carrega
-  `policy://vocabularies` uma vez e propaga inline a Classifier e
-  Matcher; exceção pontual a arch-overview §5.1 ratificada via
-  three-beats em coordinator.md §10).
-- **Halt-conditions caminho (i)** (Reporter sempre invocado, mesmo em
-  skip path ou findings vazios; preserva §4.3 "Reporter como único
-  locus emissor"; patch arch-overview §3 mermaid pendente).
-- **SDR como serializador downstream (pattern β)** — Report JSON é
-  canônico; transformação Report → SDR CSV é consumer downstream
-  (GitHub Action ou job de governança), não responsabilidade do
-  sistema multi-agente. Três garantias de design no MVP preservam
-  compatibilidade.
+### coordinator v3 (pending merge)
 
-### Bloco 3 — Template e ordem de redação
+- **6 surgical edits** prescritos em §10.5 da Reporter spec
+  aplicados: tools=[] em §3.4/§3.5; reporter_sdk_server instantiation
+  em §3.0; EMIT_REPORT_DESCRIPTION import em §7; version
+  cross-ref em §7; quíntupla canônica restruturada em §2; filter
+  comment rationale atualizado em §3.5.
+- **Edit 3 estendido (caminho A ratificado)** — §7 reescrito com
+  factory pattern alinhado a Reporter spec §4.8: `create_reporter_server`
+  envolve `@tool` + `create_sdk_mcp_server`, closure capture sobre
+  `run_path` + `expected_report_id`, ToolAnnotations declaradas,
+  ReportPayload.model_json_schema() referenciado em vez de
+  REPORT_SCHEMA placeholder. Resolve assimetria entre §3.0 (chama
+  factory) e §7 (mostrava module-level def).
+- **Cross-ref incidental ratificado** em §3.5 `max_turns=3 #
+  DD-10.4: retry budget; aritmética canônica em Reporter spec §1.5`
+  (alinha com padrão de cross-refs estabelecido em §2 e §7).
+- **Reflow mecânico** — hard-wrap removido (890 → 517 linhas; 44%
+  redução). Invariante explicitada: zero mudanças semânticas além
+  das listadas.
 
-- **Multi-spec em `docs/specs/subagents/`** com coordinator.md como
-  hub do workflow. Single artifact por subagente (não dual ADR-0003).
-- **Template como hipótese de trabalho**, destilado no Reporter-flesh
-  (ordem (b) per `docs/specs/_template.md` §método-de-destilação).
-- **Ordem híbrida de redação:** coordinator-SKELETON (feito) →
-  Reporter-FLESH (sessão #38) → Triager-SANITY (sessão #38) → Detector
-  → Classifier → Matcher (sessões #38-#39) → coordinator-FLESH-COMPLETO
-  (sessão #39+).
-- **Cross-reference rules 1-6 ratificadas** (anti-drift; Rule 6 marca
-  §3 Output como canonical I/O boundary verbatim).
-- **Divergência metodológica registrada** (template upfront +
-  abandono ADR-0003 dual): ratificada em ADR-0012 retroativo Milestone
-  C futuro.
+### Itens deferidos do Reporter spec §8.4 (a decidir em Triager-sanity)
 
-### Meta — pre-flight grep Code (mecanismo emergente)
+- **Callouts 💡 inheritance no template-subagent.** Reporter spec
+  teve callouts pedagógicos (referências a domínios da prova). Padrão
+  para todos os subagentes? Decisão influencia template destilado.
+- **Observabilidade/logging story.** Reporter spec não declarou
+  estratégia de logging (structured logging? log lines? scratchpad
+  como audit suficiente?). Comum a todos os subagentes — decidir no
+  template.
+- **Schema migration cross-version.** Bump rules entre subagentes
+  precisam ratificar (atualmente cada subagent spec independente). 
+- **`requires_human_review` semantic forward-ref ao Matcher spec.**
+  Reporter spec declarou campo presente no Report; Matcher spec
+  ainda não autorou semantics de quando o campo é true. Triager-
+  sanity menciona apenas se influenciar template; resolução real
+  fica para Matcher spec.
 
-Pattern operacional: design proposals tocando docs autoritativos
-preexistentes ⇒ pre-flight grep Code antes do skeleton se materializar.
-Chat passa lista de docs autoritativos relevantes; Code valida em
-~5min; catches antecipados antes da redação.
+### Itens deferidos do coordinator v3 (companion patches futuros)
 
-Defense candidate para Capítulo de Método, agregado ao pattern "Chat
-propõe / Code verifica" emergente desde #21+.
+- **arch-overview three-beats Beat 2** (Provisão MC-B): patch único
+  em `docs/architecture-overview.md` §3 mermaid substituindo
+  `T -->|skip| END[Sem ação]` por `T -->|skip| R[Reporter]`. Aplicar
+  em sessão Code curta após coordinator-flesh-completo.
+- **coordinator-flesh-completo**: §3.0 + §3.1 + §3.2 + §3.3 + §3.4
+  ganharão flesh paralelo ao das specs Triager/Detector/Classifier/
+  Matcher. Sessão #39+ ou posterior.
 
-## 4. Tasks pendentes para sessão #38+
+## 4. Ações pré-Triager-sanity (Code session ~15-20min total)
 
-Quatro frentes independentes; ordenamento natural sugerido (sequencial
-ou paralelo onde explicitado).
+### (A) Apply coordinator v3 (direct commit ~10-15min)
 
-### (A) Apply skeleton coordinator.md (Code curta ~15min)
+- Branch nova `chore/sync-coordinator-with-reporter-0.3.0` ramificando
+  de main.
+- `cp /mnt/user-data/outputs/coordinator.md docs/specs/subagents/coordinator.md`
+  (overwrite total).
+- `git diff --stat docs/specs/subagents/coordinator.md` para sanity
+  visual antes de commit.
+- Diff inspection comando útil para validar substância sobre reflow:
+  ```powershell
+  git diff --word-diff=color docs/specs/subagents/coordinator.md |
+      Select-String -Pattern '(reporter_sdk_server|EMIT_REPORT_DESCRIPTION|tools=\[\]|denial-on-miss|Gate 6|create_reporter_server|ToolAnnotations|ReportPayload)'
+  ```
+  deve listar exatamente as mudanças substantivas (não reflow noise).
+- Squash commit title: `chore(specs): sync coordinator.md v3 with reporter.md 0.3.0`.
+- Body cita os 6 surgical edits via §10.5 + Edit 3 estendido (caminho
+  A) + reflow mecânico com invariante.
+- **Pode ir direto a main como direct commit** (consenso #42 caminho
+  (A)) **OU** abrir PR formal — decisão pendente. Inclinação minha:
+  direct commit (auditoria preservada via header status do v3 + esta
+  handoff).
 
-- Mover `coordinator-md-skeleton-37.md` de `/mnt/user-data/outputs/`
-  para `docs/specs/subagents/coordinator.md`.
-- Criar diretório `docs/specs/subagents/` se ainda não existir.
-- Commit direto em main (per ADR-0001 D6 — categorização: skeleton
-  ainda é draft em deliberação, mas o pattern de specs é direct commit
-  até o flesh-completo abrir PR formal). **Decisão:** confirmar com
-  João se prefere PR formal ou direct commit; minha inclinação é
-  direct commit dado o status "Draft, sessão #37" no header — PR
-  formal abre com Reporter-flesh.
+### (B) Apply learning-log entry #42 (direct commit ~5min)
 
-### (B) Apply diff aplicável de tasks.md (Code curta ~20-30min)
-
-- PR mecânica `docs/tasks-milestone-c-header`.
-- Aplicar 4 blocos do `tasks-md-milestone-c-diff-37.md` em
-  `docs/tasks.md`.
-- Chat review independente pós-aplicação esperado para 0-2 achados
-  load-bearing (análogo a #27).
-- Não bloqueia (A).
-
-### (C) Housekeeping ADR-0012 stale → ADR-0011 (Code ~15min)
-
-- PR isolada `chore/sync-adr-references`.
-- Grep `ADR-0012` em:
-  - `docs/session-handoff.md` (§(E) e §(F) — refs a "ADR-0012 pos-hoc"
-    para Windows-stdio E-2).
-  - `docs/milestoneB.md` (§"Próximas tasks dependentes" — ref a
-    "ADR-0012 pos-hoc").
-- Substituir por `ADR-0011` (que absorveu E-1 + E-2 na consolidação).
-- Libera número ADR-0012 para retroativo Milestone C.
-- Não bloqueia (A) nem (B); obrigatório antes de citar ADR-0012 em
-  qualquer artefato novo.
-
-### (D) Apply learning-log entry #37 (direct commit ~5min)
-
-- Anexar `learning-log-entry-37.md` ao final de `docs/learning-log.md`.
+- Anexar `learning-log-entry-42.md` ao final de `docs/learning-log.md`.
 - Direct commit em main per ADR-0001 D6.
-- Não bloqueia (A), (B), (C).
+- Não bloqueia (A); idealmente após (A) para que learning-log refletir
+  estado mergeado do coordinator v3.
 
-### (E) Apply session-handoff #37→#38 (direct commit ~5min)
+### (C) Apply session-handoff (direct commit ~5min)
 
-- Substituir conteúdo de `docs/session-handoff.md` pelo conteúdo de
-  `session-handoff-37-to-38.md`.
+- Substituir conteúdo de `docs/session-handoff.md` pelo conteúdo
+  deste documento (`session-handoff-42-to-next.md`).
 - Direct commit em main per ADR-0001 D6.
-- Pré-requisito para abertura de sessão #38 (consumida como
-  bootstrap).
+- Pré-requisito para abertura da sessão Triager-sanity (consumido
+  como bootstrap).
 
-### (F) Reporter-flesh-first (sessão Chat #38 — ~1-1.5h)
-
-Pré-requisitos: (A) aplicada (coordinator-skeleton disponível como
-referência); (E) aplicada (handoff consumido). (B), (C), (D) não
-bloqueiam mas idealmente aplicadas antes para limpar contexto.
-
-**Escopo de #38:**
-- Redigir `docs/specs/subagents/reporter.md` completa (~2-3 páginas,
-  10-11 seções do template hipótese da sessão #37).
-- **Destilar `docs/specs/subagents/_template-subagent.md`** do que
-  emergir na redação do Reporter (per `docs/specs/_template.md`
-  §método-de-destilação, caminho (b) ratificado em #37).
-- Decidir sub-decisão (i.a) vs (i.b) para schema de "Report vazio"
-  (per Code review item 2 de #37).
-- Confrontar template hipótese da sessão #37 com Reporter empírico;
-  ajustar ambos.
-
-**Pré-flight pattern emergente (#37 meta):** antes de redigir, Code
-faz grep de docs autoritativos relevantes ao Reporter
-(architecture-overview §3, §4.3, §5.6, §5.7 + REQUIREMENTS.md RF-006 +
-ADR-0007 vocabulary scope + ADR-0011 cascading). Lista entregue ao
-Code antes da redação começar.
-
-### (G) Triager-sanity (sessão Chat #38 ou #39 — ~30-45min)
-
-Pré-requisito: (F) completa (template destilado disponível).
-
-- Redigir `docs/specs/subagents/triager.md`.
-- Sanity check: o template super-fitou ao Reporter? Triager forçado a
-  seção vazia ("§6 MCP servers: nenhum") é OK; Triager incapaz de
-  preencher seção honestamente é sinal de over-fit ao Reporter.
-- Patch template se sinal de over-fit detectado.
-
-### (H) Detector → Classifier → Matcher (sessões Chat #38-#39)
-
-Pré-requisito: (G) completa (template estabilizado).
-
-Ordem de complexidade crescente; cada um cita contract I/O do anterior
-(Rule 6 anti-drift).
-
-### (I) Coordinator-flesh-completo (sessão Chat #39+ — ~1.5h)
-
-Pré-requisito: (H) completa (cinco specs revelaram surface real).
-
-- Reescrever coordinator.md absorvendo learnings das 5 specs.
-- §3 sub-seções fluem com fidelidade ao que as specs declararam.
-- §10 três-beats Beat 1 → Beat 2 (apply companion edits arch-overview
-  em sessão Code subsequente).
-
-### (J) Companion edits arch-overview (Code ~30min)
-
-Pré-requisito: (I) completa.
-
-- Aplicar três patches catalogados em coordinator.md §10 a
-  `docs/architecture-overview.md`:
-  - §5.1: exceção pontual coordinator → `policy://vocabularies`.
-  - §5.7: linha coordinator na matriz com ✓ em vocabularies.
-  - §3 mermaid: `skip → Reporter` em vez de `skip → END`.
-- Three-beats Beat 2 → Beat 3 (Chat review independente pós-aplicação).
-
-### (K) ADR-0012 retroativo Milestone C (sessão Chat ~1.5-2h)
-
-Pré-requisito: (C) aplicada (ADR-0012 número liberado); idealmente
-(I)+(J) também (decisões consolidadas para registrar).
-
-- Redigir `docs/adr/0012-milestone-c-design-decisions.md`.
-- Cobrir divergências metodológicas (template upfront vs destilação;
-  abandono ADR-0003 dual) + decisões load-bearing (coordinator A',
-  S2', M2, halt-conditions caminho i, vocabularies single load point,
-  SDR pattern β).
-- Formato curto (parágrafo de rationale + parágrafo de consequences
-  por decisão), conforme ADR-0002 heurística "peso do formato segue
-  peso da deliberação".
-
-### (L) Decompor tasks T11+ (sessão Chat dedicada)
-
-Pré-requisito: (I) coordinator-flesh-completo + 5 specs em main.
-
-Análoga à #27 (decomposição de Milestone B). Produz blocos de tasks
-T11-T15 (estimativa preliminar; granularidade final emerge das specs).
-
-### (M) Benchmark de PRs sintéticos (Provisão D — sessão Chat ~1.5h)
-
-Pré-requisito: tasks T11+ em decomposição avançada (precisa saber o
-shape do Report final empírico).
-
-Não bloqueia tasks individuais; bloqueia gate milestone-level.
-
-## 5. Catches catalogados (não bloqueantes para #38)
+## 5. Catches catalogados (não bloqueantes para Triager-sanity)
 
 | # | Item | Severidade | Locus sugerido |
 |---|------|-----------|----------------|
-| 1 | Oscilação minha entre (a) e (b) em "vocabularies load" (3 pivôs em uma sessão) — sinal de Chat sem opinião firme em judgment calls de simétricos. Code reviews ancoraram a decisão. | Substantivo metodológico | Defense candidate para Capítulo de Método: "argumentação assimétrica entre Chat e Code estabiliza decisão de design quando ambos lados têm mérito". Anotar em learning-log #37. |
-| 2 | Schema do "Report vazio" não está em RF-006 literal; campo `summary.reason` ou similar é decisão de design adjacente. Reporter-flesh decide. | Substantivo conceitual | Anota como ponto explícito a deliberar em (F). |
-| 3 | `gate_b_output.json` + `gate_b_stderr.log` untracked working dir — débito #35 ainda não fechado. | Cosmético | (H) handoff #35→#36 ainda válido; entra em housekeeping próxima janela. |
-| 4 | Pattern "pre-flight grep Code" emergente em #37 mas não codificado como rule. | Substantivo metodológico | Candidato a `.claude/rules/design-proposal-preflight.md` se materializar em 2+ sessões futuras. Adiar codificação até validação empírica. |
-| 5 | Ordem (A)-(M) acima é otimista; pode haver gargalos em (F) Reporter-flesh se template hipótese sessão #37 quebrar em alguma seção. Risco realista, mas absorvido em (F) por design. | Estilístico | Reporter-flesh sessão #38 esperada em ~1-1.5h normal; ~2-2.5h se template quebrar. |
+| 1 | `reflow_v2.py` é utility one-off em `/home/claude/`, não no repo. Promover para `scripts/utils/reflow.py` quando validado em 2+ specs. | Cosmético | Decidir após Triager + Detector se reflow continuar útil. |
+| 2 | Pattern de "duas lentes ortogonais de review" (cross-doc rigoroso + arquitetural-gaps) emergente em #42 mas não codificado como rule. | Substantivo metodológico | Candidato a `.claude/rules/spec-review-discipline.md` se materializar em 2+ specs. Adiar codificação até validação empírica em Triager + Detector. |
+| 3 | Bug-magnet de few-shot exemplar wrap structure pego em #42. Pattern operacional: validar sintaxe de exemplar contra schema real antes de incluir. | Substantivo metodológico | Material para `.claude/rules/few-shot-discipline.md` se padrão materializar em 2+ specs. |
+| 4 | Renumeração-com-propagação-incompleta pego em #42 second-pass. Grep cross-doc por TODOS os números antigos antes de fechar PR de refactor de listas numeradas. | Substantivo metodológico | Material para `.claude/rules/refactoring-discipline.md`. |
+| 5 | Ordem `Triager → Detector → Classifier → Matcher` é otimista; pode haver gargalo em Matcher (complexidade arquitetural maior, dependência de policy-reader spec já mergeada). Risco realista, absorvido na ordem por design. | Estilístico | Custo estimado Triager ~30-60min; Detector ~45-90min; Classifier ~1-1.5h; Matcher ~1.5-2.5h. |
+| 6 | Itens deferidos do Reporter spec §8.4 a decidir forçadamente em Triager-sanity (callouts 💡, observabilidade, schema migration, requires_human_review semantic). Decisão template-wide. | Substantivo conceitual | Material explícito a deliberar em Triager-sanity §opening. |
+| 7 | Bump rules atuais aplicam-se ao estado mergeado, não ao em-revisão. Quando PR de outra spec receber multiple-pass reviews, preservar bump only-merged. | Substantivo metodológico | Defense candidate registrado em learning-log #42. |
+| 8 | `os.replace` Windows-native ratificado em Reporter spec §4.9. Triager/Detector/etc não escrevem ao scratchpad (audit-only via coordinator), mas se algum subagent futuro escrever, herdar o pattern. | Cosmético | Material para `.claude/rules/windows-tooling.md`. |
 
-## 6. Pre-flight para sessão #38
+## 6. Pre-flight para próxima sessão Chat (Triager-sanity)
 
-Antes de abrir Chat #38 (Reporter-flesh):
+Antes de abrir Chat de Triager-sanity:
 
-- **Aplicar (A), (B), (D), (E) em qualquer ordem** — limpa working
-  dir e dá próxima sessão bootstrap claro. (C) recomendado mas não
-  obrigatório.
+- **Aplicar (A), (B), (C) em qualquer ordem** — limpa working dir e
+  dá próxima sessão bootstrap claro. (A) pode pular se preferir
+  agrupar coordinator commit com learning-log + handoff numa única
+  janela Code.
 - **Confirmar estado do repo:** `git log main --oneline -5` deve
-  mostrar commits de (A), (B), (D), (E) — opcional (C).
-- **Lista de docs autoritativos para Reporter pre-flight grep Code:**
-  - `docs/architecture-overview.md` §3 (fluxo), §4.3 (emit_report
-    tool), §5.6 (Reporter spec original), §5.7 (matriz tools).
-  - `docs/REQUIREMENTS.md` RF-006 (Report agregado) + RNF-002
-    (rastreabilidade).
-  - `docs/adr/0007-mvp-collection-only-scope.md` (verdict
-    `not_applicable` semantics).
-  - `docs/adr/0005-multi-client-architecture.md` (provenance
-    trinque).
-  - `docs/specs/policy-reader/canonical.md` §4 (check_applicability
-    output shape consumido pelo Matcher upstream do Reporter).
-  - Outputs sessão #37 em `/mnt/user-data/outputs/`
-    (coordinator-skeleton para cross-refs).
-- **Carregar:** Bloco 2 §emit_report + Bloco 3 template hipótese da
-  sessão #37 + Code review item 2 sub-decisão (i.a) vs (i.b).
-- **Decidir antes:** PR formal ou direct commit para coordinator-skeleton
-  (item (A)). Minha inclinação direct commit.
+  mostrar commits de (A), (B), (C).
+- **Lista de docs autoritativos para Triager pre-flight grep Code:**
+  - `docs/specs/subagents/reporter.md` (Reporter spec 0.3.0 — template
+    hipótese fonte).
+  - `docs/specs/subagents/coordinator.md` v3 (após merge — §3.1
+    Triager skeleton + cross-refs).
+  - `docs/architecture-overview.md` §3 (fluxo Triager →) + §5.1
+    (Triager spec original).
+  - `docs/REQUIREMENTS.md` RF-001 (Triager decision skip vs proceed).
+  - `docs/adr/0005-multi-client-architecture.md` (provenance trinque;
+    Triager preserva mas não introduz).
+- **Carregar:** Reporter spec §8.4 (itens deferidos a decidir),
+  Reporter spec §6.6 (few-shot pattern emergente — ratificar para
+  Triager?), Reporter spec template estrutural §1-§11 (~11 seções).
+- **Decidir antes:** sub-decisões antecipadas para sessão Triager:
+  - **`tools=[]` para Triager?** Triager tem `tools=["Read", "Glob"]`
+    no coordinator v3 (legitimamente usa Read+Glob para inspecionar
+    diff). Decidir se Triager segue pattern Read+Glob ou migra para
+    `tools=[]` (sem built-ins; só system_prompt + estrutura prose do
+    diff inline). Inclinação: manter Read+Glob — Triager precisa
+    inspecionar arquivos do diff, não só ler text inline.
+  - **Few-shot exemplars necessários?** Reporter teve 3 exemplares
+    (estados de pipeline). Triager pode precisar menos (decisão
+    binária skip/proceed) — talvez 2 exemplares (proceed-com-files-
+    suspeitos, skip-com-rationale-claro).
 
-## 7. Conceitos da prova relevantes para sessão #38
+## 7. Conceitos da prova relevantes para Triager-sanity
 
-- **D1 (Agentic Architecture) — Task Statement 1.3.** AgentDefinition
-  configuration aplicada concretamente: Reporter terá `description`
-  para guiar Agent tool dispatch; `prompt` definindo expertise em
-  agregação + provenance preservation; `tools=["Read", "mcp__reporter-tools__emit_report"]`
-  com tool authorization restritiva; `mcpServers=[]` (Reporter não
-  consome MCP servers externos, só custom tool in-process).
-- **D2 (Tool Design & MCP) — Task Statement 2.3.** Custom tool +
-  in-process MCP server padrão `create_sdk_mcp_server`. Reporter é
-  exercício canônico do pattern porque (i) usa exclusivamente custom
-  tool, (ii) tool authorization é o que protege "Reporter como único
-  locus emissor".
-- **D5 (Reliability) — Task Statement 5.3.** Structured error context:
-  Reporter pode receber findings com `verdict: indeterminate` +
-  `verification_scope`; spec deve declarar como propaga isso no Report
-  sem perda de provenance. Conexão direta com RNF-002.
-- **D4 (Prompt Engineering) — Task Statement 4.x.** Few-shot strategy
-  do Reporter: provavelmente desnecessária se schema do Report é
-  estrito Pydantic; spec ratifica explicitamente (Decisões de prompt
-  §7 do template).
+- **D1 (Agentic Architecture) — Task Statement 1.3.** Triager
+  exemplifica subagent com **single responsibility** estrita: decisão
+  skip/proceed + rationale. Sem cross-cutting concerns. Spec ratifica
+  pattern em §3 (Output) com dois campos: `decision` (enum) +
+  `skip_reason` (str, optional, present only when decision==skip).
+- **D2 (Tool Design & MCP) — Task Statement 2.3.** Triager mais
+  simples de toda a pipeline em tool surface: `tools=["Read", "Glob"]`,
+  `mcp_servers={}` (sem servers MCP). Exercício canônico de "scoped
+  access" — Triager não tem acesso a `policy-reader` nem
+  `semgrep-runner` nem `reporter_tools`. Matrix mais restritiva da
+  pipeline.
+- **D4 (Prompt Engineering) — Task Statement 4.5.** Triager few-shot:
+  binary decision com rationale. Provavelmente 2 exemplares cobrindo
+  proceed-com-files-suspeitos vs skip-com-rationale-claro. Cobertura
+  de "skip with malformed PR metadata" pode emergir empiricamente.
+- **D5 (Reliability) — Task Statement 5.3.** Triager error handling
+  é trivial: `decision: "skip"` é caso válido **não-erro** (preserva
+  Reporter como único locus emissor); Pydantic validation falha
+  apenas se Triager retornar texto não-JSON ou JSON com schema
+  errado.
 
 ## 8. Próximo passo
 
-Sessão #38 abre com Reporter-flesh-first per ordem híbrida. Custo
-estimado ~1-1.5h Chat normal; pode chegar a 2-2.5h se template
-hipótese da sessão #37 quebrar em alguma seção.
+Sessão Triager-sanity abre com escopo duplo: (a) redigir `docs/specs/
+subagents/triager.md` completa com base no template hipótese do
+Reporter; (b) sanity-check do template — destilar `_template-subagent.md`
+se sinal de boa cobertura, ou patchar template se Triager forçar
+seções vazias que sinalizam over-fit ao Reporter.
 
-Sessão #38 também pode absorver Triager-sanity (~30-45min) se tempo
-permitir, fechando duas specs em uma janela.
+Custo estimado: ~30-60min Chat. Pode ser mais longo se sinal de
+over-fit do template forçar refactor de seções. Triager-sanity pode
+caber em sessão Chat única; Detector seria sessão separada.
+
+Sessões subsequentes (pós-Triager-sanity): Detector (~45-90min) →
+Classifier (~1-1.5h) → Matcher (~1.5-2.5h, complexidade arquitetural
+maior por dependência de policy-reader tools) → coordinator-flesh-
+completo (~1.5-2h, integra learnings das 5 specs) → companion edits
+arch-overview (three-beats Beat 2) → ADR-0012 retroativo Milestone
+C → decomposição de tasks T11+ → benchmark de PRs sintéticos → gate
+milestone-level.
 
 ---
 
-**Status do handoff:** completo. Próxima sessão Chat (#38) consome
-este documento + `coordinator-md-skeleton-37.md` + Bloco 2 §emit_report
-+ Bloco 3 template hipótese como base.
+**Status do handoff:** completo. Próxima sessão Chat (Triager-sanity)
+consome este documento + Reporter spec 0.3.0 mergeada + coordinator
+v3 (após merge) + Reporter spec §8.4 (itens deferidos).
 
-**Custo total sessão #37:** estimado ~3.5-4h Chat (Blocos 1-3 +
-materialização de quatro outputs). Ratio Chat:Code = ∞:0 (sessão Chat
-pura; Code consumirá artefatos em sessões subsequentes).
+**Custo total sessões #41+#42:** estimado ~5-7h Chat consolidadas
+(consolidação + 4 iterações de review + 6 edits + Edit 3 estendido +
+reflow + materialização de 5 outputs). Ratio Chat:Code = ∞:0 nas
+sessões Chat propriamente ditas; Code consumirá `coordinator.md` v3
+em sessão de aplicação ~15min.

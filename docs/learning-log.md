@@ -6291,3 +6291,236 @@ para reprodutibilidade pós-upgrade do SDK. Edit cirúrgico a
 `coordinator.md` §3.4 e §3.5 substituindo `tools=["Read"]` por
 `tools=[]` é proposto para PR separado (não escopo deste Gate). Demais
 findings (#1, #2, #4-#8) do review V2 continuam em backlog Chat.
+
+# Learning Log — entry sessões #41 + #42
+
+Anexar ao final de `docs/learning-log.md` via direct commit
+(per ADR-0001 D6).
+
+---
+
+## #41 + #42 — 2026-05-26/27 — Reporter-FLESH consolidado + Reporter spec 0.3.0 + coordinator v3 sub-packaging
+
+**Escopo da sessão.** Duas sessões Chat consolidadas em uma entry por
+continuidade temática: #41 materializou Reporter spec v0.1.0 → v0.2.0
+(consolidação de Reporter draft com 10 diretrizes forward-looking +
+3 achados de review independentes); #42 fez second-pass review (catch
+crítico do cross-check #3 vocab membership como semântica do Matcher,
+não shape do Reporter) levando a Reporter spec 0.3.0 mergeada, depois
+sub-packaging do coordinator com 6 surgical edits prescritos em §10.5
+da Reporter spec + Edit 3 estendido em second-pass do próprio
+coordinator (factory pattern alinhado a Reporter spec §4.8).
+
+Resultado tangível: `docs/specs/subagents/reporter.md` v0.3.0
+mergeada; `docs/specs/subagents/coordinator.md` v3 produzido como
+output Chat aguardando direct commit em
+`chore/sync-coordinator-with-reporter-0.3.0`.
+
+**Conceitos da prova exercitados.**
+
+*Domínio 1 — Agentic Architecture & Orchestration.* D1.2 + D1.3
+coordinator-subagent materializados em factory pattern com closure
+capture. `create_reporter_server(run_path, expected_report_id)` envolve
+`@tool` decorator + `create_sdk_mcp_server`, capturando run_path (sink
+#1 do dual sink) e expected_report_id (cross-check #4 intra-handler)
+via Python closure. Module-level `@tool` definition (skeleton v2
+original) seria incompatível com runtime parameters — handler seria
+criado uma vez na importação, sem acesso aos parâmetros do run.
+Factory pattern resolve. Defense candidate forte para o Capítulo de
+Método: "restrições do SDK formam o desenho da arquitetura" — closure
+capture não é otimização, é único caminho viável dado que `run_path`
+muda a cada execução do pipeline.
+
+*Domínio 2 — Tool Design & MCP Integration.* D2.3 scoped tool access
+exercitada via **distinção load-bearing entre denial-on-miss e
+availability**, com surface concreta na issue #361 do SDK Python
+(*"It [allowed_tools] does not remove tools from Claude's toolset"*).
+Quíntupla canônica restruturada em §2 do coordinator: 5 elementos
+ortogonais de denial-on-miss (`permission_mode` + `setting_sources` +
+`strict_mcp_config` + `allowed_tools` + `mcp_servers`) separados de
+`system_prompt` (role definition) e `tools` (context restriction;
+eixo ortogonal availability). Defesa em profundidade requer ambos os
+eixos: `tools=[]` (per Gate 6 / PR #67 evidência empírica em
+`scripts/smoke_tests/sdk_tools_empty_list/`) remove built-ins do
+contexto do modelo, enquanto `allowed_tools` whitelist com
+`permission_mode="dontAsk"` garante denial de tentativas fora do
+allowlist. ToolAnnotations declaradas no @tool (`readOnlyHint=False`,
+`destructiveHint=False`, `idempotentHint=False`, `openWorldHint=False`)
+aplicadas a `emit_report` per Reporter spec §4.6.
+
+*Domínio 4 — Prompt Engineering & Structured Output.* D4.2 few-shot
+strategy materializada com 3 exemplares no Reporter spec §6.6 cobrindo
+três estados de pipeline: normal-com-findings, skip-path, findings-zero.
+Bug-magnet de exemplar wrap structure detectado em second-pass review:
+sintaxe `emit_report(payload={...})` (wrap em chave `payload`)
+divergente da assinatura real `emit_report({...})` (schema flat
+correspondendo direto a `ReportPayload.model_json_schema()`).
+Falha em corrigir produziria failure mode `PYDANTIC_VALIDATION`
+cryptic em runtime — o erro aparece longe da causa, e o modelo,
+seguindo o exemplar, replicaria a estrutura errada sistematicamente.
+Defense candidate forte: **severidade subestimada de bug-magnet em
+few-shot exemplars**, especialmente quando a falha é silenciosa-via-
+schema-validation em vez de loud-via-tool-error.
+
+*Domínio 5 — Context Management & Reliability.* D5 structured error
+metadata materializada em §4.4 + §4.5 do Reporter spec (envelopes
+estruturados com errorCategory, errorCode, is_retryable, details).
+Atomic write-then-rename via `os.replace` (Windows-native) garante
+durabilidade do 99-report.json sem corromper estado em crash mid-write.
+**Aritmética de retry budget** com locus authoritative em §1.5 da
+Reporter spec (`max_turns=3` = 1 initial emit + até 2 retries) e
+cross-refs em outros loci (§4.4, §4.5, coordinator §3.5) — pattern
+de "single source of truth + references" aplicável a parâmetros
+operacionais que aparecem em múltiplos contextos.
+
+**Defense candidates emergentes (8 patterns).**
+
+1. **Cross-doc rigoroso vs arquitetural-gaps como lentes ortogonais
+   de review.** João forneceu dois reviews independentes da Reporter
+   v0.2.0 (cross-doc rigoroso pegando inconsistências factuais entre
+   seções; arquitetural-gaps pegando decisões load-bearing ausentes).
+   Convergência em catch comum = validação cruzada; divergência cobre
+   área maior. Pattern: usar duas lentes ortogonais para validar specs
+   substantivas, não duas instâncias da mesma lente.
+
+2. **Catch que escapa às duas lentes mas emerge da coerência intra-
+   spec.** Cross-check #3 (vocab membership) estava em §4.8 (handler
+   logic) como parte dos cross-checks intra-handler. Mas §8.3 (lista
+   positiva de o-que-o-Reporter-faz) descrevia o mesmo cross-check
+   sob óptica do que **o Reporter não faz** — vocab membership é
+   responsabilidade do Matcher per §2.4 + §8.3. Inconsistência
+   interna emergia da releitura intra-spec. Linha de pergunta: "esta
+   afirmação em §N contradiz alguma afirmação em §M para M ≠ N±1?"
+
+3. **Severidade subestimada de bug-magnet em few-shot exemplars.**
+   Detalhado acima sob D4. Material para `.claude/rules/few-shot-discipline.md`
+   se padrão materializar em 2+ specs.
+
+4. **Bump rules sobre estado mergeado, não em-revisão.** Os 4 fixes
+   pós-second-pass do Reporter spec (§8.3 renumbering, §10.3 Gate 4
+   stale ref, §5.1 M3 incompleto, §7.2 "ou inline em tools.py" stale)
+   foram aplicados consolidadamente no **mesmo bump 0.3.0** sem subir
+   para 0.3.1, porque a 0.2.0 ainda não havia sido mergeada. Bump
+   rules aplicam-se ao estado mergeado, não ao em-revisão. Reduz
+   ruído de bump-churn pré-merge.
+
+5. **Renumeração-com-propagação-incompleta como classe de drift.**
+   Decisão de remover cross-check #3 do Reporter spec (passou de 5
+   para 4 cross-checks) exigiu pass de grep cross-doc por TODOS os
+   números antigos: §4.8 tabela (5→4), §6.3 (sem `VOCAB_OUT_OF_FRAMEWORK`),
+   §9.3 (sem teste vocab), §8.3 lista positiva (numeração #4a/4b/5
+   stale), §10.3 Gate 4 ref stale. Falha em 2 dos loci escapou ao
+   first-pass e foi pego no second-pass review. Material para
+   `.claude/rules/refactoring-discipline.md`: "refactor de listas
+   numeradas requer grep cross-doc por TODOS os números antigos antes
+   de fechar PR".
+
+6. **Reflow Markdown 3 classes de bugs latentes.** Script de reflow
+   do coordinator (890 → 501 linhas) detectou três bugs distintos em
+   uma única implementação: (a) regex `^#` falso-positivo matching
+   `#37` (ref a sessão) como heading — fix `^#{1,6}\s` ATX strict; (b)
+   regex `[-*+]` falso-positivo matching `+ ` como continuação de
+   prose hard-wrap como list item — fix omitir `+` do alphabet de
+   markers para docs que usam `+` como prose connector; (c) blank line
+   intra-list quebrando paragraph-split-by-blank-line — fix walking
+   line-by-line com state machine de tipo de linha. Os três convergem
+   para princípio: **classification-by-context é mais robusta que
+   classification-by-pattern em transformações estruturais de
+   markdown**. Material para `.claude/rules/markdown-reflow-discipline.md`
+   ou `scripts/utils/reflow.py` quando estes forem autorados.
+
+7. **Minimal-spec interpretation expõe gaps arquiteturais latentes.**
+   Edit 3 da §10.5 da Reporter spec prescreveu: *"substituir literal
+   'Emit the consolidated Report JSON' por referência ao
+   EMIT_REPORT_DESCRIPTION canônico"*. Aplicação literal-minimal
+   substituiu **apenas** a string, deixando §7 do coordinator com
+   `@tool` module-level + `create_sdk_mcp_server` module-level —
+   incompatível com `create_reporter_server(run_path, run_id)` que
+   §3.0 chama em runtime. Inconsistência arquitetural exposta pela
+   aplicação minimal, pega em second-pass review do coordinator.
+   Três respostas possíveis ao gap detectado: (i) aplicar minimal
+   silenciosamente → bug latente em main; (ii) aplicar minimal +
+   relatar gap como observação → reviewer decide; (iii) estender o
+   edit unilateralmente → overreach. Caminho (ii) ratificado como
+   defensável: preserva autoridade da spec, mas exerce **honestidade
+   epistêmica do aplicador**. Caminho (A) escolhido pelo João
+   estendeu Edit 3 no mesmo PR. Material forte para Capítulo de
+   Método.
+
+8. **Revisão temporal-deslocada do mesmo agente como classe de catch
+   independente.** Sessão #41 abriu com 3 achados de review do
+   próprio Reporter draft autorado em sessão anterior (postura A
+   sobre quíntupla canônica preservando 5 elementos; §9.6 removido
+   como duplicação de coordinator §10 three-beats; Gate numbering
+   4→5 reordenado). Distância temporal entre autoria e leitura captura
+   classes distintas de drift que self-review-imediato não pega
+   (semântico interno, redação afastada). Pattern complementar a
+   multi-instance review do exam guide D4.6: o segundo passe não
+   precisa ser de outra instância — outra **sessão temporal** do
+   mesmo agente já captura drift.
+
+**Métricas operacionais.**
+
+- 4 iterações de revisão consolidadas em 0.3.0 (consolidação inicial
+  + 3 achados first-pass + 1 catch crítico second-pass + 4 fixes
+  renumeração) sem bump-churn intermediário.
+- Reporter spec final 0.3.0: 946 linhas. coordinator v3 final: 517
+  linhas (vs v2 com 890 linhas; reflow contribuiu 44% da redução +
+  6 edits substantivos + Edit 3 estendido).
+- 2 sessões Chat consolidadas (#41 ~3-4h consolidação + materialização;
+  #42 ~2-3h reviews + coordinator sub-packaging).
+- 0 commits em main durante as sessões Chat; materialização via
+  outputs em `/mnt/user-data/outputs/`. Aplicação ao repo via direct
+  commits curtos (Reporter spec 0.3.0 já mergeada; coordinator v3
+  pending).
+- 8 defense candidates registrados (acima); todos com material
+  reaproveitável para Capítulo de Método.
+
+**Artefatos produzidos (sessões #41 + #42).**
+
+Outputs Chat em `/mnt/user-data/outputs/`:
+
+- `reporter.md` v0.3.0 (#41 consolidation + #42 second-pass; 946
+  linhas) — **mergeada em main** em `docs/specs/subagents/reporter.md`.
+- `coordinator.md` v3 (#42 sub-packaging; 517 linhas) — **pending
+  merge** em `docs/specs/subagents/coordinator.md` via
+  `chore/sync-coordinator-with-reporter-0.3.0`.
+- Script `reflow_v2.py` (#42 utility; 90 linhas) — utility one-off
+  para o reflow do coordinator; **não promovido ao repo** (aguardar
+  validação empírica em 2+ specs antes de mover para
+  `scripts/utils/`).
+- Este entry (#42 learning-log).
+- session-handoff #41+#42 → próxima-sessão (Triager-sanity).
+
+**Próximo passo.**
+
+Sequência operacional antes da próxima sessão Chat:
+
+1. Apply coordinator v3 (direct commit em `chore/sync-coordinator-with-reporter-0.3.0`).
+2. Apply este learning-log entry (direct commit em main per ADR-0001 D6).
+3. Apply session-handoff (direct commit em main per ADR-0001 D6).
+
+Próxima sessão Chat: **Triager-sanity** (~30-60min Chat). Escopo
+duplo: (a) redigir `docs/specs/subagents/triager.md` com base no
+template hipótese que emergiu da Reporter spec 0.3.0; (b) sanity-
+check do template — destilar `_template-subagent.md` se sinal de
+boa cobertura, ou patchar template se Triager forçar seções vazias
+que sinalizam over-fit ao Reporter.
+
+Itens deferidos do Reporter spec §8.4 a decidir forçadamente na
+sessão Triager (per spec §8.4):
+
+- Callouts 💡 inheritance no template-subagent (Reporter spec teve
+  callouts pedagógicos; padrão para todos os subagentes?).
+- `requires_human_review` semantic forward-ref ao Matcher spec
+  (Reporter spec declarou campo presente no Report; Matcher spec
+  ainda não autorou semantics de quando o campo é true).
+- Pydantic structuring de `scope` (decidido como string flat no
+  Reporter spec; opcionalmente migrar para tipo nominado quando
+  Matcher precisar discriminar).
+
+Sessões subsequentes pós-Triager-sanity: Detector → Classifier →
+Matcher (~3-4 sessões Chat, complexidade crescente) → coordinator-
+flesh-completo → companion edits arch-overview (three-beats Beat 2)
+→ ADR-0012 retroativo Milestone C → decomposição de tasks T11+ →
+benchmark de PRs sintéticos → gate milestone-level.

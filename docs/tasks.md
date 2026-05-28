@@ -620,6 +620,16 @@ em sessão Code curta dedicada):**
   convenção FastMCP recomendada pode revelar débito latente. Sessão
   Code curta ~20-30min; sem bloqueio até que apareça empiricamente.
 
+**Follow-up MC-F (a aplicar em sessão futura que tocar a Triager spec):**
+
+- **Follow-up Triager §10.5 item 1 (pós-MC-F):** a prescrição
+  `output_format=TriagerDecision.model_json_schema()` é shorthand;
+  o contrato wire-level é a forma envelopada `{"type": "json_schema",
+  "schema": ...}`, confirmada em `scripts/smoke_tests/sdk_output_format_lockdown/smoke_test.py`
+  (0.2.87) e anotada em `reporter.md` §10.6. Numa sessão futura que
+  tocar a Triager spec, marcar item 1 como shorthand com cross-ref —
+  alinhamento de proveniência, não decisão aberta.
+
 ---
 
 ## Pós-Milestone B aberto

@@ -2,7 +2,7 @@
 
 **Tipo.** Python main loop — não AgentDefinition. Cada etapa do pipeline é uma chamada `query()` do `claude-agent-sdk` cujo `ClaudeAgentOptions` declara `system_prompt=SUBAGENT_SYSTEM_PROMPT` direto, sem `agents={}` e sem dispatch via Agent tool (decisão Coordinator A'' / sessão #38, refinamento sobre A' inicial / sessão #37). Subagente é o main agent dessa query; pattern alinha literalmente com prompt chaining (D1.6 do exam guide canônico).
 
-**Status.** Skeleton v3 (sessão Chat #42 sub-packaging post-merge da Reporter spec 0.3.0). Substitui drafts skeleton-37 (sessão #37), skeleton-38 (primeira passagem sessão #38), e skeleton v2 (PR #63 ratificada). Sincronizado com Reporter spec 0.3.0 via 6 surgical edits do §10.5: (i) `tools=[]` em §3.4 e §3.5 (PR #67 Gate 6 evidência empírica em `scripts/smoke_tests/sdk_tools_empty_list/`); (ii) instanciação de `reporter_sdk_server` em §3.0 (factory `create_reporter_server` de `src/coordinator/tools.py`; reuso da instância em §3.5); (iii) §7 reescrito com **factory pattern** alinhado a Reporter spec §4.8: `create_reporter_server(run_path, expected_report_id)` envolve `@tool` decorator + `create_sdk_mcp_server`, com closure capture sobre `run_path` (sink #1 do dual sink) + `expected_report_id` (cross-check #4); inclui `EMIT_REPORT_DESCRIPTION` importado de `src/coordinator/constants.py` + `ReportPayload.model_json_schema()` de `src/coordinator/models.py` + `ToolAnnotations` declaradas (Edit 3 estendido em sessão #42 second-pass review para resolver assimetria entre §3.0 que chama factory e §7 que mostrava definição module-level — assimetria não estava no escopo literal do §10.5 item 3 mas foi exposta pela aplicação minimal, ratificada caminho (A)); (iv) `version="0.1.0"` em §7 com nota cross-ref alinhando pre-1.0 do projeto; (v) §2 quíntupla canônica enumerada explicitamente como 5 elementos de denial-on-miss (`permission_mode`, `setting_sources`, `strict_mcp_config`, `allowed_tools`, `mcp_servers`) + `system_prompt` (role definition, separado) + `tools` (context restriction, eixo ortogonal availability vs denial-on-miss; ratificado em Reporter spec §1.4 + §1.5); (vi) §3.5 comentário do filter `block.name` atualizado com novo rationale (defesa preventiva contra futuros built-in tool blocks intermediários do SDK, não anti-ToolSearch corrente). Cross-ref incidental adicionado em §3.5 `max_turns=3` apontando aritmética canônica para Reporter spec §1.5 (alinha com padrão de cross-refs estabelecido em §2 + §7; ratificado em sessão #42 second-pass review). Também aplicado reflow mecânico do arquivo (remoção de hard-wrap; 890 → ~500 linhas) por consistência com Reporter spec 0.3.0 sem-hard-wrap — invariante de zero mudanças semânticas além das listadas acima. Pattern A'' + (b2) preservados. Flesh completo após specs dos demais 4 subagentes redigidas em ordem Triager → Detector → Classifier → Matcher (sessão #42+).
+**Status.** Skeleton v3 (sessão Chat #42 sub-packaging post-merge da Reporter spec 0.3.0). Substitui drafts skeleton-37 (sessão #37), skeleton-38 (primeira passagem sessão #38), e skeleton v2 (PR #63 ratificada). Sincronizado com Reporter spec 0.3.0 via 6 surgical edits do §10.5: (i) `tools=[]` em §3.4 e §3.5 (PR #67 Gate 6 evidência empírica em `scripts/smoke_tests/sdk_tools_empty_list/`); (ii) instanciação de `reporter_sdk_server` em §3.0 (factory `create_reporter_server` de `src/coordinator/tools.py` (os três módulos do Reporter — `tools.py`, `constants.py`, `models.py` — migraram para `src/subagents/reporter/` em MC-F/sessão #43+ per DD-T15 / triager.md §1.5); reuso da instância em §3.5); (iii) §7 reescrito com **factory pattern** alinhado a Reporter spec §4.8: `create_reporter_server(run_path, expected_report_id)` envolve `@tool` decorator + `create_sdk_mcp_server`, com closure capture sobre `run_path` (sink #1 do dual sink) + `expected_report_id` (cross-check #4); inclui `EMIT_REPORT_DESCRIPTION` importado de `src/coordinator/constants.py` + `ReportPayload.model_json_schema()` de `src/coordinator/models.py` + `ToolAnnotations` declaradas (Edit 3 estendido em sessão #42 second-pass review para resolver assimetria entre §3.0 que chama factory e §7 que mostrava definição module-level — assimetria não estava no escopo literal do §10.5 item 3 mas foi exposta pela aplicação minimal, ratificada caminho (A)); (iv) `version="0.1.0"` em §7 com nota cross-ref alinhando pre-1.0 do projeto; (v) §2 quíntupla canônica enumerada explicitamente como 5 elementos de denial-on-miss (`permission_mode`, `setting_sources`, `strict_mcp_config`, `allowed_tools`, `mcp_servers`) + `system_prompt` (role definition, separado) + `tools` (context restriction, eixo ortogonal availability vs denial-on-miss; ratificado em Reporter spec §1.4 + §1.5); (vi) §3.5 comentário do filter `block.name` atualizado com novo rationale (defesa preventiva contra futuros built-in tool blocks intermediários do SDK, não anti-ToolSearch corrente). Cross-ref incidental adicionado em §3.5 `max_turns=3` apontando aritmética canônica para Reporter spec §1.5 (alinha com padrão de cross-refs estabelecido em §2 + §7; ratificado em sessão #42 second-pass review). Também aplicado reflow mecânico do arquivo (remoção de hard-wrap; 890 → ~500 linhas) por consistência com Reporter spec 0.3.0 sem-hard-wrap — invariante de zero mudanças semânticas além das listadas acima. Pattern A'' + (b2) preservados. Flesh completo após specs dos demais 4 subagentes redigidas em ordem Triager → Detector → Classifier → Matcher (sessão #42+).
 
 **Pendência metodológica.** Cinco decisões load-bearing de Milestone C serão ratificadas em ADR-0012 retroativo (sessão futura pós-coordinator-flesh):
 
@@ -13,8 +13,6 @@
 - Quíntupla canônica + quatro camadas de enforcement como pattern arquitetural do lockdown agent CI/CD-headless (defense candidate forte D2.3).
 
 Número ADR-0012 fica reservado pendente PR `chore/sync-adr-references` removendo refs stale "ADR-0012" em `docs/process/milestoneB.md` (linhas 50, 102, 106, 107, 112, 114) + triagem caso-a-caso em `docs/process/learning-log.md` (forward refs legítimas a "ADR-0012 retroativo Milestone C" preservadas; refs stale para Windows-stdio E-2 absorvido em ADR-0011 substituídas por "ADR-0011").
-
-**Companion edit arch-overview pendente** (three-beats em §10): patch único — `docs/architecture-overview.md` §3 mermaid substitui `T -->|skip| END[Sem ação]` por `T -->|skip| R[Reporter]`.
 
 **Gate pré-coordinator-flesh** (§11): smoke-test residual de `ToolUseBlock.input` attribute shape para custom tools — único item load-bearing não-resolvido via doc canônica.
 
@@ -54,7 +52,7 @@ Cada etapa segue protocolo idêntico: (a) coordinator monta prompt injetando out
 
 ### §3.0 Initialization
 
-Parse `.mcp.json` com whitelist `EXPECTED_SERVERS` (ver §6 Camada 1); gera `run_id` (UUID v4); cria `.scratchpad/run-<id>/`; instancia `reporter_sdk_server = create_reporter_server(run_path, run_id)` (factory de `src/coordinator/tools.py`; reuso desta instância em §3.5 stage Reporter); valida env vars opcionais (`POLICY_READER_ROOT`, `SEMGREP_RUNNER_ROOT`, `SEMGREP_RUNNER_TIMEOUT_SECONDS`) e usa fallbacks CWD-relative quando ausentes.
+Parse `.mcp.json` com whitelist `EXPECTED_SERVERS` (ver §6 Camada 1); gera `run_id` (UUID v4); cria `.scratchpad/run-<id>/`; instancia `reporter_sdk_server = create_reporter_server(run_path, run_id)` (factory de `src/subagents/reporter/tools.py`; reuso desta instância em §3.5 stage Reporter); valida env vars opcionais (`POLICY_READER_ROOT`, `SEMGREP_RUNNER_ROOT`, `SEMGREP_RUNNER_TIMEOUT_SECONDS`) e usa fallbacks CWD-relative quando ausentes.
 
 **Sob (b2), coordinator NÃO carrega `policy://vocabularies`.** Classifier e Matcher consomem o resource diretamente via `ReadMcpResourceTool` em suas respectivas queries, conforme ADR-0005 Decision 4 (Resource vs Tool textbook case): `policy://vocabularies` é shared resource; `get_clause`, `find_clauses_by_law_article`, `check_applicability` são tools exclusivas do Matcher.
 
@@ -71,10 +69,17 @@ async for msg in query(
         permission_mode="dontAsk",
         setting_sources=[],
         strict_mcp_config=True,
+        output_format={
+            "type": "json_schema",
+            "schema": TriagerDecision.model_json_schema(),
+        },
+        max_turns=20,                   # Triager spec v0.1.0 §1.5 calibração provisional
     ),
 ):
     ...
 ```
+
+> **Tolerância a tipos não-padrão no stream.** O loop `async for msg in query(...)` em todos os stages (não só Triager) recebe ocasionalmente tipos como `RateLimitEvent` — observado em Gate 1 (sessão #38; ver §11 AC2 para enumeração canônica dos tipos de message) e em `scripts/smoke_tests/sdk_output_format_lockdown/README` (SF-2). Tipos não-padrão são tolerados via `isinstance`-filtering: o coordinator extrai semântica apenas de `AssistantMessage` (captura de tool calls / structured output) e `ResultMessage` (terminação); demais são audit trail silencioso (log-and-continue). Não há tratamento ativo de `RateLimitEvent` — rate limiting é orquestrado upstream pelo CLI/SDK.
 
 Output Pydantic-validado, gravado em `01-triager.json`.
 
@@ -357,7 +362,7 @@ Schema do `.mcp.json` é convenção do Claude Code CLI; coordinator empresta a 
 
 ## 7. `emit_report` custom tool
 
-Definida em `src/coordinator/tools.py` via factory pattern. Factory necessária porque o handler precisa capturar (i) `run_path` para gravar `99-report.json` (dual sink, sink #1) e (ii) `expected_report_id` para o cross-check de identidade do payload (Reporter spec §4.8 cross-check #4). Module-level `@tool` definition não permite esse closure capture — handler seria criado uma vez na importação, sem acesso aos parâmetros do run específico. Pattern factory + closure resolve:
+Definida em `src/subagents/reporter/tools.py` via factory pattern. Factory necessária porque o handler precisa capturar (i) `run_path` para gravar `99-report.json` (dual sink, sink #1) e (ii) `expected_report_id` para o cross-check de identidade do payload (Reporter spec §4.8 cross-check #4). Module-level `@tool` definition não permite esse closure capture — handler seria criado uma vez na importação, sem acesso aos parâmetros do run específico. Pattern factory + closure resolve:
 
 ```python
 from pathlib import Path
@@ -397,7 +402,7 @@ def create_reporter_server(run_path: Path, expected_report_id: str):
 
 Factory invocada uma vez por run em §3.0 (Initialization) com `run_path` e `run_id` corrente; instância retornada (`reporter_sdk_server`) é reusada em §3.5 stage Reporter via `mcp_servers={"reporter_tools": reporter_sdk_server}`.
 
-Schema input validado Pydantic via `ReportPayload.model_json_schema()` (single source of truth do schema vive em `src/coordinator/models.py`; Reporter spec §4.3). **Dual sink** — explicitação de captura:
+Schema input validado Pydantic via `ReportPayload.model_json_schema()` (single source of truth do schema vive em `src/subagents/reporter/models.py`; Reporter spec §4.3). **Dual sink** — explicitação de captura:
 
 1. Handler `emit_report_handler` grava `99-report.json` no `run_path` capturado pela closure (audit/CI artifact). Primeira via.
 2. Coordinator captura payload via inspeção do message stream: localiza `ToolUseBlock` com `name == "mcp__reporter_tools__emit_report"`, extrai `block.input` que contém os argumentos exatos passados pelo modelo à tool — isto é o payload do Report (ver §3.5). Segunda via, canônica para retorno ao caller.
@@ -433,7 +438,7 @@ Esclarecimento load-bearing (corrige inconsistência do skeleton #38): **`ToolUs
 
 **Source-of-truth artifacts:**
 - `docs/REQUIREMENTS.md` — RFs cobertas em Milestone C: RF-003 pleno, RF-004 pleno, RF-005 pleno, RF-006, RF-007 pleno, RF-008 pleno + RF-009.
-- `docs/architecture-overview.md` §3 (fluxo de execução; **patch pendente — ver §10**), §4.3 (sistema multi-agente), §5 (subagentes detalhados — §5.4 Classifier e §5.5 Matcher mantêm acesso direto a `policy://vocabularies` per ADR-0005 Decision 4; sem patches sob (b2)), §5.7 (matriz tools × subagentes — sem patches sob (b2)).
+- `docs/architecture-overview.md` §3 (fluxo de execução; **patch applied em MC-F sessão #43+ / this PR**), §4.3 (sistema multi-agente), §5 (subagentes detalhados — §5.4 Classifier e §5.5 Matcher mantêm acesso direto a `policy://vocabularies` per ADR-0005 Decision 4; sem patches sob (b2)), §5.7 (matriz tools × subagentes — sem patches sob (b2)).
 - `docs/tasks.md` Milestone C — capability statement + RFs + gate milestone-level placeholder.
 - `docs/specs/policy-reader/canonical.md` §3.3 (consumidores autorizados de `policy://vocabularies`: Matcher + Classifier).
 
@@ -475,7 +480,7 @@ Patch único pendente em `docs/architecture-overview.md`, derivado da decisão d
 
 **Status three-beats** (per ADR-0002 §Decision 5 + ADR-0003):
 - Beat 1 (proposed): patch §3 mermaid proposto em sessão #37 (caminho i da halt-conditions deliberation), mantido sob (b2) na sessão #38; patches §5.1 e §5.7 propostos em #37 foram eliminados em #38.
-- Beat 2 (applied): pendente sessão Code curta de companion edit arch-overview (target pós-Reporter-flesh).
+- Beat 2 (applied): companion edit arch-overview aplicado em MC-F (sessão #43+, this PR; ver §3 mermaid pós-edit).
 - Beat 3 (verified): pendente review independente Chat pós-aplicação.
 
 Three-beats persiste pós-aplicação como audit trail (per ADR-0002 §Decision 5).

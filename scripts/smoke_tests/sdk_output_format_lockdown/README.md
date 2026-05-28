@@ -114,7 +114,10 @@ schema Pydantic stub.
   SDK separa os canais. Implica que branch B pode permitir tom
   conversacional do subagent sem prejuízo da estrutura.
 - **SF-2 — `RateLimitEvent` aparece no stream.** Tipo de mensagem
-  não observado nos smoke-tests anteriores deste projeto. Confirma
+  já observado em Gate 1 (sessão #38), documentado em `coordinator.md`
+  §11 AC2; reaparece neste smoke-test e reforça obrigação do coordinator
+  de tolerar tipos não-padrão (companion edit a `coordinator.md` §3.1
+  nesta mesma PR). Confirma
   que loop de `async for msg in query(...)` em coordinator deve
   ignorar (ou ao menos tolerar) tipos de mensagem que não sejam
   `AssistantMessage`/`UserMessage`/`ResultMessage`/`SystemMessage`.

@@ -534,6 +534,19 @@ Não bloqueia Reporter-flesh nem demais redações de spec. Sessão Code
 #38 após Code Eureka achado lateral (uv.lock zero matches para
 `claude-agent-sdk` antes do smoke-test).
 
+**Provisão MC-F — Reporter spec 0.3.0 → 0.4.0 + module locus migration
+(aplicada nesta PR / sessão #43+)**. Ratificação retroativa de DD-T15:
+migração de locus dos módulos do Reporter `src/coordinator/{models,
+constants,system_prompts,tools}.py` → `src/subagents/reporter/...`,
+fechamento de forward-refs de `scope` (§5.4, §8.4 do reporter.md) e
+correção do shape de `scope` em few-shots §5.1. Companion edits
+aplicados a `coordinator.md` §inicial / §3.0 / §3.1 / §7 / §10 (T1+T2
+em §3.1, C-1/C-2/C-3 + C-AUDIT, T5a..T5c markers), `docs/architecture-overview.md`
+§3 mermaid (Provisão MC-B aplicada em paralelo: `T -->|skip| END` →
+`T -->|skip| R[Reporter]`), e `scripts/smoke_tests/sdk_output_format_lockdown/README.md`
+SF-2 (provenance bug corrigido). Catalogada originalmente em
+`docs/specs/subagents/triager.md` §10.5 item 7.
+
 ### Tasks T11+
 
 **Status.** A decompor após specs leves dos subagentes fecharem
@@ -606,6 +619,16 @@ em sessão Code curta dedicada):**
   investigação `grep -r "isError\|is_error" src/` + checagem da
   convenção FastMCP recomendada pode revelar débito latente. Sessão
   Code curta ~20-30min; sem bloqueio até que apareça empiricamente.
+
+**Follow-up MC-F (a aplicar em sessão futura que tocar a Triager spec):**
+
+- **Follow-up Triager §10.5 item 1 (pós-MC-F):** a prescrição
+  `output_format=TriagerDecision.model_json_schema()` é shorthand;
+  o contrato wire-level é a forma envelopada `{"type": "json_schema",
+  "schema": ...}`, confirmada em `scripts/smoke_tests/sdk_output_format_lockdown/smoke_test.py`
+  (0.2.87) e anotada em `reporter.md` §10.6. Numa sessão futura que
+  tocar a Triager spec, marcar item 1 como shorthand com cross-ref —
+  alinhamento de proveniência, não decisão aberta.
 
 ---
 

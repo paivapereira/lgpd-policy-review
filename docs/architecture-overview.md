@@ -63,7 +63,7 @@ Esses três compromissos são o teste prático de se a arquitetura sobrevive à 
 flowchart TB
     PR[Pull Request aberto/atualizado] --> GA[GitHub Action]
     GA --> T{Etapa 0 — Triager<br/>relevante?}
-    T -->|skip| END[Sem ação]
+    T -->|skip| R[Reporter]
     T -->|proceed| D[Etapa 1 — Detector<br/>candidatos no diff]
     D --> C[Etapa 2 — Classifier<br/>structured_context por candidato]
     C --> M[Etapa 3 — Matcher<br/>cláusulas + check_applicability]

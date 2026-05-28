@@ -14,8 +14,6 @@
 
 Número ADR-0012 fica reservado pendente PR `chore/sync-adr-references` removendo refs stale "ADR-0012" em `docs/process/milestoneB.md` (linhas 50, 102, 106, 107, 112, 114) + triagem caso-a-caso em `docs/process/learning-log.md` (forward refs legítimas a "ADR-0012 retroativo Milestone C" preservadas; refs stale para Windows-stdio E-2 absorvido em ADR-0011 substituídas por "ADR-0011").
 
-**Companion edit arch-overview pendente** (three-beats em §10): patch único — `docs/architecture-overview.md` §3 mermaid substitui `T -->|skip| END[Sem ação]` por `T -->|skip| R[Reporter]`.
-
 **Gate pré-coordinator-flesh** (§11): smoke-test residual de `ToolUseBlock.input` attribute shape para custom tools — único item load-bearing não-resolvido via doc canônica.
 
 ## 1. Responsabilidade
@@ -71,10 +69,17 @@ async for msg in query(
         permission_mode="dontAsk",
         setting_sources=[],
         strict_mcp_config=True,
+        output_format={
+            "type": "json_schema",
+            "schema": TriagerDecision.model_json_schema(),
+        },
+        max_turns=20,                   # Triager spec v0.1.0 §1.5 calibração provisional
     ),
 ):
     ...
 ```
+
+> **Tolerância a tipos não-padrão no stream.** O loop `async for msg in query(...)` em todos os stages (não só Triager) recebe ocasionalmente tipos como `RateLimitEvent` — observado em Gate 1 (sessão #38; ver §11 AC2 para enumeração canônica dos tipos de message) e em `scripts/smoke_tests/sdk_output_format_lockdown/README` (SF-2). Tipos não-padrão são tolerados via `isinstance`-filtering: o coordinator extrai semântica apenas de `AssistantMessage` (captura de tool calls / structured output) e `ResultMessage` (terminação); demais são audit trail silencioso (log-and-continue). Não há tratamento ativo de `RateLimitEvent` — rate limiting é orquestrado upstream pelo CLI/SDK.
 
 Output Pydantic-validado, gravado em `01-triager.json`.
 
@@ -433,7 +438,7 @@ Esclarecimento load-bearing (corrige inconsistência do skeleton #38): **`ToolUs
 
 **Source-of-truth artifacts:**
 - `docs/REQUIREMENTS.md` — RFs cobertas em Milestone C: RF-003 pleno, RF-004 pleno, RF-005 pleno, RF-006, RF-007 pleno, RF-008 pleno + RF-009.
-- `docs/architecture-overview.md` §3 (fluxo de execução; **patch pendente — ver §10**), §4.3 (sistema multi-agente), §5 (subagentes detalhados — §5.4 Classifier e §5.5 Matcher mantêm acesso direto a `policy://vocabularies` per ADR-0005 Decision 4; sem patches sob (b2)), §5.7 (matriz tools × subagentes — sem patches sob (b2)).
+- `docs/architecture-overview.md` §3 (fluxo de execução; **patch applied em MC-F sessão #43+ / this PR**), §4.3 (sistema multi-agente), §5 (subagentes detalhados — §5.4 Classifier e §5.5 Matcher mantêm acesso direto a `policy://vocabularies` per ADR-0005 Decision 4; sem patches sob (b2)), §5.7 (matriz tools × subagentes — sem patches sob (b2)).
 - `docs/tasks.md` Milestone C — capability statement + RFs + gate milestone-level placeholder.
 - `docs/specs/policy-reader/canonical.md` §3.3 (consumidores autorizados de `policy://vocabularies`: Matcher + Classifier).
 
@@ -475,7 +480,7 @@ Patch único pendente em `docs/architecture-overview.md`, derivado da decisão d
 
 **Status three-beats** (per ADR-0002 §Decision 5 + ADR-0003):
 - Beat 1 (proposed): patch §3 mermaid proposto em sessão #37 (caminho i da halt-conditions deliberation), mantido sob (b2) na sessão #38; patches §5.1 e §5.7 propostos em #37 foram eliminados em #38.
-- Beat 2 (applied): pendente sessão Code curta de companion edit arch-overview (target pós-Reporter-flesh).
+- Beat 2 (applied): companion edit arch-overview aplicado em MC-F (sessão #43+, this PR; ver §3 mermaid pós-edit).
 - Beat 3 (verified): pendente review independente Chat pós-aplicação.
 
 Three-beats persiste pós-aplicação como audit trail (per ADR-0002 §Decision 5).

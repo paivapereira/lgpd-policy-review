@@ -6524,3 +6524,64 @@ Matcher (~3-4 sessões Chat, complexidade crescente) → coordinator-
 flesh-completo → companion edits arch-overview (three-beats Beat 2)
 → ADR-0012 retroativo Milestone C → decomposição de tasks T11+ →
 benchmark de PRs sintéticos → gate milestone-level.
+
+## #43 — 2026-05-28 — Triager spec v0.1.0 (autoria + 5 rodadas de review cross-doc)
+
+**Artefato principal:** `docs/specs/subagents/triager.md` v0.1.0 (~800 linhas), MERGED.
+**Sessões Chat:** continuação da #43 (autoria iniciada em sessão anterior, compactada).
+**Pattern:** terceira subagent spec (após coordinator v3, reporter v0.3.0). Branch B (`output_format=json_schema`), primeiro subagent sem custom tool.
+
+### Conceitos da prova exercitados
+
+- **D1 Agentic Architecture** — agentic loop termination (2 mecanismos: convergência semântica via output_format + budget hard via max_turns/max_budget_usd); `ResultMessage.subtype` (5 valores canônicos); coordinator-subagent orchestration; pattern A'' (sem AgentDefinition).
+- **D2 Tool Design & MCP** — tool scoping per subagent (`Read`+`Glob` sem `Grep`); "Read-only analysis" como pattern canônico (tabela Common tool combinations); asymmetry `tools=["Read","Glob"]` (Triager) vs `tools=[]` (Reporter); strict_mcp_config + mcp_servers={}.
+- **D4 Prompt Engineering & Structured Output** — `output_format=json_schema` + validation-retry loop nativo do SDK; discriminated union via Pydantic (anyOf, limite 16, custo exponencial); few-shot 3-5 exemplares com `<example>` XML tags; tool_use JSON schema.
+- **D5 Context Management & Reliability** — error propagation (subtype × stop_reason, 2 eixos); refusal handling (`stop_reason="refusal"` dentro de `subtype="success"`); provenance/versioning coupling.
+
+### Decisões documentadas (DDs) — 13 fechadas, 3 abertas
+
+- Fechadas por design: T01 (Branch B), T02 (discriminated union), T03 (Read+Glob), T04 (quíntupla+eixo), T06 (max_turns=20 provisional), T07 (PR-level), T08 (sem trinque jurídico), T09 (4 few-shot), T10 (não toca requires_human_review), T12 (loop termination 2 mecanismos), T13 (subtypes canônicos), T15 (layout `src/subagents/<name>/`).
+- Fechada via deferment-para-produção: **T11** (Opus 4.7 adaptive em dev; Haiku 4.5 candidato pós-validação funcional — doc ticket-routing recomenda Haiku, mas otimização de modelo introduz variável durante calibragem).
+- Abertas (aguardam evidência T11+): **T05** (changed_paths → Classifier spec), **T14** (reasoning field no schema), **T16** (oneOf/discriminator + SDK output_format).
+
+### Decisões de arquitetura ratificadas pelo João
+
+- **Modelo:** Opus 4.7 adaptive thinking para tudo durante desenvolvimento; sem otimização de custo prematura.
+- **Layout:** convenção uniforme `src/subagents/<name>/` (não Branch A→coordinator/, Branch B→subagents/). Implica migration do Reporter → Provisão MC-F.
+- **Timing MC-F:** PR housekeeping pré-T11+ (caminho (a)), não durante implementação.
+- **Report.scope = TriagerInput literalmente** (caminho (i)): versioning coupling deliberado entre TriagerInput e Report payload; rejeitadas alternativas (mapper layer / sparse field-set).
+- **dontAsk em Python:** registrar como side finding (caminho (a)), não smoke-test agora.
+
+### Defense candidates (12) — material p/ Capítulo de Método
+
+1. Heterogeneidade per concern em output mechanisms (Branch A vs B).
+2. Validation-retry loop como capability nativa do runtime (delegar onde a evidência de robustez existe).
+3. Smoke-test gate como caminho mais curto vs changelog spelunking.
+4. Verificação cross-doc para falsificar inferência de revisores (capturou: D1/D3 falsos positivos meus; "read-only trio" fabricado por reviewer; refusal absorption claim errado; misframe Reporter §5.4).
+5. Template-hipótese exposto por single-responsibility extrema (§4/§6/§7 condicionais).
+6. Assimetria deliberada como sinal arquitetural, não débito.
+7. Calibração phase-aware (max_turns=20 + modelo Opus em dev; measure-before-tune).
+8. Convergência informativa com pattern canônico Anthropic (ticket-routing) — ancoragem, não cargo-cult.
+9. Contrato observável documentado supera contrato observável inferido (5 subtypes + 7 stop_reasons verbatim da doc).
+10. Refusal como classe de erro estruturalmente distinta de validation failure (2 eixos da ResultMessage).
+11. Débito catalogado como Provisão é menos custoso que débito implícito (DD-T15 → MC-F).
+12. Acoplamento explícito ratificado supera ambiguidade deferida (Report.scope = TriagerInput).
+
+### Pesquisa em docs oficiais (7 páginas)
+
+agent-sdk/structured-outputs, build-with-claude/structured-outputs, handling-stop-reasons, agent-sdk/agent-loop, use-case-guides/ticket-routing, prompt-engineering/multishot-prompting, build-with-claude/effort, tool-combinations. Achados load-bearing: lista canônica de subtypes/stop_reasons; anyOf limite 16 + custo exponencial; Haiku 4.5 recomendado p/ ticket-routing; effort não suporta Haiku; grammar compilation cache 24h.
+
+### Side findings pendentes
+
+- **`dontAsk` em Python:** doc diz "TypeScript only" mas funciona em Python (Gate 1 + sdk_output_format_lockdown PASS). 3 hipóteses (doc stale / no-op silencioso / undocumented funcional). Smoke-test ~20min antes de ADR-0012 retroativo sobre defesa em camadas.
+- **SF-2 RateLimitEvent:** README do smoke-test afirma "não observado antes" — falso, coordinator §11 AC2 documenta desde Gate 1. Companion edit corrige.
+
+### Processo
+
+5 rodadas de review cross-doc do Code. Convergência limpa. Cada rodada expôs débito invisível anterior (quíntupla mal-enumerada, MC-F scope incompleto, errorCode count 6→7, misframe §5.4) e converteu em edit concreto — defense candidate #11 demonstrado em tempo real pelo próprio processo.
+
+### Próximo passo
+
+1. (Esta sessão) learning-log #43 + session-handoff. ✓
+2. (Próxima Code) Provisão MC-F + companion edits da sessão #43.
+3. (Sessão fresca) Fase 2 — destilação `_template-subagent.md` a partir de Reporter v0.4.0 + Triager v0.1.0 estáveis.

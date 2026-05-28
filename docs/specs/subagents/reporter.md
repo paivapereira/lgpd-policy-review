@@ -567,7 +567,7 @@ Construct the Report payload by copying the provided fields verbatim into the st
   "legal_framework": "LGPD",
   "run_outcome": "success_with_findings",
   "triager_skip_reason": null,
-  "scope": {"pr_number": 42, "repo": "example/app"},
+  "scope": {"pr_number": 42, "base_ref": "main", "head_ref": "feature/x", "repo_url": "https://github.com/example/app"},
   "summary": {
     "counts": {"compliant": 1, "violation_candidate": 1, "indeterminate": 0, "not_applicable": 1},
     "total": 3
@@ -611,7 +611,7 @@ emit_report({
   "legal_framework": "LGPD",
   "run_outcome": "success_with_findings",
   "triager_skip_reason": null,
-  "scope": {"pr_number": 42, "repo": "example/app"},
+  "scope": {"pr_number": 42, "base_ref": "main", "head_ref": "feature/x", "repo_url": "https://github.com/example/app"},
   "summary": {
     "counts": {"compliant": 1, "violation_candidate": 1, "indeterminate": 0, "not_applicable": 1},
     "total": 3

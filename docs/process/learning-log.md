@@ -6585,3 +6585,56 @@ agent-sdk/structured-outputs, build-with-claude/structured-outputs, handling-sto
 1. (Esta sessão) learning-log #43 + session-handoff. ✓
 2. (Próxima Code) Provisão MC-F + companion edits da sessão #43.
 3. (Sessão fresca) Fase 2 — destilação `_template-subagent.md` a partir de Reporter v0.4.0 + Triager v0.1.0 estáveis.
+
+## #44 — 2026-05-28 — MC-F housekeeping: Reporter 0.4.0 + migração de locus + companion edits (PR #73)
+
+> Materializa o "#43+ housekeeping" antecipado pelo handoff pós-#43. Confirmar o número de work-session contra o contador antes de commitar (lição #11/#12: chat-numbering ≠ work-session-numbering pode driftar).
+
+**Escopo.** Sessão Chat de prep (4 versões de prompt) + sessão Code de execução (GATE 0 pre-flight → plan-mode GATE 1 → Fase 2 faseada) + review cross-doc convergente entre as duas. PR única, mecânica, 100% docs/specs (sem código). Fecha a Provisão MC-F, desbloqueando a próxima spec de subagente.
+
+**Artefato principal:** PR #73 — squash `c5e7751` em `main`. 6 commits internos (`b0d1dc4` → `d66db74`), +73/-31, 5 arquivos.
+
+### Conceitos da prova exercitados
+
+**D5 — Context Management & Reliability (15%).** Domínio dominante desta sessão.
+- **Provenance/citations.** T6 corrigiu um provenance bug no README do smoke-test (`RateLimitEvent` declarado "não observado" quando já tinha locus documentado em coordinator §11 AC2). A correção citou a observação prévia em vez de polir a frase.
+- **Exclusion-aware regression gates (line-level).** G1 distinguiu refs vivas de audit trail *dentro* dos arquivos editados (reporter:5 #41/#42, reporter §10, coordinator:5) — exclusão por linha, não por file-glob.
+- **State passing / shared state.** DD-T05 (`changed_paths` pré-computado vs redescoberto via Glob) confirmada como decisão de passagem de estado entre stages — deferida à Classifier.
+
+**D4 — Prompt Engineering & Structured Output (20%).**
+- **`output_format=json_schema` (forma wire-level).** T1 confirmou empiricamente, contra `smoke_test.py` (SDK 0.2.87, lines 110-113), que a forma aceita é envelopada `{"type": "json_schema", "schema": ...}` — não a forma nua da prescrição da Triager §10.5 item 1, que é shorthand. Achado registrado em reporter §10.6; follow-up à Triager catalogado.
+- **Few-shot examples como behavior anchors.** D4-1/D4-2 corrigiram o shape de `scope` em few-shots que contradiziam o tipo `TriagerInput` declarado — anti-pattern de structured output (exemplo que contradiz o schema é sinal conflitante ao modelo).
+- **Multi-instance review.** v1→v4 do prompt + GATE 1 do plano: convergência monotônica, sem regressão de catch.
+
+**D1 — Agentic Architecture & Orchestration (27%).** Tangencial.
+- **Dual loop-termination.** T1 adicionou `max_turns=20` (budget hard) ao lado de `output_format` (convergência semântica) no invocation do Triager — os dois mecanismos coexistentes do Task Statement 1.1.
+- **Tolerância a tipos não-padrão no loop.** T2 documentou log-and-continue para `RateLimitEvent` no `async for` de todos os stages (propriedade stage-agnóstica do coordinator).
+
+**D2 — Tool Design & MCP (18%).** Leve — a migração de locus dos módulos (`src/subagents/reporter/`) é organização de código mais que tool design; o aperto `scope: dict` → `TriagerInput` toca contract typing.
+
+### Decisões
+
+| ID | Decisão | Resolução |
+|----|---------|-----------|
+| DD-HK-1 | Migração total (módulos Reporter + refs do coordinator → `src/subagents/reporter/`) | Ratificação retroativa de DD-T15; pró-split rejeitado (contradiz triager.md §1.5 em main) |
+| DD-HK-4 | Corrigir shape de `scope` nos few-shots, restrito a `scope` (findings deferidos à Matcher) | Incluído |
+| C-AUDIT | coordinator:5 Status: anotação in-line preservando 0.3.0 + locus histórico, nomeando os 3 módulos | Opção (b) |
+| T6 | Texto prescrito Triager §10.5 item 6; ref `§5/#2 acima` substituída por `§3.1 nesta PR` | Substituição (c) |
+| T1 (empírico) | `output_format` forma envelopada (não nua) | Confirmado contra smoke_test.py 0.2.87 |
+| DD-T05 | `changed_paths` permanece **aberta**, deferida à Classifier | Próxima sessão |
+| Ordem de specs | Classifier **antes** de Detector | Inversão deliberada da ordem #37 (Detector→Classifier) |
+
+### Defense candidates metodológicos (para TCC)
+
+Os quatro abaixo são corolários de **um** princípio: *todo locus que afirma um fato precisa de uma cadeia de proveniência verificável até a fonte; drift documental é proveniência distribuída quebrada.*
+
+1. **Audit semantics são relativas ao evento, não ao token.** reporter:5 (sujeito do bump → ganha entrada nova F-STATUS) vs coordinator:5 (sujeito do sync histórico → anotação preservando 0.3.0). Mesmo problema (Status load-bearing, sem prefix-swap cego), tratamento oposto. "Preservar verbatim" não é regra uniforme.
+2. **Provenance bug canônico (T6).** Claim de novidade ("nunca observado") sem verificação contra o registro. Correção = citar o locus prévio, não polir a frase. Regra geral: claims de proveniência (primeiro/único/inédito) exigem verificação contra registro, não tratamento editorial.
+3. **Não importar referência quebrada por fidelidade cega (T6 opção c).** O texto prescrito da Triager carregava `§5/#2 acima` (refs inexistentes fora do contexto da Triager). Aplicar a própria disciplina de proveniência ao texto prescrito — recursão.
+4. **Fato estabelecido precisa propagar a todos os loci (Commit 6).** A forma envelopada confirmada em T1 → §10.6 (reporter) → follow-up tasks.md (Triager §10.5 item 1). O locus não-atualizado vira a próxima fonte de drift — exatamente como a forma nua sobreviveu até aqui.
+
+5. **Meta — multi-instance review converge porque as instâncias particionam o espaço de erro.** v1 errou *escopo* (5-7 vs ~18 loci); v2 acertou arquitetura mas *duplicou/subcontou*; v3 fechou *completude*; v4 pegou *audit semantics*; GATE 1 pegou *fidelidade de execução* (T6 invertido, T2 no stage errado). Degradação monotônica do tipo de catch, sem regressão. Não é repetição da mesma verificação com mais cuidado — é cobertura por loci de atenção ortogonais. A defesa contra drift documental não é uma regra única, é um conjunto de gates com framings ortogonais.
+
+### Próximo passo
+
+**Sessão Chat — Classifier spec** (resolve DD-T05; desbloqueia o companion edit órfão arch §5.2). Inversão deliberada da ordem #37 — registrada como tal, não silenciosa. Carregar `reporter.md` 0.4.0 + `triager.md` 0.1.0 como anexos. Sequência subsequente: Detector → Matcher → coordinator-flesh-completo → ADR-0012 retroativo → decomposição T11+ → benchmark PRs sintéticos → gate milestone-level.

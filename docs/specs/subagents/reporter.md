@@ -1,8 +1,8 @@
 # reporter
 
-**spec_version**: 0.3.0
+**spec_version**: 0.4.0
 
-> **Status.** Primeira spec de subagente do projeto. Destilada inicialmente na sessão Chat #39 (draft de 1530 linhas com hard-wrap), revisada por Code (V1 + V2 reviews), refinada via PR #66 (DD-21 — `policy_clause_ref` ratificado) e PR #67 (Gate 6 — `tools=[]` confirmado empiricamente). Sessão Chat #41 ratificou três achados de review e bumped a 0.2.0. Sessão Chat #42 absorveu dois reviews independentes (cross-doc rigoroso + arquitetural-gaps) que convergiram em catch crítico de cross-check #3 vocab source e divergiram em catches complementares; bump a 0.3.0 reflete refinamento substantivo de contract surface: (i) remoção de cross-check #3 (vocab membership é semântica do Matcher per §2.4 + §8.3, não shape do Reporter); (ii) anotações de contingência sobre `tools=[]` tense forward-looking até landing do companion edit ao coordinator §3.5; (iii) reescrita da invariante em §2.2 (Matcher emite finding por par candidato-cláusula, M ≥ N — não igualdade); (iv) correção da sintaxe few-shot em §5.1 (`emit_report({...})`, schema flat sem wrapper `payload`); (v) reescrita da aritmética de retry budget em §1.5 (linguagem reconciliada com §4.5 + §6.7); (vi) hardening: `legal_framework: Literal["LGPD"]` no MVP, `report_id` UUID v4 validation explícita, `os.replace` (Windows-native) declarado em §4.9, locus dos módulos pinado em `src/coordinator/{models,constants,system_prompts,tools}.py`. Segunda passada de review dentro de #42 absorveu quatro fixes documentacionais consolidados no mesmo PR (sem bump 0.3.1, por consenso entre os dois reviewers): renumbering propagation a §8.3 (remoção do bullet vocab + #4a/4b → #3a/3b + #5 → #4) e §10.3 (Gate 4 #4b → #3b); residual "trinque" → "triple" no `<input>` do `REPORTER_SYSTEM_PROMPT` em §5.1; stale "ou inline" removido de §7.2 alinhando ao pin de módulos em §1.5.
+> **Status.** Primeira spec de subagente do projeto. Destilada inicialmente na sessão Chat #39 (draft de 1530 linhas com hard-wrap), revisada por Code (V1 + V2 reviews), refinada via PR #66 (DD-21 — `policy_clause_ref` ratificado) e PR #67 (Gate 6 — `tools=[]` confirmado empiricamente). Sessão Chat #41 ratificou três achados de review e bumped a 0.2.0. Sessão Chat #42 absorveu dois reviews independentes (cross-doc rigoroso + arquitetural-gaps) que convergiram em catch crítico de cross-check #3 vocab source e divergiram em catches complementares; bump a 0.3.0 reflete refinamento substantivo de contract surface: (i) remoção de cross-check #3 (vocab membership é semântica do Matcher per §2.4 + §8.3, não shape do Reporter); (ii) anotações de contingência sobre `tools=[]` tense forward-looking até landing do companion edit ao coordinator §3.5; (iii) reescrita da invariante em §2.2 (Matcher emite finding por par candidato-cláusula, M ≥ N — não igualdade); (iv) correção da sintaxe few-shot em §5.1 (`emit_report({...})`, schema flat sem wrapper `payload`); (v) reescrita da aritmética de retry budget em §1.5 (linguagem reconciliada com §4.5 + §6.7); (vi) hardening: `legal_framework: Literal["LGPD"]` no MVP, `report_id` UUID v4 validation explícita, `os.replace` (Windows-native) declarado em §4.9, locus dos módulos pinado em `src/coordinator/{models,constants,system_prompts,tools}.py`. Segunda passada de review dentro de #42 absorveu quatro fixes documentacionais consolidados no mesmo PR (sem bump 0.3.1, por consenso entre os dois reviewers): renumbering propagation a §8.3 (remoção do bullet vocab + #4a/4b → #3a/3b + #5 → #4) e §10.3 (Gate 4 #4b → #3b); residual "trinque" → "triple" no `<input>` do `REPORTER_SYSTEM_PROMPT` em §5.1; stale "ou inline" removido de §7.2 alinhando ao pin de módulos em §1.5. Sessão #43+ aplicou MC-F: bump a 0.4.0 — ratificação retroativa de DD-T15 (migração de locus dos módulos do Reporter para `src/subagents/reporter/`), fechamento das forward-refs de `scope` (§2.2/§2.3/§3.1/§4.3/§8.4) e da §5.4, e correção do shape de `scope` nos few-shots de §5.1.
 
 > **Companion edits pendentes a `coordinator.md`.** Catalogadas em §10.5 (6 edits — item 6 adicionado em #42). Decisão de sub-packaging ratificada em sessão Chat #41 e mantida em #42: **PR único pós-merge desta spec**, narrativa "sync coordinator with reporter.md spec_version 0.3.0". Surgical edits triviais, ~30min de Code work agregado.
 
@@ -12,7 +12,7 @@
 
 `reporter` — identificador do subagente, materializado em runtime como configuração de `ClaudeAgentOptions` aplicada à stage §3.5 do coordinator, não como `AgentDefinition` ou entrada em `agents={...}`.
 
-Distinção de naming load-bearing: o subagente é `reporter`; o MCP server in-process que expõe sua tool exclusiva é `reporter_tools` (underscore preventivo per coordinator §7; instanciado via factory `create_reporter_server(run_path, expected_report_id)` em `src/coordinator/tools.py`). Esta spec descreve o subagente; o contrato de tool wire-level vive em §4 + coordinator §7.
+Distinção de naming load-bearing: o subagente é `reporter`; o MCP server in-process que expõe sua tool exclusiva é `reporter_tools` (underscore preventivo per coordinator §7; instanciado via factory `create_reporter_server(run_path, expected_report_id)` em `src/subagents/reporter/tools.py`). Esta spec descreve o subagente; o contrato de tool wire-level vive em §4 + coordinator §7.
 
 ### 1.2 Função
 
@@ -36,9 +36,9 @@ Ver `architecture-overview.md` §4.3 (Reporter como único locus emissor de Repo
 
 **Runtime.** `claude-agent-sdk` Python. Versão mínima pinada via `uv lock` quando dep for adicionada a `pyproject.toml` (pendente em amendment a ADR-0001). Confirmação empírica em SDK 0.2.87 via smoke-tests #38b, #38c (sessão de extração de DDs) e Gate 6 (`tools=[]` semantics, PR #67).
 
-**Locus do contrato runtime.** O contrato comportamental do Reporter materializa-se em três artefatos disjuntos: (i) o objeto `ClaudeAgentOptions` da stage §3.5 do coordinator (quíntupla canônica do lockdown + `max_turns=3` + `tools=[]` per Gate 6 + `allowed_tools=["mcp__reporter_tools__emit_report"]` + `mcp_servers={"reporter_tools": reporter_sdk_server}`); (ii) o `REPORTER_SYSTEM_PROMPT` (texto canônico em §5); (iii) o MCP server in-process `reporter_tools` definido em `src/coordinator/tools.py` (a criar) via factory `create_reporter_server(run_path, expected_report_id)` registrando o handler `emit_report` (wire-level em §4).
+**Locus do contrato runtime.** O contrato comportamental do Reporter materializa-se em três artefatos disjuntos: (i) o objeto `ClaudeAgentOptions` da stage §3.5 do coordinator (quíntupla canônica do lockdown + `max_turns=3` + `tools=[]` per Gate 6 + `allowed_tools=["mcp__reporter_tools__emit_report"]` + `mcp_servers={"reporter_tools": reporter_sdk_server}`); (ii) o `REPORTER_SYSTEM_PROMPT` (texto canônico em §5); (iii) o MCP server in-process `reporter_tools` definido em `src/subagents/reporter/tools.py` (a criar) via factory `create_reporter_server(run_path, expected_report_id)` registrando o handler `emit_report` (wire-level em §4).
 
-**Locus dos módulos Python.** Pinado nesta spec como ratificado em sessão Chat #42 (doc oficial Claude Agent SDK não prescreve estrutura; decisão de projeto baseada em blame auditability + symbol unicity per ADR-0001 D3): `src/coordinator/models.py` para `ReportPayload`/`Finding`/`SummaryModel` Pydantic; `src/coordinator/constants.py` para `REPORT_SCHEMA_VERSION` + `EMIT_REPORT_DESCRIPTION` (single source of truth referenciado também pelo coordinator §7 per companion edit §10.5 item 3); `src/coordinator/system_prompts.py` para `REPORTER_SYSTEM_PROMPT`; `src/coordinator/tools.py` para factory `create_reporter_server` + handler + helpers privados (`_validation_error_envelope`, `_error_envelope`, `_success_envelope`, `_atomic_write_json`, `_run_cross_checks`). Diretório `src/coordinator/` é módulo planejado de Milestone C — nenhum desses arquivos existe em main ainda.
+**Locus dos módulos Python.** Pinado nesta spec como ratificado em sessão Chat #42 (doc oficial Claude Agent SDK não prescreve estrutura; decisão de projeto baseada em blame auditability + symbol unicity per ADR-0001 D3), com locus migrado em MC-F (sessão #43+) sob ratificação retroativa de DD-T15 — convenção `src/subagents/<name>/` per triager.md §1.5: `src/subagents/reporter/models.py` para `ReportPayload`/`Finding`/`SummaryModel` Pydantic; `src/subagents/reporter/constants.py` para `REPORT_SCHEMA_VERSION` + `EMIT_REPORT_DESCRIPTION` (single source of truth referenciado também pelo coordinator §7 per companion edit §10.5 item 3); `src/subagents/reporter/system_prompts.py` para `REPORTER_SYSTEM_PROMPT`; `src/subagents/reporter/tools.py` para factory `create_reporter_server` + handler + helpers privados (`_validation_error_envelope`, `_error_envelope`, `_success_envelope`, `_atomic_write_json`, `_run_cross_checks`). Diretório `src/subagents/reporter/` é módulo planejado de Milestone C — nenhum desses arquivos existe em main ainda.
 
 **Tense forward-looking sobre `tools=[]`.** Esta spec descreve a configuração-alvo. O coordinator §3.5 em main corrente declara `tools=["Read"]`; a transição para `tools=[]` é companion edit §10.5 item 1 (sub-packaging PR único pós-merge desta spec). Claims subsequentes em §2.1 ("`tools=[]` … garante que built-ins Read/Grep/etc não estão no contexto"), §8.1 #7 ("`tools=[]` … remove Read/Write/Edit/Bash/Grep/Glob do contexto"), e §6.7 ("sob `tools=[]`, ToolSearch é skipped") assumem o estado pós-edit. Importante: a reciprocidade declarada em §1.4 (Reporter não tem acesso a `policy://*` ou a `mcp__policy-reader__*` ou a `mcp__semgrep-runner__*`) permanece verdadeira sob `tools=["Read"]` corrente — a proteção emerge da ausência de `policy-reader` e `semgrep-runner` em `mcp_servers={...}` da stage §3.5, não da configuração `tools`. Apenas o claim sobre availability dos built-ins é contingente.
 
@@ -95,7 +95,7 @@ O coordinator monta o prompt do Reporter com o estado consolidado a seguir (repr
     "report_schema_version": "0.1.0",
 
     # Scope (arch-overview §5.6 — herdado, não computado por Reporter)
-    "scope": {...},
+    "scope": <TriagerInput; ver Triager spec §2.1>,
 
     # Counts pré-computados — zeros explícitos via Pydantic default
     "summary": {
@@ -147,7 +147,7 @@ O coordinator monta o prompt do Reporter com estado consolidado de skip path:
     "policy_version": "<...>",
     "legal_framework": "LGPD",
     "report_schema_version": "0.1.0",
-    "scope": {...},
+    "scope": <TriagerInput; ver Triager spec §2.1>,
     "summary": {
         "counts": {
             "compliant": 0,
@@ -187,7 +187,7 @@ Payload retornado pelo Reporter via `emit_report` (string JSON serializável; sc
                    | "success_all_not_applicable"
                    | "skipped_by_triager",
     "triager_skip_reason": <str | None>,
-    "scope": {...},
+    "scope": <TriagerInput; ver Triager spec §2.1>,
     "summary": {
         "counts": {
             "compliant": <int>,
@@ -351,18 +351,18 @@ EMIT_REPORT_DESCRIPTION = (
 
 ### 4.3 `inputSchema`
 
-JSON Schema dict, gerado via `ReportPayload.model_json_schema()` na factory `create_reporter_server`. `ReportPayload` é Pydantic v2 model espelhando a estrutura de §3.1 + §3.2, residindo em `src/coordinator/models.py` (a criar; locus pinado em §1.5). Fields:
+JSON Schema dict, gerado via `ReportPayload.model_json_schema()` na factory `create_reporter_server`. `ReportPayload` é Pydantic v2 model espelhando a estrutura de §3.1 + §3.2, residindo em `src/subagents/reporter/models.py` (a criar; locus pinado em §1.5). Fields:
 
 | Campo                     | Tipo                                      | Obrigatório | Origem |
 |---------------------------|-------------------------------------------|-------------|--------|
 | `report_id`               | `str` validado contra UUID v4 regex (`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`); falha vira `PYDANTIC_VALIDATION` | sim | coordinator (gerado via `uuid.uuid4()` em §3.0) |
-| `report_schema_version`   | `str` (semver regex)                       | sim         | pinado em `src/coordinator/constants.py` |
+| `report_schema_version`   | `str` (semver regex)                       | sim         | pinado em `src/subagents/reporter/constants.py` |
 | `policy_schema_version`   | `str` (semver regex)                       | sim         | coordinator (top-level, lido via `policy-reader` no startup); Matcher via `check_applicability` (per-finding) |
 | `policy_version`          | `str` (semver regex)                       | sim         | coordinator (top-level, header da Política); Matcher via `check_applicability` (per-finding) |
 | `legal_framework`         | `Literal["LGPD"]` no MVP v0.1.0 (per ADR-0007); bump para `Literal["LGPD", "GDPR", ...]` em versões futuras é minor da spec | sim | coordinator (top-level, header da Política); Matcher via `check_applicability` (per-finding) |
 | `run_outcome`             | `Literal[...4 tokens]`                    | sim         | coordinator |
 | `triager_skip_reason`     | `str \| None`                             | sim (None ok) | Triager |
-| `scope`                   | `dict` (opaco — não validado por Pydantic model dedicado no MVP; ver §8.4 decisões deferidas) | sim | coordinator |
+| `scope`                   | `TriagerInput` (Pydantic, ratificado em Triager §2.1) | sim         | coordinator |
 | `summary`                 | `SummaryModel`                            | sim         | coordinator |
 | `findings`                | `list[Finding]` (discriminated union)     | sim         | Matcher |
 
@@ -440,7 +440,7 @@ Declaradas no `@tool` decorator:
 
 ### 4.8 Factory pattern e closure capture
 
-Factory `create_reporter_server(run_path, expected_report_id)` em `src/coordinator/tools.py`:
+Factory `create_reporter_server(run_path, expected_report_id)` em `src/subagents/reporter/tools.py`:
 
 ```python
 def create_reporter_server(
@@ -530,7 +530,7 @@ Validate → cross-check → write → return. Atomicidade write-then-rename gar
 
 ### 5.1 Texto canônico
 
-`REPORTER_SYSTEM_PROMPT` em inglês (ADR-0006), declarado em `src/coordinator/system_prompts.py` (a criar; locus pinado em §1.5). Estrutura em XML tags per recomendação Anthropic prompt engineering oficial (*"Anthropic's Claude model is particularly effective at following XML-style prompts"*) + 1 few-shot exemplar:
+`REPORTER_SYSTEM_PROMPT` em inglês (ADR-0006), declarado em `src/subagents/reporter/system_prompts.py` (a criar; locus pinado em §1.5). Estrutura em XML tags per recomendação Anthropic prompt engineering oficial (*"Anthropic's Claude model is particularly effective at following XML-style prompts"*) + 1 few-shot exemplar:
 
 ```python
 REPORTER_SYSTEM_PROMPT = """You are the Reporter subagent, the terminal stage of a code-review pipeline that evaluates pull requests for compliance with a versioned Data Protection Policy.
@@ -647,7 +647,7 @@ Pivot para 4-shot completo (1 per verdict, incluindo indeterminate) se Gate 5 (s
 
 O prompt não trata skip path como caso especial. Mesma instrução ("copy-verbatim do user message; call emit_report once") opera em ambos os caminhos. Diferenças entre normal e skip são apenas nos valores do input JSON (`run_outcome`, `triager_skip_reason`, `findings`), não na lógica do Reporter.
 
-**Forward ref.** A defesa do prompt unified depende de coordinator §3.1 montar o input JSON do skip path com a mesma estrutura top-level do normal path (mesmas chaves, valores zerados/None onde aplicável). Estrutura mostrada em §2.3 presume essa invariante. Triager spec (a redigir, sessão pós-Reporter+sanity) ratifica a invariante ou força pivot para conditional prompt; revisão de §5.4 a re-confirmar nesse momento.
+**Forward ref.** A defesa do prompt unified depende de coordinator §3.1 montar o input JSON do skip path com a mesma estrutura top-level do normal path (mesmas chaves, valores zerados/None onde aplicável). Estrutura mostrada em §2.3 presume essa invariante. Triager spec v0.1.0 §3.1 define `TriagerSkip.skip_reason` como campo string obrigatório no caminho skip, permitindo ao coordinator §3.1 popular `triager_skip_reason` no Reporter input preservando top-level shape (per reporter.md §2.3). Sem pivot para conditional prompt necessário.
 
 ## 6. Error handling
 
@@ -738,7 +738,7 @@ Esta spec carrega `spec_version: 0.3.0` no header. Bump de 0.2.0 → 0.3.0 refle
 - **Minor** — adição de campos opcionais, novos errorCodes, refinamento de cross-checks, ampliação de behaviors, bump por aplicação de diretrizes forward-looking acumuladas, ou refinamento substantivo de contract surface mediante review pass.
 - **Patch** — clarificação documentacional, exemplo adicional, reformatação.
 
-Estabilização para 1.0 quando: (a) `_template-subagent.md` destilado, (b) implementação completa em `src/coordinator/tools.py` + system_prompt + tests acceptance, (c) review pass de spec contra implementação demonstrando paridade.
+Estabilização para 1.0 quando: (a) `_template-subagent.md` destilado, (b) implementação completa em `src/subagents/reporter/tools.py` + system_prompt + tests acceptance, (c) review pass de spec contra implementação demonstrando paridade.
 
 ### 7.2 Versão do `report_schema`
 
@@ -750,7 +750,7 @@ Bump rules:
 - **Minor** (0.1.0 → 0.2.0): campos opcionais adicionados, novos vereditos no enum.
 - **Patch** (0.1.0 → 0.1.1): documentação / clarificação, sem mudança de wire.
 
-Pinado como constante top-level em `src/coordinator/constants.py` (locus ratificado em §1.5):
+Pinado como constante top-level em `src/subagents/reporter/constants.py` (locus ratificado em §1.5):
 
 ```python
 REPORT_SCHEMA_VERSION = "0.1.0"
@@ -819,7 +819,6 @@ Falhas semânticas upstream propagam silenciosamente. Defesa em profundidade é 
 - **Pivô para `report_schema_version 1.0.0`** — atual `0.1.0` sinaliza pre-stability.
 - **Pivot para 4-shot completo no `REPORTER_SYSTEM_PROMPT`** — Gate 5 (§10.3) decide.
 - **Pivot para AgentDefinition** — evolução pós-MVP se paralelização ou roteamento dinâmico for introduzido.
-- **Estruturação Pydantic de `scope`** (catch R2-F5 / #42) — atualmente `scope: dict` opaco, inconsistente com `extra='forbid'` dos demais modelos. Decisão entre (a) declarar `scope` como `dict[str, Any]` formalmente opaco com nota explícita do design choice em §4.3; (b) introduzir `ScopeModel` Pydantic com fields conhecidos (`pr_number`, `repo`, optional `commit_sha`). Postergada por requerer ratificação contra arch-overview §5.6 + REQUIREMENTS.md scope semantics. Decisão alvo: pré-implementação T11+ ou em Triager spec quando Triager scope-stamping for redigido.
 - **Observabilidade / logging story** (catch R2-G1 / #42) — handler atual não declara logging behavior (o que loga, qual locus, qual formato structured logging). Para protótipo acadêmico cuja tese central é auditabilidade, isso é gap conspícuo. Decisão postergada por requerer design from scratch coordenado com coordinator §3.0 logging (também não declarado). Decisão alvo: redaction do coordinator-flesh-completo (sessão Chat #39+) ou nova seção §6.8 retroativa.
 - **Schema migration story para Reports históricos** (catch R2-G4 / #42) — bump rules de `report_schema_version` declaradas em §7.2 mas tratamento de Reports mistos no histórico (MVP emitiu 0.1.0; v0.2.0 adiciona campo opcional — como parser de audit downstream lida?) não-especificado. Postergada por ser decisão de longo prazo; nota: SDR β downstream é responsável por handling cross-version, não Reporter — vale ratificar em ADR retroativo Milestone C ou em spec do SDR β quando este for redigido.
 - **Callouts 💡 conceito-tag herdados pelo `_template-subagent.md`?** (catch R1-L3 / #42) — esta spec tem dois callouts ensaísticos em §1.4 referenciando exam guide canônico (defesa de TCC). Decisão de incluir como pattern estrutural do template depende de destilation pós-Triager-sanity (sessão Chat #42+).
@@ -944,3 +943,15 @@ Após esta spec ser ratificada, surgical edits ao coordinator:
 6. **`docs/specs/subagents/coordinator.md` §3.5** — atualizar comentário inline do filter `block.name == "mcp__reporter_tools__emit_report"` para refletir que sob `tools=[]` (post item 1 acima) ToolSearch é skipped; o filter passa a ser **defesa preventiva** contra futuros built-in tool blocks intermediários introduzidos por versões posteriores do SDK, não defesa contra ToolSearch ativo. Catalogado em #42 per Review 1 M4.
 
 Sub-pacote total: ~6 edits, sub-30min Code work, defensável como PR único ao coordinator pós-ratificação desta spec.
+
+### 10.6 Histórico de versões pós-#42
+
+#### 0.4.0 (sessão #43+, MC-F)
+
+Bump minor cobrindo ratificação retroativa de DD-T15 + fechamento de forward-refs do contrato `scope`:
+
+- **Migração de locus dos módulos Python** (§1.1, §1.5, §4.3, §4.8, §5.1, §8, §10.5 itens 2-3): `src/coordinator/{models,constants,system_prompts,tools}.py` → `src/subagents/reporter/{models,constants,system_prompts,tools}.py`, per convenção `src/subagents/<name>/` consagrada em triager.md §1.5 (DD-T15). Diretório `src/coordinator/` continua existindo para `coordinator.py`; só os módulos do Reporter migraram.
+- **Contrato `scope: TriagerInput`** (§2.2, §2.3, §3.1, §4.3): substitui `dict` opaco; shape canônico `{pr_number, base_ref, head_ref, repo_url}` definido em Triager spec v0.1.0 §2.1. Coerência interna §2.4 passthrough preservada.
+- **Fechamento de forward-refs**: §5.4 reescrito (Triager spec ratifica `TriagerSkip.skip_reason`, sem pivot para conditional prompt); §8.4 perde bullet "Estruturação Pydantic de scope" (catch R2-F5 / #42 — fechado por construção em Triager §2.1).
+- **Correção de few-shots** (§5.1, ~linhas 570 + 614): campo `scope` em `example_input`/`example_tool_call` passa de `{"pr_number": 42, "repo": "example/app"}` (shape ad-hoc) para shape canônico TriagerInput. Porção `findings` dos few-shots intacta (depende da Matcher spec, sessão futura).
+- **Nota técnica sobre `output_format` shape** (companion edit T1 a coordinator.md §3.1): a forma envelopada `{"type": "json_schema", "schema": TriagerDecision.model_json_schema()}` (confirmada empiricamente em `scripts/smoke_tests/sdk_output_format_lockdown/smoke_test.py` lines 110-113) é o que SDK 0.2.87 efetivamente aceita. A prescrição abreviada em triager.md §10.5 item 1 (`output_format=TriagerDecision.model_json_schema()`) é shorthand; a forma envelopada é o contrato wire-level.

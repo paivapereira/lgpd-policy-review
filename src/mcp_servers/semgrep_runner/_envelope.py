@@ -38,6 +38,13 @@ _WHITESPACE_RUN = re.compile(r"\s{2,}")
 # ToolResult wrappers
 # ---------------------------------------------------------------------------
 
+# GUARD — Option B (ADR-0002 §3). Sucesso E erro saem por ToolResult com
+# structured_content e SEM setar isError (default False). NÃO trocar a anotação
+# de retorno por um modelo Pydantic de sucesso ("para tipar melhor"): um
+# outputSchema estrito faz o FastMCP validar o retorno e REJEITAR o envelope de
+# erro (não casa o schema) com ToolError -> wire isError:true, quebrando a
+# discriminação por errorCode da Option B. Verificado empiricamente:
+# scripts/smoke_tests/sdk_tool_error_channel v4.
 def _envelope_tool_result(envelope: ErrorEnvelope) -> ToolResult:
     """Mirror de `policy_reader._envelope_tool_result`: envelope de erro
     serializado em `structured_content`; `content[0].text` reproduz

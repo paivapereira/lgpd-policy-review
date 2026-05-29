@@ -71,6 +71,7 @@ def _reset_state_for_tests() -> None:
 # =============================================================================
 
 @mcp.tool
+# -> ToolResult é load-bearing para a Option B; ver GUARD em _envelope_tool_result
 def scan_diff(base_ref: str, head_ref: str) -> ToolResult:
     """Scans the Git diff between base_ref and head_ref using the project's curated Semgrep rule set, returning findings that match any rule in the set. Use this when the caller has the BASE and HEAD refs of a pull request and needs to identify candidate sites for downstream classification. The rule set is server-side curated and not callable-parameterizable; it is fixed at server build time. The MVP rule set covers Brazilian personal data identifiers (CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde), but the component itself is domain-agnostic — rule set substitution is the supported path for different jurisdictions or detection domains.
 

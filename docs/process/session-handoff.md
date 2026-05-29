@@ -1,44 +1,65 @@
-# session-handoff — consolidação do coordinator (pré-Matcher)
+# Session-handoff: autoria de matcher.md (#48)
 
-> Sessão dedicada, inversão deliberada da sequência do handoff pós-#45 (Detector → ~~Matcher~~ → coordinator-flesh): insere-se uma **consolidação parcial do coordinator antes da Matcher**, para drenar o débito de companion-edits acumulado por três specs de subagente (Triager #?, Classifier #45, Detector #46) antes que a Matcher adicione uma quarta rodada. Registrada como inversão consciente, não desvio silencioso. NÃO é o coordinator-flesh completo — é drenagem de débito pré-registrado + validação de uma suposição cross-spec.
+**O que é:** primeira autoria da spec do Matcher (etapa 4 do pipeline). NÃO é
+consolidação nem edit cirúrgico — é destilação de spec, padrão das specs
+existentes (triager/detector/classifier/reporter).
 
-## Por que esta sessão existe (diagnóstico da #46)
-O skeleton do `coordinator.md` está atrasado em relação às specs de subagente. Dois débitos viraram **padrão** (não pendência isolada):
-1. `output_format` + `max_turns` ausentes do skeleton §3.3 — flagado por Classifier (#45) **e** Detector (#46). Segunda ocorrência.
-2. Detecção de refusal (`stop_reason="refusal"` dentro de `subtype="success"`) deferida ao coordinator por **três** specs sobre uma suposição não-validada: acesso direto a `stop_reason` na `ResultMessage` pode ser TypeScript-only no Agent SDK (verificação externa #46); Python pode exigir varredura de stream events.
-O coordinator é o ponto de convergência de débito do pattern coordinator-subagent — propriedade estrutural, não descuido. Drenar antes da Matcher evita herdar 4 subagentes de reconciliação de uma vez no flesh.
+**Confirmar no GATE 0 (estado de entrada — não assumir):**
+- O PR da #47 foi mergeado? `git log` / `git status`. Se sim, os 3 fios
+  (item-3 §5, sdk_tool_error_channel, sdk_output_format_complex) estão em `main`.
+- Item 1 (`output_format`+`max_turns` em §3.2/§3.3) e item 4 EDIT (§6.3)
+  permanecem NÃO aplicados ao fim da #47 — confirmar se alguma sessão
+  intermediária os aplicou.
 
-## Escopo travado (o que ESTA sessão faz)
-Drenagem dos companion-edits pré-registrados pelos três subagentes + a validação de refusal. **Não** abre decisões de design novas do coordinator (orquestração, gates milestone-level, etc. — isso é o flesh, fica depois da Matcher).
+**Achados da #47 que são o ponto de partida (verificados verbatim salvo nota):**
 
-1. **Declarar `output_format` + `max_turns` no skeleton §3.3** para os três subagentes Branch B (Triager, Classifier, Detector). Reconstruir verbatim o valor de cada (Triager e Classifier dos respectivos specs; Detector = `DetectorOutput`, `max_turns` 30 provisional **se** ratificado — ver `⚠ DECISÃO` em detector.md §1.4).
-2. **Reconciliar signatures dos `build_*_prompt`** já existentes no skeleton com os inputs notacionais das specs. Confirmado em #46: `build_detector_prompt(pr_metadata, triager_output)` existe; confirmar análogos do Triager/Classifier e que `pr_metadata` carrega `base_ref`/`head_ref`.
-3. **Decidir taxonomia de exceções de tool-error.** `DetectorScanFailed` (proposto em detector.md §6.2) vs reuso de `run_outcome="error"`. Decisão afeta como erro non-retryable de `scan_diff` (e, futuramente, de qualquer tool de subagente) propaga. Load-bearing — não despachar rápido.
-4. **Validar a suposição de refusal em Python via smoke-test.** Construir o canário: o coordinator em Python consegue ler `stop_reason="refusal"` direto da `ResultMessage`, ou precisa varrer `message_delta`/stream events? Decide o mecanismo de discriminação de refusal que **três** specs deferem ao coordinator. "Build the canary that screams first" (precedente T01 wire-shape, Gate 6).
-5. **(Se couber) teste de paridade de passthrough Detector↔Classifier.** Asserção de que os 5 campos do `DetectorFinding` batem posicionalmente no `ClassifiedCandidate` — faz o drop silencioso de campo falhar alto (G2). Pode ser deferido a T11+ se a sessão encher.
+*Output shape — já pinado, não inventar.*
+- Matcher produz findings no shape de `reporter.md §2.2`: `file, line, snippet,
+  rule_id, data_categories, operation_type, verdict, policy_clause_ref,
+  requires_human_review?, policy_schema_version, policy_version, legal_framework`.
+- ZERO `candidate_ref` no `reporter.md` (verificado) — bookkeeping interno do
+  Matcher, não vai ao Report. Sem passo de re-expansão: o Matcher tem os campos
+  do passthrough do Detector + structured_context do Classifier + seu verdict.
+- Cardinalidade: um finding por par candidato-cláusula, `len ≥ candidates_count`
+  (reporter §2.2 l.135). C1 do review ("não compõe") REENQUADRADO: compõe.
 
-## Fora de escopo (NÃO tocar)
-- Coordinator-flesh completo (orquestração, gate milestone-level, schema "Report vazio").
-- Matcher spec (próxima sessão fresca, pós-consolidação).
-- ADR-0012 retroativo / `chore/sync-adr-references` (housekeeping separado).
-- Reporter scan-provenance (DD-D3) — é companion edit do PR `feat/detector-spec`, não desta consolidação; mas confirmar que não colide.
+*Seleção de cláusula — especificada, ratificar não inventar.*
+- `classifier.md:175` (forward-ref obrigatório): `check_applicability`/`get_clause`
+  sobre `applies_to` derivado de `data_categories`. NÃO `find_clauses_by_law_article`
+  (precisa de {lei,artigo} ausente do structured_context).
+- Degradação graciosa: sem cláusula casada → `not_applicable`/`indeterminate`.
+  Proibido Enum hard (anti-padrão removido do Reporter §4.8).
+- COMPANION EDIT: `reporter.md:135` tem nota parentética citando a tool errada
+  (`find_clauses_by_law_article`) — corrigir ao autorar (é nota ilustrativa, não
+  contrato; o Reporter não pina mecanismo de seleção).
 
-## Ler verbatim ANTES de editar (não reconstruir de memória)
-- `coordinator.md` §3.2, §3.3 (skeletons dos subagentes; signatures dos `build_*_prompt`; taxonomia de exceções atual; loci de stream-inspection `ReportNotEmitted` + captura de payload — por **âncora semântica**, não linha, que drifta)
-- `triager.md` §1.4, §4, §6.2/§6.3 (output_format, max_turns, classes de erro)
-- `classifier.md` §1.4, §4, §6.2/§6.3 (idem; e §6.3 para o subtype `error_max_structured_output_retries`)
-- `detector.md` §1.4, §4, §6.2/§6.3 (output_format `DetectorOutput`, max_turns provisional, `DetectorScanFailed`, propagação de erro do `scan_diff`)
-- `reporter.md` §6 (Branch A — contraste; taxonomia de errorCodes intra-handler)
-- ADR-0002 (Option B, convenções MCP — contexto da propagação de erro de tool)
-- Doc oficial Agent SDK sobre `stop_reason` / `ResultMessage` em Python (item 4 — verificar corrente, cutoff Jan/2026)
+*Encoding output_format — constraint dura (DD-T16, verificado).*
+- Os 4 verdicts (`compliant|violation_candidate|indeterminate|not_applicable`)
+  = objeto enum-tag: `verdict: Literal[...]` + opcionais por verdict
+  (`anyOf [T,null]`). NUNCA união discriminada (`oneOf` desliga a gramática
+  silenciosamente: success + structured_output=None + JSON não-conforme).
+  Evidência: `sdk_output_format_complex/RESULTS.md`.
+- O `output_format`+`max_turns` da invocação do Matcher (§3.4 do coordinator) é
+  o mesmo gap do item 1 (Detector/Classifier) — coordenar.
 
-## Estado de entrada (verificar contra repo, não assumir)
-- `detector.md` v0.1.0 mergeable; PR `feat/detector-spec` + companion edits ao coordinator **podem já ter sido aplicados** ou não. Confirmar se os edits 1-3 do handoff pós-#46 já entraram (se sim, parte do escopo desta sessão já está feito).
-- `classifier.md` v0.1.0: confirmar se mergeou em main.
-- Contador de work-session: confirmar o nº desta sessão contra `docs/process/learning-log.md` (lição #11/#12), não memória.
+**Obrigações pré-registradas ao Matcher** (ledger do review + forward-refs):
+postura Pydantic `extra` do structured_context consumido; `policy_clause_ref`
+nos 4 verdicts incl. `not_applicable` (reporter:221/274); semântica de
+`requires_human_review` (Reporter só propaga); `verification_scope` 3-campos
+(reporter §3.2); quíntupla tools=[]+allowlist policy-reader + output_format/
+max_turns (coordinator §3.4); trinca de provenance verbatim por finding.
 
-## Saída esperada
-- Edits ao `coordinator.md` §3.3 (output_formats + max_turns dos três; signatures reconciliadas) — prep Chat + execução Code.
-- Decisão registrada da taxonomia de exceções (ADR ou nota no coordinator).
-- Resultado do smoke-test de refusal-Python → mecanismo de discriminação fixado, com companion note às três specs se o mecanismo diferir do que elas assumem.
-- learning-log entry + handoff para a sessão da Matcher.
+**Pré-leitura verbatim:** `reporter.md §2.2/§3.2`, `classifier.md §2/§3/:175`,
+`detector.md §2.1` (DetectorFinding passthrough), `coordinator.md §3.4`,
+ADR-0005 (Resource-vs-Tool, Decision 9 sobre seleção de cláusula — verificar se
+foi criada), `canonical.md` do policy-reader (signatures de `get_clause`/
+`check_applicability`/`find_clauses_by_law_article`).
+
+**Fora de escopo:** item 1, item 4 EDIT, A4, ADR-0013, reconciliação de
+taxonomia — todos pendentes da #47, não puxar para a autoria do Matcher salvo
+o que o Matcher genuinamente bloqueia.
+
+**Limite do observado:** `reporter.md`/`classifier.md` lidos verbatim na #47;
+`architecture-overview.md §5.5` ({candidate_ref}) NÃO relido — irrelevante para
+o veredito (o vinculante é o input do Reporter), mas confirmar se quiser
+zero-inferência. DD-T16 testado com stand-ins estruturais, não os modelos reais.

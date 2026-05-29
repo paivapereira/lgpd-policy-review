@@ -6724,3 +6724,36 @@ Os quatro abaixo são corolários de **um** princípio: *todo locus que afirma u
 3. (Reporter) minor bump + emenda do schema do Report para aceitar/citar `ScanProvenance` (forward-ref DD-D3).
 4. (Housekeeping separado) registrar build-vs-reuse (MCP oficial Semgrep) em `semgrep-runner/canonical.md` §7 ou nota ADR-0010.
 5. (Sessão fresca) **Matcher spec** — próximo subagente na sequência do handoff pós-#45 (Detector → Matcher → coordinator-flesh-completo → ADR-0012 retroativo → decomposição T11+ → benchmark PRs sintéticos → gate milestone-level).
+
+## #47 — 2026-05-29 — Consolidação coordinator pré-Matcher (parcial) + verificação empírica de canais MCP/SDK
+
+> Contador: topo era #46 (Detector spec); session-handoff "consolidação coordinator (pré-Matcher)" → esta é **#47**, sem drift chat↔work-session (confirmado contra o arquivo).
+
+**Conceitos da prova exercitados**
+- D1 — `stop_reason` em `ResultMessage` (Python, acesso direto, 0.1.46+); refusal; error propagation.
+- D2 — convenção `isError`/`is_error` por camada; Option B (ADR-0002); canal de erro de tool por tipo de server; Resource-vs-Tool capability boundary (ADR-0005); `outputSchema` × envelope de erro.
+- D3 — `.claude/rules/` frontmatter com `paths:` glob; fronteira Chat↔Code (mecânico vs deliberativo); companion-edits-as-debt-registry.
+- D4 — `output_format` json_schema envelope; `oneOf`/discriminator NÃO compila gramática vs `anyOf` nullable que compila; validation-retry; beta header structured-outputs.
+- D5 — `run_outcome="error"` + coverage-gap; provenance; verification-before-inference; RESULTS.md como scratchpad de proveniência.
+
+**Decisões**
+- Item 3 RESOLVIDO: `DetectorScanFailed` exceção tipada `(stage, tool, errorCode, isRetryable, details)`, projetada externamente como `run_outcome="error"`; hierarquia (irmã vs base) deferida ao Matcher. 3 peças ao coordinator §5 + 2 follow-ups (`tasks.md`).
+- `sdk-mcp-conventions.md` expandida a dois eixos (casing + discriminador) + constraint Option-B/outputSchema.
+- DD-T16 RESOLVIDO: saída Branch B = objeto enum-tag (`verdict: Literal[...]` + opcionais `anyOf [T,null]`), **nunca** união discriminada. `oneOf` desliga a gramática silenciosamente (success + `structured_output=None` + JSON não-conforme).
+- Versão SDK `0.2.87` confirmada real (changelog público do GitHub estava stale); item 4 (refusal Python) mecânicamente resolvido — `stop_reason` no `ResultMessage`.
+- Contrato Matcher pré-identificado: output shape pinado por `reporter.md §2.2` (sem `candidate_ref`); seleção de cláusula especificada em `classifier.md:175` (`check_applicability`/`applies_to`, não `find_clauses_by_law_article`).
+
+**Artefatos** (pendentes de commit — PR único da #47)
+- `coordinator.md §5` (item 3, 3 peças) · `docs/tasks.md` (2 follow-ups)
+- `.claude/rules/sdk-mcp-conventions.md` (dois eixos)
+- `_envelope.py` + `server.py` (GUARD Option-B)
+- `scripts/smoke_tests/sdk_tool_error_channel/` (v1–v4 + RESULTS.md)
+- `scripts/smoke_tests/sdk_output_format_complex/` (smoke_test + RESULTS.md; probe de mecanismo dobrado no RESULTS, `_probe_*` removido)
+
+**Observação de processo**
+- Verificação corrigiu inferência ~7×: changelog stale (0.2.87), contagens de refs, §-âncoras não-paralelas, bug de profundidade do veredito v3, timing de stdio do v4, a redação do Eixo 2 sobre `emit_report`, e o `"reason"`-vs-`"rationale"` que afinou o mecanismo DD-T16. A disciplina segurou; os exit codes automáticos mentiram em 4 dos smoke-tests (documentado nos RESULTS).
+
+**Próximo passo**
+- Commit/PR único da #47 (3 fios: item-3, sdk_tool_error_channel, sdk_output_format_complex).
+- #48 = autoria de `matcher.md` (handoff dedicado).
+- Pendentes não-resolvidos: item 1 (`output_format`+`max_turns` §3.2/§3.3, agora com sub-task de smoke-testar schemas reais enum-tag); item 4 EDIT (remover caveat "TS-only" dos §6.3 + restaurar tabela H2 — mecanismo confirmado, edit não aplicado); A4 (`config.py`); ADR-0013; reconciliação de taxonomia.

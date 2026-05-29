@@ -273,6 +273,19 @@ Cenários estruturados que o coordinator trata:
 
 - **Pydantic validation falha** em output do subagente → halt; emite erro estruturado com etapa, payload bruto recebido, erro Pydantic (exception: `SubagentValidationFailed`).
 - **MCP server retorna envelope de erro** durante `query()` → propaga; coordinator decide retry (transient: `SCAN_TIMEOUT`, `SEMGREP_EXECUTION_FAILED`) vs halt (validation/business/ non-transient) por errorCode, conforme retryability table de `policy-reader`/`semgrep-runner`.
+- **`scan_diff` retorna envelope de erro de domínio** (Detector, §3.2) →
+  detecção determinística por **presença de `errorCode` em
+  `tool_use_result.structuredContent`** da `UserMessage` que carrega o
+  `ToolResultBlock` de `mcp__semgrep-runner__scan_diff` (Option B: o flag
+  `isError` é sempre `false`; ver ADR-0002 §3 e `.claude/rules/sdk-mcp-conventions`).
+  O `structuredContent` do FastMCP sobrevive ao `query()` stream íntegro
+  (verificado: smoke-test `sdk_tool_error_channel` v3); o `ToolResultBlock.content`
+  carrega só a string JSON, não o dado estruturado. Roteamento por `isRetryable`
+  da tabela `semgrep-runner` §5.4: retryable (`SCAN_TIMEOUT`,
+  `SEMGREP_EXECUTION_FAILED`) → retry sob orçamento; non-retryable ou retry
+  esgotado → escala como `DetectorScanFailed`, projetado externamente em
+  `run_outcome="error"` com anotação de coverage-gap. `findings: []` nunca
+  aliasa erro (§3.6).
 - **Triager `decision: "skip"`** → não-erro; branching para §3.5 direto com input mínimo (ver §3.1).
 - **Detector retorna zero candidatos** → não-erro; pipeline prossegue normalmente até §3.5 com `findings: []` propagando.
 - **Família de errorCodes do Reporter** (DD-10.4 V3, três errorCodes discriminados por sinais observáveis distintos):
@@ -302,8 +315,47 @@ Discrimination ordering: denials → subtype → emit_report_seen (denials é si
 | `ReporterPermissionDenied` | `permission_denials` populado no `ResultMessage` final (lockdown bug) | Não (lockdown configuration) |
 | `MultipleReportEmissions` | Reporter invocou `emit_report` mais de uma vez na mesma query | Não (anti-pattern em system_prompt) |
 | `MalformedToolUseBlock` | `ToolUseBlock` sem campos esperados | Não (sinaliza SDK incompat) |
+| `DetectorScanFailed` | Erro de domínio de `scan_diff` (`errorCode` presente) non-retryable, ou retryable com orçamento esgotado | Não (retry dos codes retryable ocorre antes do raise; non-retryable escalam direto) |
 
 **Nota sobre nomenclatura de envelope de erro MCP.** SDK Python usa `is_error: True` (snake_case) no envelope; SDK TypeScript usa `isError: true` (camelCase). FastMCP wire format usa camelCase (`isError`) conforme convenção MCP protocol. Implementação Python do coordinator e do `emit_report` retornam `is_error: True` quando sinalizam erro estruturado ao caller; recepção lê de campo correspondente do envelope MCP. Débito de housekeeping catalogado: verificar se FastMCP servers existentes (`policy-reader`, `semgrep-runner`) usam convenção correta — sessão Code dedicada ~20-30min (catalogado em `docs/tasks.md` §Companion edits).
+
+**Nota de precedente — erro de tool de subagente (DD-D5).**
+`DetectorScanFailed` é a primeira materialização do padrão de propagação de
+erro de tool MCP consumida por subagente. Assinatura
+`(stage, tool, errorCode, isRetryable, details)`: `stage`/`tool` para blame e
+auditoria; `errorCode`/`isRetryable` herdados verbatim do envelope da tool
+(não reinterpretados); `details` opaco por `errorCode`. Duas camadas, não
+exclusivas — a exceção é o sinal de **controle de fluxo interno** (capturada
+no boundary de orquestração); `run_outcome="error"` é a **projeção externa**
+ao Report. Retry-vs-escalate decorre de `isRetryable`, não do tipo da exceção.
+
+*Generalização ao Matcher.* O mesmo caminho de detecção ("MCP server retorna
+envelope de erro", acima) cobre as tools do `policy-reader` que o Matcher
+consumirá; os erros de tool do Matcher seguirão esta assinatura. A escolha
+entre exceção-irmã (ex.: `MatcherClauseLookupFailed`) e base compartilhada
+(`SubagentToolError` com subclasses) é deferida à autoria de `matcher.md` — o
+**contrato de campos** acima congela agora, para que a decisão de hierarquia
+seja não-breaking. Promoção a ADR-0013 catalogada como follow-up.
+
+*Débito de consistência de taxonomia (não resolver aqui).* A raiz é
+estrutural: as exceções tipadas que as specs de subagente referenciam nas
+suas tabelas de **classes de erro** e de **subtype/stop_reason**, além de
+pseudocódigo de capture loop e de ACs, nunca foram reconciliadas com esta
+tabela. A reconciliação deve grepar **por nome**, não por §-âncora — a
+numeração de seção não é paralela entre as specs (o detector tem um §6.2
+extra de `scan_diff` que desloca as demais). Ausentes daqui:
+- `SubagentRefusedTask` — classe Refusal; a mais referenciada das ausentes.
+- `SubagentContractViolation` — violação de contrato do próprio subagente
+  (capture loop e classes de erro do classifier; classes de erro do detector).
+- `SubagentExecutionError` — alvo do mapeamento canônico
+  `error_during_execution →` nas tabelas de subtype (forma herdada de
+  `agent-sdk/agent-loop`); presente em classifier e triager, ausente da
+  tabela do detector (perdida no H2 do review) e desta. Confirmar a grafia
+  pretendida antes de promover.
+- `DetectorScanFailed` — resolvida nesta entrada (DD-D5).
+Reconciliar numa passada dedicada no flesh, não nesta consolidação.
+`SubagentRefusedTask` conecta ao item 4 — candidato a entrar junto quando o
+caveat "TS-only" sair do §6.3 do detector.
 
 ## 6. `.mcp.json` consumption — quatro camadas de enforcement
 

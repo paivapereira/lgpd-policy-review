@@ -6654,3 +6654,73 @@ Os quatro abaixo são corolários de **um** princípio: *todo locus que afirma u
 - **Defense candidates (Cap. Método):** (1) cross-doc falsifica inferência de revisor em tempo real — leitura verbatim de triager.md derrubou meu argumento de blast-radius em DD-C1; (6) pureza vs pragmatismo — melhoria de camada (DD-C10) não está completa até a obrigação que preserva a funcionalidade deslocada (seed ≥2) estar fechada de forma concreta, não condicional. Material mais nítido da sessão.
 - **Erro corrigido:** citação de ADR-0005 D8 como autoridade para examples (D8 decide *regras*) → reformulada como analogia + Decisão 9 forthcoming.
 - **Próximo passo:** PR autônomo do policy://examples (com seed ≥2) merge primeiro; depois Classifier ramifica do main corrigido → Fase 0 smoke (gate-of-gates) antes de qualquer linha de produção. DD-T05 fica para sessão coordinator/Triager.
+
+## #46 — 2026-05-29 — Detector spec v0.1.0 autorada a mergeable (verificação externa pós-cutoff + reconciliação de dois reviews)
+
+> Continuação natural da inversão #37: Classifier (consumidor) autorado em #45, Detector (produtor) agora. Sessão Chat pura. Confirmar nº de work-session contra o contador antes de commitar (lição #11/#12): topo do learning-log era #45, session-handoff "pós #45" → esta é **#46**, sem drift chat↔work-session.
+
+**Escopo.** Sessão Chat de ponta a ponta sobre `docs/specs/subagents/detector.md`: (1) pre-flight verbatim dos DDs contra os docs âncora (método da Classifier, prep-first — não redigir prosa antes de fechar os DDs load-bearing); (2) verificação externa contra doc oficial vigente (SDK/MCP/Semgrep) por estar além do cutoff Jan/2026; (3) autoria da spec completa (10 seções) com os 5 DDs codificados; (4) reconciliação de **dois** reviews cross-doc do Code (um da sessão-DD, um clean) com dois conflitos genuínos; (5) micropatches de fechamento após adjudicação verbatim. PR a materializar: `feat/detector-spec` (a aplicar pelo Code). 0 commits em main na sessão; output em `/mnt/user-data/outputs/`.
+
+**Artefato principal:** `detector.md` v0.1.0 mergeable. Branch B, consome `scan_diff` do `semgrep-runner` + `Read`. 5 DDs fechados; 3 `⚠` remanescentes (decisões futuras do coordinator), 0 resíduo de pesquisa.
+
+### Conceitos da prova exercitados
+
+**D2 — Tool Design & MCP Integration (18%).** Domínio dominante.
+- **`isError` flag — convenção canônica vs desvio do projeto.** Spec MCP 2025-11-25: tool execution errors (business/system) reportados com `isError:true` para o modelo ver e se autocorrigir; só protocol errors ficam fora da visão do modelo. O `scan_diff` usa **Option B** (wire `isError:false` sempre, discriminar por `errorCode`) — desvio deliberado (ADR-0002), justificado por fricção FastMCP que a verificação externa **confirmou persistente em 2026** (ContextForge, edgartools mis-validando `isError:true` contra `outputSchema`). Consequência: o reconhecimento de erro é forçado ao prompt + inspeção determinística do stream pelo coordinator.
+- **Scoped tool access como firewall.** `tools=["Read"]` + allowlist `mcp__semgrep-runner__scan_diff`; sem `policy-reader`/`Glob`/`Grep`. A ausência **é** o firewall epistêmico (impossibilidade física de pré-julgar cláusulas), não economia de tokens. Distinção `tools` (built-in availability) vs `allowed_tools` (denial-on-miss); tool MCP habilitada por `mcp_servers`.
+- **Tríade tools/resources/prompts.** MCP oficial do Semgrep (`semgrep mcp`, migrado para o binário) expõe `semgrep_scan` (tool, content-based), `semgrep://rule/schema` (resource), `write_custom_semgrep_rule` (prompt) — exemplo concreto. Build-vs-reuse: o oficial é content-based, não diff-over-refs → `scan_diff` caseiro cobre gap real (registro em §8.4, fora dos DDs).
+
+**D5 — Context Management & Reliability (15%).**
+- **Provenance/citations — trickle-down via envelope.** `DetectorOutput = {findings, provenance}`; provenance **per-scan** no envelope (não per-finding — duplicar N× seria semanticamente errado). Preserva a cadeia "regra X / rule set Y / Semgrep Z / diff A→B" através do boundary Detector→Classifier→Reporter, em vez de morrer no primeiro hop.
+- **Error propagation + escalation.** Roteamento por `isRetryable`: `SCAN_TIMEOUT` (retryable) → retry; `GIT_REF_NOT_FOUND` (non-retryable) → escalação / `run_outcome="error"`. Nunca aliasar erro com `findings:[]` (colidiria com o caso-válido empty-result).
+- **Stream-inspection determinística** como pattern ratificado (#37/#38: `ReportNotEmitted`, captura de payload do Reporter) aplicado a novo sítio. Sinal reliability-critical não depende do modelo discriminar.
+- **Context window budget.** `surrounding_context` bound no produtor, banda floor (Classifier extrai sem re-`Read`) / ceiling (não inflar prompt downstream / lost-in-the-middle); N=±10 inicial.
+- **Refusal handling.** `stop_reason="refusal"` pode coexistir com `subtype="success"` (refusal tem precedência sobre schema — verificado verbatim). Caveat de impl: acesso direto a `stop_reason` em result message pode ser TS-only; Python pode exigir varredura de stream.
+
+**D4 — Prompt Engineering & Structured Output (20%).**
+- **`output_format=json_schema`** forma envelopada confirmada corrente; validation-retry → subtype `error_max_structured_output_retries` em exaustão.
+- **Contract versioning — severidade = blast radius, não esforço.** Adição de campo a `DetectorFinding` é **major** (não minor) porque é o shape consumido pelo Classifier: mecanismo = acoplamento de passthrough no `ClassifiedCandidate` (`extra="forbid"` no output); manter major alinha com fail-loud (vs drop silencioso).
+- **Few-shot como behavior anchors** particionando o espaço (normal / vazio / erro); Exemplo C ancora o reconhecimento prompt-level do erro sob Option B.
+
+**D1 — Agentic Architecture & Orchestration (27%).** Tangencial.
+- Branch B (output_format, sem custom tool); tabela subtype × stop_reason; coordinator-subagent com desempacotamento de envelope no boundary.
+- **Multi-instance review** com classes ortogonais: dois reviews do Code (sessão-DD + clean) particionaram o espaço de erro — o da sessão-DD pegou numbering/`build_detector_prompt`/etapa, o clean foi fundo no `extra="forbid"`/invariantes.
+
+### DDs fechados
+
+- **DD-D1** (ratificação `DetectorFinding` + mapeamento strip-opinion/keep-provenance) — por articulação do firewall já normado em arch §5.3.
+- **DD-D2** (budget `surrounding_context`) — bound no produtor, janela ±10 simétrica, banda floor/ceiling, calibragem T11+.
+- **DD-D3** (envelope + provenance per-scan) — coordinator desempacota; Classifier recebe `list[DetectorFinding]` puro; provenance → scratchpad `02-detector.json` + Reporter.
+- **DD-D4** (output mechanism) — Branch B, herança do envelope wire form (reporter §10.6).
+- **DD-D5** (propagação de erro do `scan_diff`) — inspeção determinística do stream; roteamento por `isRetryable`; defesa em profundidade (stream + regra prompt-level de não-fabricação); triangulação via DD-D3.
+- **DD-T05** (`changed_paths`) — neutra ao Detector, registrada não reaberta.
+
+### Decisões de reconciliação (dois reviews)
+
+- **Conflito 1 — `extra="forbid"` mecanismo (A: output / B: input).** Fechado por leitura verbatim #46 (`classifier.md:127,134,145` + :135 + :153): Review A correto — modelos de **output**, quebra por **acoplamento de passthrough** no `ClassifiedCandidate`, não validação de input. Severidade **major** mantida (B): convenção `classifier.md` §7.1 + fail-loud.
+- **Conflito 2 — número de linha do `ReportNotEmitted` (A: 280/408 / B: 245-256).** Resolvido por **âncora semântica** em vez de linha nua — o conflito é a prova de que linha drifta.
+- **Correções factuais folded:** RF-002→**RF-001** (RF-002 é cobertura, do rule set); `build_detector_prompt` **já existe** com signature `(pr_metadata, triager_output)` → reconciliar, não criar; `DetectorInput` é tipo notacional (Branch B não valida input via Pydantic); dualidade Etapa 2 (coordinator) / Etapa 1 (arch); `ScanProvenance` no Reporter é adição confirmada (minor bump dele).
+
+### Defense candidates (método — material p/ Capítulo de Método)
+
+1. **Reconciliação de reviews divergentes como pattern, não só achado.** Separar **severidade** de **mecanismo** no §7.1 tornou o conflito decidível: a severidade era major por convenção independentemente de quem estava certo; só o mecanismo estava em disputa, e era fechável por leitura verbatim. Desacoplar o que é adjudicável do que não é.
+2. **Verificação externa contra doc pós-cutoff como provisão de proveniência.** Cutoff Jan/2026, prova Mar/2026, SDK muda rápido → verificar antes de inferir; achados materiais codificados na spec (Option B vs canônico, fricção persistente, forma do output_format, refusal precedence). Não inferir sintaxe de SDK da memória.
+3. **`⚠` markers como disciplina de proveniência.** Marcar explicitamente o não-verificado (número de RF, loci de linha, namespace) em vez de reconstruir da memória — exatamente a lição dos #11/#12 e do provenance bug T6. ~12 dos ~15 fechados pela verificação dos reviews; os 3-4 restantes são decisões futuras genuínas.
+4. **Âncora semântica > linha nua sob drift.** Quando dois reviews divergem no número de linha, o número é o problema; citar por âncora semântica imuniza contra evolução do arquivo referenciado.
+5. **Contract versioning por blast radius.** A severidade do bump é função do impacto no consumer (passthrough + `extra="forbid"`), não do esforço da mudança. Um campo "só adicionado" pode ser major.
+6. **strip-opinion / keep-provenance** como princípio de boundary — descartar a opinião do Semgrep (`rule_severity`/`rule_message`) preservando a proveniência (versions/refs). Articula o firewall epistêmico que arch §5.3 já normatiza.
+
+### `⚠` remanescentes (3-4 decisões futuras, não resíduo)
+
+- `output_format`/`max_turns` no skeleton `coordinator.md` §3.3 (companion edit).
+- Taxonomia `DetectorScanFailed` vs `run_outcome="error"` (decisão do coordinator).
+- Valor de `max_turns` (30 provisional vs herdar 20 — `⚠ DECISÃO` do autor).
+- Detecção de refusal em Python (stop_reason TS-only — risco de impl, smoke-test do coordinator).
+
+### Próximo passo
+
+1. (Code) Aplicar `detector.md` v0.1.0 ao repo via PR `feat/detector-spec`.
+2. (Companion edits do coordinator) declarar `output_format`/`max_turns` no §3.3; reconciliar signature de `build_detector_prompt`; decidir taxonomia `DetectorScanFailed`; registrar scratchpad `02-detector.json`.
+3. (Reporter) minor bump + emenda do schema do Report para aceitar/citar `ScanProvenance` (forward-ref DD-D3).
+4. (Housekeeping separado) registrar build-vs-reuse (MCP oficial Semgrep) em `semgrep-runner/canonical.md` §7 ou nota ADR-0010.
+5. (Sessão fresca) **Matcher spec** — próximo subagente na sequência do handoff pós-#45 (Detector → Matcher → coordinator-flesh-completo → ADR-0012 retroativo → decomposição T11+ → benchmark PRs sintéticos → gate milestone-level).

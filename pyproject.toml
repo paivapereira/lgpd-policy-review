@@ -28,6 +28,7 @@ dev = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
 
 [tool.mypy]
 # Recognizer pack fixtures são deliberadamente type-incorrect pelo padrão

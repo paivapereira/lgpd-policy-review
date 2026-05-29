@@ -630,6 +630,16 @@ em sessão Code curta dedicada):**
   tocar a Triager spec, marcar item 1 como shorthand com cross-ref —
   alinhamento de proveniência, não decisão aberta.
 
+**Follow-ups da consolidação coordinator §5 (DD-D5 / `DetectorScanFailed`):**
+
+- ADR-0013: promover a nota de precedente DD-D5 (erro de tool de subagente)
+  a ADR curto. Gatilho: precedente que vira contrato para o Matcher
+  (ainda não escrito). Fonte: coordinator §5 nota de precedente + detector
+  §6.2 DD-D5.
+- Reconciliação de taxonomia de exceções: SubagentRefusedTask,
+  SubagentContractViolation, SubagentExecutionError ausentes da tabela §5
+  do coordinator. Passada dedicada no flesh; grepar por nome.
+
 ---
 
 ## Pós-Milestone B aberto

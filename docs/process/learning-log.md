@@ -6638,3 +6638,19 @@ Os quatro abaixo são corolários de **um** princípio: *todo locus que afirma u
 ### Próximo passo
 
 **Sessão Chat — Classifier spec** (resolve DD-T05; desbloqueia o companion edit órfão arch §5.2). Inversão deliberada da ordem #37 — registrada como tal, não silenciosa. Carregar `reporter.md` 0.4.0 + `triager.md` 0.1.0 como anexos. Sequência subsequente: Detector → Matcher → coordinator-flesh-completo → ADR-0012 retroativo → decomposição T11+ → benchmark PRs sintéticos → gate milestone-level.
+
+
+## #45 — 2026-05-28 — Classifier spec v0.1.0 autorada a mergeable
+
+- **Work-session:** #45 (contra o contador; #44 era MC-F). Inversão consciente da ordem #37 (Classifier antes de Detector) — registrada no session-handoff.
+- **Artefato:** docs/specs/subagents/classifier.md v0.1.0 (Branch B, consome policy://vocabularies + policy://examples). Mergeable após 3 rodadas de review cross-doc (Code).
+- **Conceitos da prova exercitados:**
+  - D2 (Tool/MCP): Resource vs Tool como fronteira de *capability* (Classifier lê vocab sem tools decisionais); scoped access per-server, não per-resource; `tools` (availability) vs `allowed_tools` (denial-on-miss) — MCP resource tools habilitadas por mcp_servers, não pelo campo tools.
+  - D4 (Structured Output): output_format envelopado; required-nullable vs optional (null explícito p/ audit, RF-003); objeto-wrapper evita root-array + eixo DD-T16; few-shot dividido por camada.
+  - D5 (Reliability): error_max_structured_output_retries; verificação posicional de ordem/identidade (SubagentContractViolation); degradação graciosa vs falha alta.
+- **Decisões fechadas:** DD-C2 (membership soft+null, sem Enum), DD-C3 (Branch B), DD-C4 (shape + escalares required-nullable), DD-C10 (few-shot positivo → policy://examples, camada 1, por analogia a ADR-0005 D8), DD-C12 (ordem/identidade = contrato hard posicional). DD-C1 (=DD-T05) declarada fora-de-contrato do Classifier.
+- **Decisões deferidas:** DD-C5 (carimbo de versão de vocab), DD-C6 (max_turns escala — constante 20 no MVP + backstop), DD-C7 (DetectorFinding ratif.), DD-C8 (reasoning field), DD-C9 (postura do Matcher), DD-C11 resíduo (tool-result vs in-prompt, A/B T11+).
+- **Companion edits catalogados (§10.5):** coordinator §3.3 (output_format + max_turns + POLICY_READER_CONFIG locus + capture loop rico + SubagentContractViolation em src/coordinator/errors.py); detector.md (ratificar DetectorFinding); matcher.md (DD-C9); ADR-0012 retroativo; **policy://examples como PR autônomo** (policy-reader §3 + ADR-0005 Decisão 9 + SCHEMA §2 + seed LGPD ≥2) — prereq de merge.
+- **Defense candidates (Cap. Método):** (1) cross-doc falsifica inferência de revisor em tempo real — leitura verbatim de triager.md derrubou meu argumento de blast-radius em DD-C1; (6) pureza vs pragmatismo — melhoria de camada (DD-C10) não está completa até a obrigação que preserva a funcionalidade deslocada (seed ≥2) estar fechada de forma concreta, não condicional. Material mais nítido da sessão.
+- **Erro corrigido:** citação de ADR-0005 D8 como autoridade para examples (D8 decide *regras*) → reformulada como analogia + Decisão 9 forthcoming.
+- **Próximo passo:** PR autônomo do policy://examples (com seed ≥2) merge primeiro; depois Classifier ramifica do main corrigido → Fase 0 smoke (gate-of-gates) antes de qualquer linha de produção. DD-T05 fica para sessão coordinator/Triager.

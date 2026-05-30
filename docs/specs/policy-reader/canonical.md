@@ -530,7 +530,7 @@ If the clause is `deprecated`, returns business error `CLAUSE_DEPRECATED` (retry
 
 - `data_categories: list[str]` — **obrigatório**. Lista não-vazia de categorias canônicas de POL-000 (vocabulário lido em runtime via `_load_data_categories_vocabulary`).
 - `operation: str` — **obrigatório**. Token canônico de `vocabularies.operation` (vocabulário lido em runtime via `_load_operation_vocabulary`).
-- `legal_basis: str | None` — **opcional**. Free-form string semanticamente comparada contra o token canônico `consent` (do vocabulário `lawful_basis`) em cláusulas com `control: consent_required`. Validação contra o vocabulário completo é responsabilidade do Classifier upstream, não da tool. Ausência produz `violation_candidate` em cláusulas `consent_required`; valor não-canônico (string ≠ `consent`) também produz `violation_candidate` com `evidence` diferenciada.
+- `legal_basis: str | None` — **opcional**. Free-form string comparada por **igualdade exata de token** contra o token canônico `consent` (do vocabulário `lawful_basis`) em cláusulas com `control: consent_required` — a tool não faz comparação semântica. Normalização do valor declarado para o token canônico e validação contra o vocabulário completo `lawful_basis` são responsabilidade do Classifier upstream, não da tool. Ausência produz `violation_candidate` em cláusulas `consent_required`; valor não-canônico (string ≠ `consent`, incluindo prosa como `"consentimento explícito"`) também produz `violation_candidate` com `evidence` diferenciada.
 - `destination: str | None` — **opcional**. Free-form string (e.g., `external_service`, `internal_database`); não consumido pelo motor de veredito no MVP v0.1.0, mas validado quanto à shape pelo Pydantic e preservado para evolução pós-MVP.
 
 `StructuredContext` declara `model_config = ConfigDict(extra='forbid')`, portanto campos adicionais no `structured_context` produzem `ValidationError` no parsing — o contrato é estrito quanto à shape de entrada. Expansão futura do contexto requer adição explícita ao modelo Pydantic.
@@ -609,7 +609,7 @@ Input: {
   "structured_context": {
     "data_categories": ["dados_de_identificacao"],
     "operation": "collection",
-    "legal_basis": "consentimento explícito"
+    "legal_basis": "consent"
   }
 }
 Output: {
@@ -617,7 +617,7 @@ Output: {
   "structuredContent": {
     "verdict": "compliant",
     "policy_clause_ref": "POL-027",
-    "evidence": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento; código declara base 'consentimento explícito'.",
+    "evidence": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento (token canônico 'consent' do vocabulário lawful_basis); context declara legal_basis='consent'.",
     "policy_schema_version": "0.1.0",
     "policy_version": "0.1.0",
     "legal_framework": "LGPD"
@@ -625,7 +625,7 @@ Output: {
   "content": [
     {
       "type": "text",
-      "text": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento; código declara base 'consentimento explícito'."
+      "text": "Cláusula POL-027 (LGPD Art. 7º, I) exige consentimento (token canônico 'consent' do vocabulário lawful_basis); context declara legal_basis='consent'."
     }
   ]
 }
@@ -638,8 +638,8 @@ Input: {
   "clause_id": "POL-031",
   "structured_context": {
     "data_categories": ["dados_de_saude"],
-    "operation": "storage",
-    "legal_basis": "interesse legítimo"
+    "operation": "collection",
+    "legal_basis": "legitimate_interests"
   }
 }
 Output: {
@@ -647,7 +647,7 @@ Output: {
   "structuredContent": {
     "verdict": "violation_candidate",
     "policy_clause_ref": "POL-031",
-    "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11.",
+    "evidence": "Cláusula POL-031 (LGPD Art. 11) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis); context declara legal_basis='legitimate_interests', fora do token canônico exigido.",
     "contradicted_requirement": "R1",
     "policy_schema_version": "0.1.0",
     "policy_version": "0.1.0",
@@ -656,13 +656,15 @@ Output: {
   "content": [
     {
       "type": "text",
-      "text": "Cláusula POL-031 (LGPD Art. 11) exige consentimento ou hipóteses específicas para dados sensíveis; código declara base 'interesse legítimo', que não está entre as hipóteses do Art. 11."
+      "text": "Cláusula POL-031 (LGPD Art. 11) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis); context declara legal_basis='legitimate_interests', fora do token canônico exigido."
     }
   ]
 }
 ```
 
 *Caso indeterminate — depende de upstream.*
+
+> **Nota (aspiracional / pós-MVP).** Sob o MVP v0.1.0, o input abaixo (`operation: disclosure_by_transmission`, fora de `collection`) retorna `not_applicable` pelo gate de escopo MVP do sub-caso (i) acima (ADR-0007 Decision 3) — confirmado empiricamente (smoke-test sessão #48, casos T3/T3b: `storage` e `disclosure_by_transmission` ambos → `not_applicable`, reason "fora do escopo MVP v0.1.0"). O veredito `indeterminate` ilustrado a seguir é a **forma de saída pós-MVP**, válida quando operações fora de `collection` entrarem em escopo e a decisão depender de estado upstream; não é o comportamento do motor atual para este input.
 
 ```
 Input: {

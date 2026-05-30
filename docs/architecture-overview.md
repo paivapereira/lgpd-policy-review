@@ -79,7 +79,7 @@ O fluxo é orquestrado por um coordinator que invoca cada subagente em sequênci
 
 **Etapa 2 — Classifier.** Para cada candidato, extrai `structured_context` com quatro campos: `operation_type` (coleta, uso, transferência, etc.), `data_categories` (CPF, e-mail, dado sensível, etc.), `declared_legal_basis` (consentimento, execução de contrato, etc., quando declarada), `declared_transformations` (anonimização, hash, criptografia, quando declaradas). Output: candidato enriquecido com contexto estruturado.
 
-**Etapa 3 — Matcher.** Para cada candidato classificado, consulta o MCP server `policy-reader` via `find_clauses_by_law_article` para descobrir cláusulas aplicáveis, depois invoca `check_applicability` por cláusula. Cada invocação retorna um dos quatro vereditos: `compliant`, `violation_candidate`, `indeterminate` (com `verification_scope` indicando a dimensão a verificar manualmente), `not_applicable`. Output: lista de findings por candidato.
+**Etapa 3 — Matcher.** Para cada candidato classificado, descobre cláusulas candidatas lendo o resource `policy://catalog` (cláusulas `active`) e invoca `check_applicability` por cláusula (mecanismo interino A — check-all; o mecanismo definitivo será a tool `find_clauses_by_applicability`, DD-M3). Cada invocação retorna um dos quatro vereditos: `compliant`, `violation_candidate`, `indeterminate` (com `verification_scope` indicando a dimensão a verificar manualmente), `not_applicable`. Output: lista de findings por candidato.
 
 **Etapa 4 — Reporter.** Agrega os findings em um Report JSON consolidado por execução, com `report_id`, `policy_schema_version`, `policy_version`, `scope`, `summary` por veredito, e `findings` detalhados. Emite via tool customizada `emit_report`. Output: Report JSON entregue ao GitHub Action, que o transforma em inline comments.
 
@@ -194,11 +194,11 @@ A inclusão do resource `policy://vocabularies` (sem acesso às tools do `policy
 
 **Responsabilidade.** Avalia conformidade de cada candidato contra cláusulas aplicáveis da Política.
 
-**Tools permitidas.** MCP server `policy-reader` — tools (`find_clauses_by_law_article`, `get_clause`, `check_applicability`) e resource `policy://vocabularies` (compartilhado com Classifier). Sem `semgrep-runner`, sem Read/Write/Edit/Bash/Grep/Glob no filesystem.
+**Tools permitidas.** MCP server `policy-reader` — tools (`get_clause`, `check_applicability`, `find_clauses_by_law_article`) e resources `policy://catalog` + `policy://vocabularies` (este último compartilhado com Classifier). O mecanismo de seleção interino (A check-all, DD-M3) lê `policy://catalog` para enumerar cláusulas `active` e invoca `check_applicability` por cláusula; `find_clauses_by_law_article` permanece autorizada mas não é o caminho de seleção. Sem `semgrep-runner`, sem Read/Write/Edit/Bash/Grep/Glob no filesystem.
 
 **Input.** Lista de candidatos classificados (com `structured_context` completo).
 
-**Output.** Lista de findings: `[{candidate_ref, policy_clause_ref, verdict, verification_scope?, requires_human_review?, evidence}]` onde `verdict ∈ {compliant, violation_candidate, indeterminate, not_applicable}`. Cada veredito carrega trinque de provenance `(policy_schema_version, policy_version, legal_framework)` retornado pelas tools do `policy-reader`. O campo `policy_clause_ref` é obrigatório e presente em todos os quatro vereditos, incluindo `not_applicable` — preserva audit trail de qual cláusula foi avaliada-e-descartada.
+**Output.** Lista de findings, cada um uma discriminated union por `verdict` (shape vinculante: `reporter.md` §3.2): campos comuns `{policy_clause_ref, verdict, trinque de provenance, requires_human_review?}` mais o discriminador por veredito — `evidence` (`compliant`; `violation_candidate`, este com `contradicted_requirement?`), `reason` (`not_applicable`), `verification_scope` (`indeterminate`). `verdict ∈ {compliant, violation_candidate, indeterminate, not_applicable}`. Cada veredito carrega trinque de provenance `(policy_schema_version, policy_version, legal_framework)` retornado pelas tools do `policy-reader`. O campo `policy_clause_ref` é obrigatório e presente em todos os quatro vereditos, incluindo `not_applicable` — preserva audit trail de qual cláusula foi avaliada-e-descartada. (Localização do candidato — `file`/`line`/`snippet` — é threaded do Detector/Classifier per `reporter.md` §3.2; `candidate_ref` foi removido — M19.)
 
 **Justificativa do escopo.** Matcher é o único subagente autorizado a invocar tools do `policy-reader` e o único autorizado a emitir vereditos. Restrição de tools materializa a regra: ninguém mais pode "espiar" cláusulas para inferir veredito atalhando o protocolo. Sem acesso ao filesystem, o Matcher é forçado a confiar no `structured_context` que recebe — qualquer informação do código que ele precise vem do Classifier, não de leitura própria. Isso amarra a fronteira contratual entre as etapas 2 e 3.
 
@@ -226,6 +226,7 @@ Matcher é explicitamente **framework-aware**: consome vocabulários jurisdicion
 | Write / Edit / Bash                             |       |         |          |            |         |          |
 | `semgrep-runner` MCP                            |       |         |    ✓     |            |         |          |
 | `policy-reader` — tools                         |       |         |          |            |    ✓    |          |
+| `policy-reader` — resource `policy://catalog`    |       |         |          |            |    ✓    |          |
 | `policy-reader` — resource `policy://vocabularies` |    |         |          |     ✓      |    ✓    |          |
 | `emit_report` (custom)                          |       |         |          |            |         |    ✓     |
 | Despacho de subagentes                          |   ✓   |         |          |            |         |          |

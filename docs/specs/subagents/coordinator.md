@@ -32,7 +32,7 @@ Coordinator não é AgentDefinition. É script Python que executa cinco chamadas
 | `allowed_tools` | Allowlist (auto-approval); tools listadas auto-aprovadas | quíntupla (denial-on-miss) | list[str] |
 | `mcp_servers` | Dict explícito de servers MCP disponíveis ao subagente | quíntupla (denial-on-miss) | dict |
 | `system_prompt` | Define o role do main agent daquela query | role definition (separado da quíntupla) | str |
-| `tools` | `[]` em stages Reporter e Matcher (PR #67) — remove built-ins do contexto do modelo | context restriction (eixo ortogonal) | list[str] |
+| `tools` | `[]` no Reporter (PR #67; `emit_report` é server tool, visível via `mcp_servers`). **Matcher e Classifier listam `ReadMcpResourceTool`/`ListMcpResourcesTool`** — built-ins de resource governados por este campo; `[]` ou lista sem eles os esconde e quebra o read de resource (#48-b; §10 DD-9.1). Remove built-ins do contexto do modelo. | context restriction (eixo ortogonal) | list[str] |
 
 Os cinco elementos da quíntupla são ortogonais sob falha — ver §6 quatro camadas de enforcement.
 
@@ -116,7 +116,13 @@ async for msg in query(
     prompt=build_classifier_prompt(detector_output),
     options=ClaudeAgentOptions(
         system_prompt=CLASSIFIER_SYSTEM_PROMPT,
-        tools=["Read", "Grep"],
+        # ReadMcpResourceTool/ListMcpResourcesTool are built-ins governed by the
+        # `tools` field (availability), NOT by mcp_servers/allowed_tools. The
+        # Classifier reads policy://vocabularies via ReadMcpResourceTool at
+        # startup; under a non-empty `tools` without them the model cannot see
+        # the built-in and the vocabulary load fails — emitting non-canonical
+        # tokens that break the Matcher's consent comparison (#48-b; §10 DD-9.1).
+        tools=["Read", "Grep", "ReadMcpResourceTool", "ListMcpResourcesTool"],
         allowed_tools=[
             "Read",
             "Grep",
@@ -143,6 +149,8 @@ Output Pydantic-validado, gravado em `03-classifier.json`.
 
 Princípio ADR-0005 Decision 4 (Resource vs Tool) preservado em **nível de capability** (Classifier não tem decisional power); granularidade de scoping no SDK Python é per-server-via-built-in-tools (uma `ReadMcpResourceTool` gate per server). Documentar nuance em ADR-0012 retroativo.
 
+**Caveat de availability (≠ capability).** O scoping per-server acima é sobre *capability* (qual resource o built-in alcança). É ortogonal à *availability* do built-in: registrar o server em `mcp_servers` concede o alcance, mas `ReadMcpResourceTool`/`ListMcpResourcesTool` só entram no contexto do modelo se estiverem no campo `tools` (#48-b; §10 DD-9.1). Por isso o `tools` do Classifier (§3.3) e do Matcher (§3.4) lista os dois built-ins explicitamente — `allowed_tools` pré-aprova mas não controla availability (Issue #361).
+
 Sem branching: pipeline prossegue mesmo com candidatos parcialmente classificáveis; campos nulos em `structured_context` são válidos per RF-003 (extração que falha em mapear ao vocabulário resulta em null, não em invenção).
 
 ### §3.4 Etapa 4 — Matcher
@@ -152,7 +160,12 @@ async for msg in query(
     prompt=build_matcher_prompt(classifier_output),
     options=ClaudeAgentOptions(
         system_prompt=MATCHER_SYSTEM_PROMPT,
-        tools=[],                       # PR #67 Gate 6: remove built-ins do contexto
+        # Gate 6 (tools=[]) is correct for the Reporter — emit_report is a server
+        # tool, visible via mcp_servers — but WRONG for the Matcher: the check-all
+        # reads policy://catalog via ReadMcpResourceTool, a built-in governed by
+        # the `tools` field. tools=[] hides it and breaks the check-all
+        # (#48-b; §10 DD-9.1 finding). List the resource built-ins explicitly.
+        tools=["Read", "ReadMcpResourceTool", "ListMcpResourcesTool"],
         allowed_tools=[
             "ListMcpResourcesTool",    # listar resources de policy-reader
             "ReadMcpResourceTool",     # ler policy://vocabularies
@@ -164,6 +177,11 @@ async for msg in query(
         permission_mode="dontAsk",
         setting_sources=[],
         strict_mcp_config=True,
+        output_format={                 # enum-tag finding schema (Matcher spec §3.3 / DD-M13)
+            "type": "json_schema",
+            "schema": MatcherOutput.model_json_schema(),
+        },
+        max_turns=30,                   # check-all is call-heavy: ~N×(C+1) calls (Matcher spec §4.2 / DD-M14)
     ),
 ):
     ...
@@ -536,6 +554,118 @@ Patch único pendente em `docs/architecture-overview.md`, derivado da decisão d
 - Beat 3 (verified): pendente review independente Chat pós-aplicação.
 
 Three-beats persiste pós-aplicação como audit trail (per ADR-0002 §Decision 5).
+
+---
+
+**Reconciliação M19/M20 (Beat 1 — proposed; AGUARDA REVISÃO antes de
+aplicar a `architecture-overview.md` / `reporter.md`).**
+
+Gateia a autoria de `matcher.md`. Origem: o mecanismo de seleção
+`find_clauses_by_law_article` prescrito no arch está stale pós-MC-F (a
+descoberta de cláusulas aplicáveis não é por artigo de lei; é check-all
+interino sobre o catálogo). Superfície cirúrgica (texto atual / texto
+proposto) abaixo; loci confirmados por leitura direta nesta sessão.
+
+*M20 — mecanismo de seleção (`find_clauses_by_law_article` → check-all interino).*
+
+- **arch §3 l.82** (confirmado). Atual:
+  > **Etapa 3 — Matcher.** Para cada candidato classificado, consulta o MCP server `policy-reader` via `find_clauses_by_law_article` para descobrir cláusulas aplicáveis, depois invoca `check_applicability` por cláusula. […]
+
+  Proposto:
+  > **Etapa 3 — Matcher.** Para cada candidato classificado, descobre cláusulas candidatas lendo o resource `policy://catalog` (cláusulas `active`) e invoca `check_applicability` por cláusula (mecanismo interino A — check-all; o mecanismo definitivo será a tool `find_clauses_by_applicability`, DD-M3). […]
+
+- **arch §5.5 l.197** (Tools permitidas) — adiciona `policy://catalog`.
+  ⚠️ **Decisão aberta:** isto expande a autorização de resource do
+  Matcher (boundary de capability). Atual:
+  > **Tools permitidas.** MCP server `policy-reader` — tools (`find_clauses_by_law_article`, `get_clause`, `check_applicability`) e resource `policy://vocabularies` (compartilhado com Classifier). […]
+
+  Proposto:
+  > **Tools permitidas.** MCP server `policy-reader` — tools (`get_clause`, `check_applicability`, `find_clauses_by_law_article`) e resources `policy://catalog` + `policy://vocabularies` (este último compartilhado com Classifier). O mecanismo de seleção interino (A check-all, DD-M3) lê `policy://catalog` para enumerar cláusulas `active` e invoca `check_applicability` por cláusula; `find_clauses_by_law_article` permanece autorizada mas não é o caminho de seleção. […]
+
+- **arch §5.7** (matriz tools × subagentes) — adiciona linha de resource
+  `policy://catalog` com ✓ no Matcher, após a linha `policy-reader — tools`:
+  > `| `policy-reader` — resource `policy://catalog` | | | | | ✓ | |`
+
+- **reporter §2.2 l.135** (re-deriva invariante de cardinalidade, DD-M6).
+  **Roteia pela spec do Reporter, não por este ledger.** Atual:
+  > […] Matcher para cada candidato invoca `find_clauses_by_law_article` retornando K cláusulas aplicáveis, e `check_applicability` por cláusula produz um verdict. Resultado: `len(findings) ≥ candidates_count`, sem invariante de igualdade.
+
+  Proposto:
+  > […] Matcher para cada candidato enumera as K cláusulas `active` de `policy://catalog` e invoca `check_applicability` por cláusula, produzindo um verdict por par (mecanismo interino A check-all, DD-M3). Resultado: `len(findings) ≥ candidates_count` (DD-M6), sem invariante de igualdade.
+
+*M19 — `candidate_ref` + `evidence` flat → discriminated union por verdict.*
+
+- **arch §5.5 l.201** (Output do Matcher) — dropa `candidate_ref`,
+  alinha `evidence` flat à discriminated union vinculante de
+  `reporter.md` §3.2. Atual:
+  > **Output.** Lista de findings: `[{candidate_ref, policy_clause_ref, verdict, verification_scope?, requires_human_review?, evidence}]` onde `verdict ∈ {…}`. […]
+
+  Proposto:
+  > **Output.** Lista de findings, cada um uma discriminated union por `verdict` (shape vinculante: `reporter.md` §3.2): campos comuns `{policy_clause_ref, verdict, trinque de provenance, requires_human_review?}` mais o discriminador por veredito — `evidence` (`compliant`; `violation_candidate`, este com `contradicted_requirement?`), `reason` (`not_applicable`), `verification_scope` (`indeterminate`). […] (Localização do candidato — `file`/`line`/`snippet` — é threaded do Detector/Classifier per `reporter.md` §3.2; `candidate_ref` removido — M19.)
+
+- **arch §5.7 para M19:** ⚠️ **sem alvo.** `candidate_ref`/`evidence`
+  não aparecem na matriz §5.7 (é tabela tools × subagentes). O "+§5.7"
+  da formulação M19 não tem onde aplicar; M19 incide só em arch §5.5 l.201.
+
+*Loci confirmados / divergências de número de linha:* arch §3 l.82,
+arch §5.5 l.197+l.201, arch §5.7 matriz, reporter §2.2 l.135 — todos
+conferidos por leitura direta. `candidate_ref` existe **só** em arch
+§5.5 l.201 (ausente de §5.7 e de `reporter.md`).
+
+*Evidência empírica do mecanismo (smoke-test sessão #48, `server.py` +
+servidor live).* `policy://catalog` **existe** e é a fonte de
+enumeração do check-all: retorna lista top-level de
+`{clause_id, title, status, article_sources_summary, successors?}` —
+o Matcher filtra `status == "active"` e invoca `check_applicability`
+por `clause_id`. O catalog **não** carrega `applies_to` (só os 5 campos
+de índice), então todo o matching de aplicabilidade fica em
+`check_applicability`. Os 3 únicos resources expostos são
+`policy://catalog`, `policy://vocabularies`, `policy://schema-version`
+(não existe `policy://clauses` nem `policy://rationale`).
+
+*Checks de boundary pré-aplicação (sessão #48):*
+- **Check A — ADR-0005 Decision 4:** D4 concede `policy://vocabularies`
+  como resource **compartilhado** (Classifier + Matcher) e mantém os
+  *tools* exclusivos do Matcher; a única restrição que impõe é sobre o
+  **Classifier** (ganha o resource, não os tools). D4 é **silente**
+  sobre o Matcher acessar `policy://catalog`. Logo conceder catalog ao
+  Matcher é **extensão-de-doc**, não emenda ao ADR-0005. ✅ segue.
+- **Check B — alcance runtime (smoke-test #48, `claude-agent-sdk==0.2.87`):**
+  `ReadMcpResourceTool` com grant **bare** + `mcp_servers={policy-reader}`
+  **leu `policy://catalog`** (retornou o catálogo POL-000), sem
+  `permission_denials`. Acesso a resource é **per-server, não
+  per-URI** — a concessão já alcança. ✅ §5.5/§5.7 documentam capability
+  existente.
+  - ⚠️ **Achado de config (DD-9.1 Matcher):** sob `tools=["Read"]` o
+    modelo **não enxerga** `ReadMcpResourceTool`/`ListMcpResourcesTool`
+    (o `tools` field governa built-ins; esses não estão em `["Read"]`),
+    apesar de presentes em `allowed_tools`. Os tools de MCP server
+    (`check_applicability` etc.) seguem visíveis via `mcp_servers`. Para
+    o check-all rodar, o AgentDefinition do Matcher precisa incluir
+    `ReadMcpResourceTool` + `ListMcpResourcesTool` no `tools` field (ou
+    omitir o field, pagando o turn de ToolSearch — AC-1 de
+    `sdk_mcp_visibility`). Registrar na atualização da tabela DD-9.1.
+    - ⚠️ **Extensão (#48-b):** a #48-b mediu os estados lado a lado e
+      confirmou que **`tools=[]` também** esconde os built-ins (não só
+      `tools=["Read"]`). E o achado **propaga ao Classifier (§3.3)**:
+      ele declara `tools=["Read","Grep"]` e lê `policy://vocabularies`
+      via `ReadMcpResourceTool` — mesma quebra. Config corrigida em §3.3
+      e §3.4 para listar os dois built-ins. Não basta o patch de prosa a
+      `classifier.md:45`. **Princípio:** todo subagente que lê resource
+      via `ReadMcpResourceTool` sob `tools` não-vazio lista os dois
+      built-ins de resource. Evidência persistida em
+      `scripts/smoke_tests/check_applicability_48b/RESULTS.md` (4 estados
+      de `tools` lado a lado; Gate resource access PASS — `classifier.md`
+      §10.3).
+
+*Status three-beats:*
+- Beat 1 (proposed): sessão #48, superfície acima.
+- Beat 2 (applied): sessão #48 — Checks A (silente→extensão-de-doc) e B
+  (alcança per-server) passaram; aplicado em `architecture-overview.md`
+  (§3 l.82, §5.5 l.197+l.201, §5.7 linha de resource `policy://catalog`)
+  e `reporter.md` (§2.2 cardinalidade DD-M6). M19 incidiu só em §5.5
+  l.201 (sem alvo em §5.7, confirmado).
+- Beat 3 (verified): PENDENTE — review independente Chat pós-aplicação.
 
 ## 11. Gates pré-coordinator-flesh
 

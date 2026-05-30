@@ -640,6 +640,45 @@ em sessão Code curta dedicada):**
   SubagentContractViolation, SubagentExecutionError ausentes da tabela §5
   do coordinator. Passada dedicada no flesh; grepar por nome.
 
+**Débito de spec do policy-reader (auto-correção pós-impl; smoke-test
+sessão #48 — engine é a verdade pós-implementação, não roteia pelo
+coordinator §10):**
+
+- ✅ *(aplicado neste passo)* `canonical.md` §4.3, descrição de
+  `legal_basis`: "semanticamente comparada" → **igualdade exata de
+  token** contra `consent`; normalização atribuída explicitamente ao
+  Classifier upstream. O motor (`tools.py:382-423`) compara token, não
+  semântica.
+- ✅ *(aplicado neste passo)* `canonical.md` §4.3, exemplo `compliant`:
+  `legal_basis` em prosa PT `"consentimento explícito"` → token
+  `consent`; `evidence` realinhada. A prosa rejeitada pelo motor
+  produziria `violation_candidate`, não `compliant` (smoke-test #48,
+  caso T1x).
+- ✅ *(aplicado neste passo)* `canonical.md` §4.3, exemplo
+  `indeterminate`: anotado como aspiracional/pós-MVP. Sob MVP v0.1.0,
+  `operation: disclosure_by_transmission` → `not_applicable` pelo gate
+  de escopo (l.585 sub-caso (i), ADR-0007 D3); confirmado smoke-test #48
+  (T3/T3b). Resolve a contradição interna §4.3 (sub-caso (i) vs exemplo)
+  a favor do gate-MVP.
+- ✅ *(aplicado #48; aprovado por João)* `canonical.md` §4.3, exemplo
+  `violation_candidate` (~l.634-663): `operation: storage` →
+  `collection` (corrige o curto-circuito do gate-MVP que tornava o
+  exemplo inalcançável); `legal_basis` prosa `"interesse legítimo"` →
+  token `legitimate_interests`; `evidence` realinhada ao mecanismo real
+  do engine (≠ token canônico `consent`).
+- ⚠️ *(achado #48 — relevante para `matcher.md`, não para o exemplo)*
+  **O engine MVP v0.1.0 NÃO consome o campo `category`
+  (personal_data vs sensitive_data) de `lawful_basis.yaml`.** Para
+  `control: consent_required`, `tools.py:382-423` compara `legal_basis`
+  por igualdade exata contra o token único `consent` — não há lógica de
+  Art. 11 (dado sensível exige base da categoria `sensitive_data`).
+  Consequência: o engine sinalizaria como `violation_candidate` até o
+  `explicit_consent` (a base legalmente correta para dado sensível),
+  pois ≠ `consent`. A distinção de categoria de base legal é limitação
+  conhecida do MVP; `matcher.md` deve descrever o control
+  `consent_required` como comparação de token único, não como
+  reasoning de categoria.
+
 ---
 
 ## Pós-Milestone B aberto

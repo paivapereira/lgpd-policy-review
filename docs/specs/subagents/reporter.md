@@ -132,7 +132,7 @@ O coordinator monta o prompt do Reporter com o estado consolidado a seguir (repr
 }
 ```
 
-**Invariante upstream:** no caminho normal, o coordinator garante em §3.4 que cada finding emitido pelo Matcher carrega `policy_clause_ref` válido e shape de discriminated union completa por verdict, antes de invocar Reporter. (Nota: Matcher emite **um finding por par candidato-cláusula** — Classifier produz N candidatos com `structured_context`, Matcher para cada candidato invoca `find_clauses_by_law_article` retornando K cláusulas aplicáveis, e `check_applicability` por cláusula produz um verdict. Resultado: `len(findings) ≥ candidates_count`, sem invariante de igualdade.) Violação halt em `SubagentValidationFailed` no coordinator; Reporter não revalida shape.
+**Invariante upstream:** no caminho normal, o coordinator garante em §3.4 que cada finding emitido pelo Matcher carrega `policy_clause_ref` válido e shape de discriminated union completa por verdict, antes de invocar Reporter. (Nota: Matcher emite **um finding por par candidato-cláusula** — Classifier produz N candidatos com `structured_context`, Matcher para cada candidato enumera as K cláusulas `active` de `policy://catalog` e invoca `check_applicability` por cláusula, produzindo um verdict por par (mecanismo interino A check-all, DD-M3). Resultado: `len(findings) ≥ candidates_count` (DD-M6), sem invariante de igualdade.) Violação halt em `SubagentValidationFailed` no coordinator; Reporter não revalida shape.
 
 ### 2.3 Caminho skip (Triager → Reporter)
 

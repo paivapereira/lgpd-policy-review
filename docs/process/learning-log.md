@@ -6757,3 +6757,43 @@ Os quatro abaixo são corolários de **um** princípio: *todo locus que afirma u
 - Commit/PR único da #47 (3 fios: item-3, sdk_tool_error_channel, sdk_output_format_complex).
 - #48 = autoria de `matcher.md` (handoff dedicado).
 - Pendentes não-resolvidos: item 1 (`output_format`+`max_turns` §3.2/§3.3, agora com sub-task de smoke-testar schemas reais enum-tag); item 4 EDIT (remover caveat "TS-only" dos §6.3 + restaurar tabela H2 — mecanismo confirmado, edit não aplicado); A4 (`config.py`); ADR-0013; reconciliação de taxonomia.
+
+## 2026-05-29 — Sessão #48: autoria + hardening da matcher.md (último subagente)
+
+### Conceitos da prova exercitados
+- **D1 — Agentic Architecture.** Coordinator NÃO é agente: é código Python que liga output→input entre `query()`s. Consequência de design ratificada (H1/DD-M22): handshake jurisdicional, se existir, é `if framework not in ACCEPTED: abort` no boot do coordinator, não lógica de agente no Matcher.
+- **D2 — Tool Design & MCP.** Achado central da sessão: **dois tipos de "MCP tool" com governança oposta** — (1) server tools (`mcp__*`) governados por `mcp_servers`, sobrevivem a `tools=[]`; (2) built-ins de acesso a resource (`ReadMcpResourceTool`/`ListMcpResourcesTool`) governados pelo `tools` field, invisíveis se não listados. Issue #361 da SDK fala de `allowed_tools` (verdadeiro), NÃO do `tools` field — distinção que quatro docs haviam conflado. Option B (errorCode em structuredContent, isError=false). `extra='forbid'` no input da tool → projeção rename+drop.
+- **D3 — Claude Code Config.** `tools` field como eixo de availability ortogonal à quíntupla de denial-on-miss. `tools=[]` (Gate 6) correto pro Reporter (emit_report é server tool), errado pro Matcher/Classifier (precisam dos built-ins de resource). `output_format` enum-tag, `max_turns`.
+- **D4 — Structured Output.** enum-tag (`Literal` + `anyOf[T,null]`), nunca `oneOf`/discriminated-union no schema wire-level. Orçamento: 24 opcionais / 16 uniões / 180s.
+- **D5 — Context & Reliability.** Trinca de provenance verbatim por finding; honestidade epistêmica (não marcar gate PASS sem evidência do shape específico); determinismo do motor (templates f-string) vs enumeração do LLM (não garantida por construção).
+
+### Decisões load-bearing ratificadas
+- **C1** — input contract: nomes reais do Classifier (`operation_type`/`declared_legal_basis`/`declared_transformations`), projeção = rename+drop, DD-M10 invertido (passthrough no finding; rename só na projeção pra tool).
+- **C2** — curto-circuito de contexto insuficiente: `operation_type:null` / `data_categories:[]` são saídas VÁLIDAS do Classifier → Matcher emite `not_applicable`+`requires_human_review` sem chamar a tool (carve-out declarado de DD-M26).
+- **H1 (opção c)** — handshake jurisdicional descartado por YAGNI no MVP co-versionado; eixo estrutural já server-side; dono futuro = código do coordinator. NÃO "agnóstico".
+- **H2/DD-M30** — Matcher e Classifier listam os built-ins de resource no `tools` field. Verificado #48-b.
+- **R1** — finding de curto-circuito fonta a trinca de `policy://schema-version` (loop e system prompt instruídos a ler o resource no startup).
+- **M-a** — `INVALID_OPERATION` tem dois sub-casos: null/ausente → contexto insuficiente; token fora-de-vocab → falha alto (simétrico a INVALID_DATA_CATEGORY).
+
+### Lição de método (candidato a Capítulo de Método)
+**O achado do `tools` field atravessou quatro camadas de revisão, e cada uma corrigiu um modo de erro DIFERENTE do mesmo fato:**
+1. #48-b mediu (shape do Matcher, `tools=[]`).
+2. Eu (Chat) propaguei incompleto — corrigi só a prosa de `classifier:45`, deixei a config gêmea do Classifier intocada.
+3. Sessão clean (review sem contexto) pegou a config gêmea quebrada (`coordinator:119`).
+4. Code refinou a raiz conceitual — preservou o Issue #361 (verdadeiro sobre `allowed_tools`), consertou só a extensão indevida (ao `tools` field); e RECUSOU marcar o gate PASS até o shape específico do Classifier ser medido e persistido.
+
+**Corolário aprendido:** "verificação-antes-de-inferência" tem dois modos de falha simétricos — **inferir o que não se mediu** (foi o erro de C1: autorei §2 contra memória sem reler classifier.md) e **não propagar o que se mediu** (foi o erro do H1-Classifier: medi o Matcher e não estendi ao subagente irmão que depende do mesmo mecanismo). Quando uma medição derruba uma crença, a crença tem de ser caçada em TODOS os loci onde foi escrita, não só onde a medição calhou de tocar.
+
+**Custo concreto:** C1 e H1 foram o mesmo erro de origem (autorar contra o ledger/memória em vez de reler os artefatos que o próprio ledger marcou "a confirmar na autoria"). Custou um ciclo inteiro de review+probe. A spec saiu robusta, mas o caminho curto era a releitura na escrita.
+
+### Artefatos
+- `matcher.md` 0.1.0 (spec do último subagente; vive em Chat/outputs, não no repo) — C1/C2/H1/H2/M1/M2/L1/L2 + R1/R2/R3/M-a/M-b/M-c + cascata tools-field, todos folded.
+- `scripts/smoke_tests/check_applicability_48b/` — `probe.py` (C2/H1 in-process) + `h2_probe.py` (H2 live, 4 shapes de `tools`) + **`RESULTS.md` persistido** (gate resource-access fechado).
+- Edits no working tree (não commitados): `coordinator.md` (§3.3/§3.4/§2/§3.3-nota/§10), `classifier.md` (§1.4/§10.3/§10.5-escopo-ADR/Gate 6).
+- Smoke-test #48 (`check_applicability`, in-memory, não persistido) — 13/13 + probe §5.
+
+### Próximo passo
+- Abrir PR `<branch-da-sessão>` (um PR por sessão): coordinator.md + classifier.md + RESULTS.md novo. Confirmar working tree dirty antes do `git add` — deixar Beat 2/housekeeping de sessões anteriores FORA. Mencionar no corpo que o gate resource-access foi exercitado live.
+- `matcher.md` 0.1.0 mergeia por seu caminho de specs-fora-do-repo.
+- ADR-0012 retroativo: autoria deferida a sessão dedicada (escopo já carimbado; rationale é Chat/João, não Code a frio).
+- Pendentes de outras sessões (não deste PR): M1 (classifier §3.3), jurisdictional defer (canonical §3.2/§6.3 + arch §5.5), reporter:135 (L2), detector §6.3 (confirmar antes), tasks.md, session-handoff l.63.

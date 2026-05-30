@@ -1,65 +1,29 @@
-# Session-handoff: autoria de matcher.md (#48)
+# Session handoff — fim da sessão #48
 
-**O que é:** primeira autoria da spec do Matcher (etapa 4 do pipeline). NÃO é
-consolidação nem edit cirúrgico — é destilação de spec, padrão das specs
-existentes (triager/detector/classifier/reporter).
+## Estado em uma linha
+`matcher.md` 0.1.0 completa e verificada contra a impl em todo ponto load-bearing; último subagente da ordem Triager → Detector → Classifier → **Matcher** fechado. Cascata `tools`-field aplicada no working tree + gate resource-access fechado com evidência persistida. Pronto para PR.
 
-**Confirmar no GATE 0 (estado de entrada — não assumir):**
-- O PR da #47 foi mergeado? `git log` / `git status`. Se sim, os 3 fios
-  (item-3 §5, sdk_tool_error_channel, sdk_output_format_complex) estão em `main`.
-- Item 1 (`output_format`+`max_turns` em §3.2/§3.3) e item 4 EDIT (§6.3)
-  permanecem NÃO aplicados ao fim da #47 — confirmar se alguma sessão
-  intermediária os aplicou.
+## O que fechou nesta sessão
+- **matcher.md 0.1.0** (Chat/outputs) — autorada e endurecida contra 4 rodadas de review (Code original + R1 + sessão clean + Code-aplicação). Todos os achados folded; ledger DD-M v3 ratificado (30 DDs).
+- **Cascata `tools` field (5 loci)** aplicada no working tree por Code: `coordinator.md` §3.3 (Classifier config — era quebra ativa), §3.4 (Matcher config + output_format + max_turns=30), §2 (tabela DD-9.1), §3.3-nota (availability≠capability), §10 (DD-9.1 estendido). `classifier.md` §1.4 (argumento corrigido preservando Issue #361), §10.3 (gate → PASS), Gate 6.
+- **Gate resource-access fechado.** `scripts/smoke_tests/check_applicability_48b/RESULTS.md` persistido — 4 shapes de `tools` medidos contra o policy-reader live; resultado bateu com DD-M30 exatamente. Shape específico do Classifier (`["Read","Grep",+2]`) exercitado, não só o do Matcher.
 
-**Achados da #47 que são o ponto de partida (verificados verbatim salvo nota):**
+## Pronto para PR (não commitado — main protegida)
+- Branch sugerida: `<definir — ex. docs/sync-tools-field-48b ou docs/session-48>`.
+- Arquivos DESTA sessão: `coordinator.md`, `classifier.md`, `scripts/smoke_tests/check_applicability_48b/RESULTS.md` (novo).
+- **Antes do `git add`:** pedir ao Code a lista do working tree dirty. Há `M` de Beat 2/housekeeping de sessões anteriores (`architecture-overview.md`, `tasks.md`, etc.) que NÃO entram neste PR (um PR por sessão).
+- Corpo do PR: mencionar que o gate resource-access foi exercitado live (evidência no RESULTS.md), pois toca contrato de invocação de subagente.
 
-*Output shape — já pinado, não inventar.*
-- Matcher produz findings no shape de `reporter.md §2.2`: `file, line, snippet,
-  rule_id, data_categories, operation_type, verdict, policy_clause_ref,
-  requires_human_review?, policy_schema_version, policy_version, legal_framework`.
-- ZERO `candidate_ref` no `reporter.md` (verificado) — bookkeeping interno do
-  Matcher, não vai ao Report. Sem passo de re-expansão: o Matcher tem os campos
-  do passthrough do Detector + structured_context do Classifier + seu verdict.
-- Cardinalidade: um finding por par candidato-cláusula, `len ≥ candidates_count`
-  (reporter §2.2 l.135). C1 do review ("não compõe") REENQUADRADO: compõe.
+## Deferido / pendente
+- **ADR-0012 retroativo** — único item de autoria deferida. Número reservado, 5 decisões de Milestone C, PR `chore/sync-adr-references` próprio. Escopo estendido com a nuance capability-vs-availability (montagem mecânica). Rationale = Chat/João em sessão dedicada, não Code a frio (regra PR-23).
+- **Companion edits de outras cadeias** (entram quando suas sessões fecharem, não no PR do tools-field): M1 (classifier §3.3/DD-C9 degradação stale); jurisdictional defer (canonical §3.2/§6.3 + arch §5.5 rótulo framework-aware); reporter:135 (L2, DD-M3→DD-M1/M6); detector §6.3 (confirmar redação antes de afirmar stale); tasks.md (débito category/Art.11); matcher.md 0.1.0 merge.
+- **Débito jurídico** — motor não consome `category` (personal vs sensitive), trata Art. 11 com régua de dado comum. Sub-modelagem MVP consciente. Pós-MVP.
+- **`find_clauses_by_law_article` órfã** — remoção pende investigação dedicada, fora de escopo #48.
 
-*Seleção de cláusula — especificada, ratificar não inventar.*
-- `classifier.md:175` (forward-ref obrigatório): `check_applicability`/`get_clause`
-  sobre `applies_to` derivado de `data_categories`. NÃO `find_clauses_by_law_article`
-  (precisa de {lei,artigo} ausente do structured_context).
-- Degradação graciosa: sem cláusula casada → `not_applicable`/`indeterminate`.
-  Proibido Enum hard (anti-padrão removido do Reporter §4.8).
-- COMPANION EDIT: `reporter.md:135` tem nota parentética citando a tool errada
-  (`find_clauses_by_law_article`) — corrigir ao autorar (é nota ilustrativa, não
-  contrato; o Reporter não pina mecanismo de seleção).
+## RESOLVIDO nesta sessão (era pendência aberta)
+- ~~**l.63 — nota stale "arch §5.5 candidate_ref NÃO relido"**~~ → obsoleta pós-Beat 2 (#48 aplicou drop de candidate_ref em arch §5.5/§5.7 e reporter §2.2; DD-M19). **Remover esta linha.**
 
-*Encoding output_format — constraint dura (DD-T16, verificado).*
-- Os 4 verdicts (`compliant|violation_candidate|indeterminate|not_applicable`)
-  = objeto enum-tag: `verdict: Literal[...]` + opcionais por verdict
-  (`anyOf [T,null]`). NUNCA união discriminada (`oneOf` desliga a gramática
-  silenciosamente: success + structured_output=None + JSON não-conforme).
-  Evidência: `sdk_output_format_complex/RESULTS.md`.
-- O `output_format`+`max_turns` da invocação do Matcher (§3.4 do coordinator) é
-  o mesmo gap do item 1 (Detector/Classifier) — coordenar.
-
-**Obrigações pré-registradas ao Matcher** (ledger do review + forward-refs):
-postura Pydantic `extra` do structured_context consumido; `policy_clause_ref`
-nos 4 verdicts incl. `not_applicable` (reporter:221/274); semântica de
-`requires_human_review` (Reporter só propaga); `verification_scope` 3-campos
-(reporter §3.2); quíntupla tools=[]+allowlist policy-reader + output_format/
-max_turns (coordinator §3.4); trinca de provenance verbatim por finding.
-
-**Pré-leitura verbatim:** `reporter.md §2.2/§3.2`, `classifier.md §2/§3/:175`,
-`detector.md §2.1` (DetectorFinding passthrough), `coordinator.md §3.4`,
-ADR-0005 (Resource-vs-Tool, Decision 9 sobre seleção de cláusula — verificar se
-foi criada), `canonical.md` do policy-reader (signatures de `get_clause`/
-`check_applicability`/`find_clauses_by_law_article`).
-
-**Fora de escopo:** item 1, item 4 EDIT, A4, ADR-0013, reconciliação de
-taxonomia — todos pendentes da #47, não puxar para a autoria do Matcher salvo
-o que o Matcher genuinamente bloqueia.
-
-**Limite do observado:** `reporter.md`/`classifier.md` lidos verbatim na #47;
-`architecture-overview.md §5.5` ({candidate_ref}) NÃO relido — irrelevante para
-o veredito (o vinculante é o input do Reporter), mas confirmar se quiser
-zero-inferência. DD-T16 testado com stand-ins estruturais, não os modelos reais.
+## Próxima sessão
+- Abrir o PR da sessão #48 (acima).
+- Candidato a foco: redigir o ADR-0012 retroativo (Milestone C), agora que há evidência reproduzível pra ancorar a decisão dos dois eixos de governança de tool.
+- Milestone: com Matcher fechado, a ordem dos 5 subagentes está completa — avaliar entrada no flesh do coordinator (Milestone C, `src/coordinator/` ainda não existe).

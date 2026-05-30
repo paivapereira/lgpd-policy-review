@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-05-01; Decision 2 amended in-place 2026-05-21 (session #28) to reflect stack realignment formalized in ADR-0010 (Presidio → Semgrep) and the introduction of formal version pins (`fastmcp==3.2.4`, `pydantic==2.13.4`, `mcp==1.27.1`, `semgrep==1.163.0`); Decision 3 amended in-place 2026-05-22 (session #29 housekeeping) to deprecate `LGPD-Art-7-I`-form cláusula IDs in favor of opaque `POL-NNN` IDs per ADR-0005 RF-008 (framework-agnostic IDs); Decision 4 amended in-place 2026-05-24 (session #36) to sync the three immutable domain rules with CLAUDE.md operational text (R1 substantive design change ratified by ADR-0005 D2; R2 example drift fix; R3 operational refinement).
+Accepted — 2026-05-01; Decision 2 amended in-place 2026-05-21 (session #28) to reflect stack realignment formalized in ADR-0010 (Presidio → Semgrep) and the introduction of formal version pins (`fastmcp==3.2.4`, `pydantic==2.13.4`, `mcp==1.27.1`, `semgrep==1.163.0`); Decision 3 amended in-place 2026-05-22 (session #29 housekeeping) to deprecate `LGPD-Art-7-I`-form cláusula IDs in favor of opaque `POL-NNN` IDs per ADR-0005 RF-008 (framework-agnostic IDs); Decision 4 amended in-place 2026-05-24 (session #36) to sync the three immutable domain rules with CLAUDE.md operational text (R1 substantive design change ratified by ADR-0005 D2; R2 example drift fix; R3 operational refinement); Decision 2 amended in-place 2026-05-30 (pin claude-agent-sdk==0.2.87).
 
 ## Amendment scope (2026-05-21)
 
@@ -79,6 +79,40 @@ Decision 3 is amended in-place. The original formulation, authored 2026-05-01 in
 Amendment landed in-place rather than as a successor ADR because (a) the original D3 was language convention guidance, not a deliberated architectural decision; (b) the substantive replacement (framework-agnostic IDs as RF-008 property) is documented in ADR-0005 and materialized in `policy/clauses/` — this amendment is sync, not novel commitment. The pattern follows Decision 2's in-place amendment (2026-05-21) and ADR-0008's amendment (2026-05-16).
 
 The original wording survives in the git history at the pre-amendment commit.
+
+## Amendment scope (2026-05-30)
+
+Decision 2 is amended in-place. `claude-agent-sdk` was named in the canonical
+stack from the outset but carried no version pin, unlike every other element
+(FastMCP, MCP, Pydantic, Semgrep). With the dependency now added to
+`pyproject.toml` and resolved in `uv.lock` (`uv add claude-agent-sdk==0.2.87`,
+Milestone C), this amendment records the pin, closing the forward-reference that
+the subagent specs carry (e.g. `reporter.md` §1.5: "amendment pendente registrando
+adição de `claude-agent-sdk`") and satisfying prerequisite MC-E.
+
+The pin is `claude-agent-sdk==0.2.87` — the baseline empirically verified across
+the project's smoke tests (`sdk_output_format_lockdown`, `check_applicability_48b`,
+and the `ResultMessage` field introspection of this session confirming direct
+`stop_reason` access). Exact-pin rather than a range: the SDK's surface is
+load-bearing for the subagent contracts and moves fast, so reproducibility against
+a verified version outweighs the convenience of floating to newer minors; a bump
+is a deliberate act with its own verification, not a silent resolve.
+
+Provenance note (declarative vs resolved source, per Decision 2's existing
+stance): `pyproject.toml` declares the exact-pin; `uv.lock` carries the resolved
+artifact set. The SDK is distributed as platform-specific wheels
+(`macosx_11_0_arm64`, `macosx_11_0_x86_64`, `manylinux_2_17_aarch64`,
+`manylinux_2_17_x86_64`, `win_amd64`) that bundle the Claude Code CLI binary
+inside the wheel. Consequence: the lock guarantees the SDK version, and the CLI
+shipped with it is the one bundled in the platform wheel resolved for the host —
+no separate CLI install. The Windows host (`win_amd64`) is the development target;
+CI may resolve a different platform wheel, which is expected and provenance-tracked
+by `uv.lock`.
+
+Amendment landed in-place rather than as a successor ADR because it formalizes a
+pin for an element the decision already named, identical in kind to the 2026-05-21
+amendment that pinned FastMCP/MCP/Pydantic/Semgrep — not a new decision. The
+original wording survives in the git history at the pre-amendment commit.
 
 ## Context
 
@@ -161,7 +195,7 @@ placeholder during private development.
 
 ### 2. Canonical stack
 
-Pinned to: Python 3.12.7 (via pyenv-win), `claude-agent-sdk`, FastMCP
+Pinned to: Python 3.12.7 (via pyenv-win), `claude-agent-sdk` 0.2.87, FastMCP
 3.2.4 for custom MCP servers, MCP 1.27.1 runtime (transitive via
 FastMCP), Pydantic 2.13.4 for structured payload validation, Semgrep
 1.163.0 (via `uv tool install`, per ADR-0010) with project-curated

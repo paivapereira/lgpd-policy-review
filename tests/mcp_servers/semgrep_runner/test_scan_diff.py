@@ -859,9 +859,9 @@ async def test_as14b_scan_diff_no_hang_on_windows_stdio_transport(
     Root cause (proximal): handle inheritance via Windows anonymous
     pipe used for stdio MCP transport. Fine-grained root cause (Win32
     pipe internals + `Popen.wait()` interaction) not fully characterized
-    here; ADR-0012 post-hoc will cover. The semantic misclassification
+    here; ADR-0011 post-hoc will cover. The semantic misclassification
     (`TimeoutExpired` treated as business `GIT_REF_NOT_FOUND` instead of
-    transient) remains as documented debt addressed in ADR-0012 +
+    transient) remains as documented debt addressed in ADR-0011 +
     follow-up PR; this PR eliminates the current manifestation only.
 
     Mirrors AS-13 as precedent for an AS-namespaced Windows-only test

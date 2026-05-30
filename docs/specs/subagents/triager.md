@@ -681,7 +681,7 @@ Não aplicável. Triager é stateless (§7.4). Critério estrutural: ausência d
 
 Catálogo de edits a aplicar fora desta spec após merge:
 
-1. **`coordinator.md` §3.1** — **adicionar** ao invocation do Triager os campos `output_format=TriagerDecision.model_json_schema()` e `max_turns=20` (load-bearing: Branch B output mechanism + retry budget). Hoje §3.1 declara apenas a quíntupla + system_prompt + tools. Verb deliberado: "adicionar", não "confirmar" — o edit é adição de campos novos, não verificação sintática.
+1. **`coordinator.md` §3.1** — ✅ **aplicado** (MC-F): §3.1 já declara `output_format={"type": "json_schema", "schema": TriagerDecision.model_json_schema()}` (forma envelopada, não o shorthand) + `max_turns=20` (coordinator.md l.72-76), além da quíntupla + system_prompt + tools. Sem edit pendente — a prescrição "adicionar" desta entrada está obsoleta.
 
 2. **`coordinator.md` §5** — adicionar entrada catalogando tipos de message não-padrão que o loop deve tolerar (e.g., `RateLimitEvent`). Contexto: `RateLimitEvent` foi observado em Gate 1 (sessão #38) e documentado em `coordinator.md` §11 AC2; reaparece no smoke-test `sdk_output_format_lockdown` (SF-2), mas o README desse smoke-test declara incorretamente que o tipo "não foi observado em smoke-tests anteriores" (ver companion edit #6 abaixo). Patch sugerido: adicionar nota em coordinator §5 declarando que loop deve tolerar tipos não-padrão sem rebentar (log e continue), referenciando coordinator §11 AC2 como locus observacional.
 

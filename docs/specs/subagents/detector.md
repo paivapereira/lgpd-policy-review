@@ -260,6 +260,18 @@ Discriminação e roteamento pelo coordinator (por `errorCode` + `isRetryable`, 
 
 Dois eixos independentes, herdados verbatim de `classifier.md` §6.3 / `triager.md` §6.3 (lista canônica de subtypes em `agent-sdk/agent-loop`; lista de stop_reasons em `build-with-claude/handling-stop-reasons`):
 
+**Eixo 1 — `ResultMessage.subtype`** (de `agent-sdk/agent-loop`):
+
+| `subtype`                              | Significado                                                | `result` populado | Tratamento no coordinator                    |
+|----------------------------------------|------------------------------------------------------------|-------------------|----------------------------------------------|
+| `success`                              | Task completa; `structured_output` populado.               | Sim               | Consumir + verificar `stop_reason` (eixo 2). |
+| `error_max_turns`                      | Estourou `max_turns` antes de emitir output validável.     | Não               | Levantar `SubagentUnresponsive`.             |
+| `error_max_budget_usd`                 | Estourou `max_budget_usd` (se configurado).                | Não               | Levantar `SubagentUnresponsive`.             |
+| `error_during_execution`               | Erro interrompeu o loop (API failure, cancelled).          | Não               | Levantar `SubagentExecutionError`.           |
+| `error_max_structured_output_retries`  | SDK esgotou retries tentando produzir JSON válido.         | Não               | Levantar `SubagentValidationFailed`.         |
+
+**Eixo 2 — `ResultMessage.stop_reason`** (de `build-with-claude/handling-stop-reasons`):
+
 | `stop_reason` | Aplicabilidade ao Detector |
 |---|---|
 | `end_turn` | Caminho normal de sucesso. |
@@ -271,7 +283,7 @@ Dois eixos independentes, herdados verbatim de `classifier.md` §6.3 / `triager.
 
 **Subtype `error_max_structured_output_retries`** — exaustão de validação-retry do SDK → classe Validation → `SubagentValidationFailed`. Nome do subtype pinado em `classifier.md` §6.3; herdado verbatim.
 
-**Caso crítico — `subtype=success` com `stop_reason=refusal`.** Doc oficial (verificada work-session #46): a saída pode não casar o schema porque a mensagem de refusal tem precedência sobre as constraints. O coordinator discrimina `stop_reason="refusal"` mesmo dentro de `subtype="success"` e trata como classe Refusal → `SubagentRefusedTask`. **`⚠ CROSS-DOC` / risco de impl:** a doc do Agent SDK nota que acesso direto a `stop_reason` na result message pode ser TypeScript-only; em Python pode exigir varredura de stream events. **Esta spec não especifica o mecanismo de detecção de refusal** — defere ao coordinator (propagação de erro mora lá, Branch B). Risco de impl do coordinator a validar via smoke-test, não blocker desta spec. Doc oficial também nota: ao receber `refusal`, resetar o contexto antes de continuar.
+**Caso crítico — `subtype=success` com `stop_reason=refusal`.** Doc oficial (verificada work-session #46): a saída pode não casar o schema porque a mensagem de refusal tem precedência sobre as constraints. O coordinator discrimina `stop_reason="refusal"` mesmo dentro de `subtype="success"` e trata como classe Refusal → `SubagentRefusedTask`. Acesso direto a `stop_reason` no `ResultMessage` em Python é **confirmado empiricamente**: o campo está presente no `ResultMessage` do `claude-agent-sdk==0.2.87` (presente desde 0.1.46). O caveat anterior de que seria TypeScript-only era factualmente stale — `triager.md`/`classifier.md`/`matcher.md` §6.3 já assertam o acesso direto (`message.stop_reason == "refusal"`). A detecção de refusal é leitura direta do campo, não varredura de stream events; a propagação mora no coordinator (Branch B). Doc oficial também nota: ao receber `refusal`, resetar o contexto antes de continuar.
 
 ### 6.4 Classes de erro relevantes
 
@@ -440,4 +452,4 @@ Critérios de aceitação (catálogo de PRs sintéticos, T11+):
 - DD-D1/D4/T05 fechados por herança/articulação; D2/D3/D5 fechados por design com reframings do review do Code (D5 não-ortogonal mas aplicação de pattern ratificado; D5 standalone vs D3 refinamento; D3 por granularidade per-scan; D2 com critério floor/ceiling explícito + N inicial ±10).
 - **Rodada de reconciliação cross-doc (dois reviews do Code).** Folded: RF-002→**RF-001** (RF-002 é cobertura, do rule set); dualidade de numbering Etapa 2 coordinator / Etapa 1 arch; `build_detector_prompt` **já existe** (reconciliar signature, não criar); `DetectorInput` é tipo notacional (Branch B não valida input via Pydantic); §3.5 promovido a **invariante de boundary**; `ScanProvenance` no Reporter é **adição confirmada** (minor bump do Reporter); §7.1 reescrito — adição a `DetectorFinding` é **major** (mecanismo = acoplamento de passthrough, não validação de input); N=±10 inicial; max_turns=30 provisional com aritmética 2+N explícita; tabela §3.3 split em per-finding vs per-scan; defesa-em-profundidade reframed como superfícies complementares; fixtures com PII **sintética** (privacy-safety). ~12 dos ~15 `⚠ CROSS-DOC` fechados pela verificação dos reviews.
 - **Conflitos de review — estado final.** (i) `extra="forbid"` input vs output: **fechado por verificação verbatim #46** (Review A no mecanismo — modelos de output, quebra por passthrough; severidade **major** mantida por convenção + fail-loud). (ii) número de linha do `ReportNotEmitted` (reviews divergiram): resolvido por **âncora semântica** em vez de linha nua.
-- **`⚠` remanescentes — quatro decisões futuras genuínas, nenhum resíduo de pesquisa:** (1) declaração de `output_format`/`max_turns` no skeleton `coordinator.md` §3.3 (companion edit); (2) taxonomia `DetectorScanFailed` vs `run_outcome="error"` (decisão do coordinator); (3) valor final de `max_turns` (30 vs herdar 20 — `⚠ DECISÃO` do autor); (4) detecção de refusal em Python (stop_reason TS-only — risco de impl, smoke-test do coordinator).
+- **`⚠` remanescentes — três decisões futuras genuínas, nenhum resíduo de pesquisa:** (1) declaração de `output_format`/`max_turns` no skeleton `coordinator.md` §3.3 (companion edit); (2) taxonomia `DetectorScanFailed` vs `run_outcome="error"` (decisão do coordinator); (3) valor final de `max_turns` (30 vs herdar 20 — `⚠ DECISÃO` do autor). [Resolvido: detecção de refusal em Python — `stop_reason` é campo direto do `ResultMessage` (SDK 0.2.87, verificado), não TS-only.]

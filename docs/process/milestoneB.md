@@ -43,11 +43,11 @@ Razão: gate empírico com wire protocolar real tem custo desproporcional para i
 
 ### Ato 2 — Sessão #35: fix + re-execução PASS
 
-**Fix do produto via PR #59.** Sessão Chat #35 redigiu prompt T-fix v1→v3 com multi-instance review canônico (3 rounds, ~30+ catches absorvidos). Decisão load-bearing emergente dos reviews: **deferir Fix-4 inteiro** (separação `TimeoutExpired` vs `OSError` vs business nos wrappers git) para ADR-0012 + PR posterior — convergência R1 C5 + R2 N-C1 demonstrou type breakage arquitetural (helpers retornam `str | None` e `bool`; retornar `ErrorEnvelope` Pydantic do `except` quebraria type contract e callers em `scan_diff`).
+**Fix do produto via PR #59.** Sessão Chat #35 redigiu prompt T-fix v1→v3 com multi-instance review canônico (3 rounds, ~30+ catches absorvidos). Decisão load-bearing emergente dos reviews: **deferir Fix-4 inteiro** (separação `TimeoutExpired` vs `OSError` vs business nos wrappers git) para ADR-0011 + PR posterior — convergência R1 C5 + R2 N-C1 demonstrou type breakage arquitetural (helpers retornam `str | None` e `bool`; retornar `ErrorEnvelope` Pydantic do `except` quebraria type contract e callers em `scan_diff`).
 
 PR #59 manteve escopo cirúrgico: 3 sites de `stdin=subprocess.DEVNULL` em `tools.py` (+3 / -0) + AS-14 cross-platform happy path sob `StdioTransport` real + AS-14b Windows-only com `@pytest.mark.skipif(sys.platform != "win32", ...)` assertando `elapsed < 10.0s` para regressão por timing (+134 / -0 em `test_scan_diff.py`).
 
-Misclassificação `TimeoutExpired → GIT_REF_NOT_FOUND` permanece como débito conhecido — documentada em §2.4 do prompt T-fix v3, no commit message da PR #59, e na PR description. ADR-0012 pos-hoc cobrirá caracterização Win32 fina (E-1) + design da separação de classes de erro (E-2); PR posterior implementará.
+Misclassificação `TimeoutExpired → GIT_REF_NOT_FOUND` permanece como débito conhecido — documentada em §2.4 do prompt T-fix v3, no commit message da PR #59, e na PR description. ADR-0011 pos-hoc cobrirá caracterização Win32 fina (E-1) + design da separação de classes de erro (E-2); PR posterior implementará.
 
 **Validação antecipada via branch combinada local.** Após Code aplicar PR #59 e antes de merge em main, sessão #35 validou empíricamente o gate Milestone B contra branch `test/gate-on-fix-v2` (combinação local: `fix/scan-diff-stdin-isolation-windows-stdio` + merge `chore/gate-milestone-b-rule-set-fixture`). Pattern análogo conceitual a `fork_session` aplicado ao Git workflow: branch temporária local, descartada após validação.
 
@@ -99,19 +99,19 @@ Misclassificação `TimeoutExpired → GIT_REF_NOT_FOUND` permanece como débito
 | 1 | `subprocess.run` em 3 sites de `tools.py` sem `stdin=` → handle inheritance Windows-stdio → `TimeoutExpired` → misclassificado como `GIT_REF_NOT_FOUND`. | Sessão #34 (gate empírico contra wire real). | PR #59 (sessão #35) — `stdin=subprocess.DEVNULL` adicionado em 3 sites + AS-14/AS-14b cobertura. |
 | 2 | `summarize_phase` lê `rules_version`/`semgrep_version` de `scan_metadata` aninhado em vez de `structured_content` top-level (canonical §5.1). | Sessão #35 (gate re-rodado pós-fix). | Commit `34b6c05` (sessão #35) — leitura de `sc.get(...)`. |
 | 3 | `check_invariants` INV-1 string equality literal contra bare rule name vs Semgrep encoding `<dot-path>.<bare-name>`. | Sessão #35 (gate re-rodado pós-fix). | Commit `34b6c05` (sessão #35) — `rsplit(".", 1)[-1] == "<bare-name>"` per idioma do projeto. |
-| 4 | Misclassificação semântica `TimeoutExpired → GIT_REF_NOT_FOUND` (anti-pattern D5: transient tratado como business). | Sessão #34 (análise causal pós-descoberta). | **Diferido** para ADR-0012 + PR posterior. PR #59 elimina manifestação atual (handle inheritance) mas não resolve estrutura. Decisão registrada em §2.4 do prompt T-fix v3 + commit message PR #59. |
+| 4 | Misclassificação semântica `TimeoutExpired → GIT_REF_NOT_FOUND` (anti-pattern D5: transient tratado como business). | Sessão #34 (análise causal pós-descoberta). | **Diferido** para ADR-0011 + PR posterior. PR #59 elimina manifestação atual (handle inheritance) mas não resolve estrutura. Decisão registrada em §2.4 do prompt T-fix v3 + commit message PR #59. |
 
 ## Próximas tasks dependentes (handoff #35→#36)
 
-- **(E) ADR-0012 pos-hoc** cobrindo: (E-1) caracterização Win32 fina do handle inheritance + cascading inheritance em sub-processes do semgrep-core; (E-2) design da separação de classes de erro nos wrappers git (três opções identificadas em review v2 do prompt T-fix).
-- **(F) PR posterior** implementando ADR-0012 (E-2). Inclui AS-15 com mock filtrado por comando (split em 2 tests, um por helper).
+- **(E) ADR-0011 pos-hoc** cobrindo: (E-1) caracterização Win32 fina do handle inheritance + cascading inheritance em sub-processes do semgrep-core; (E-2) design da separação de classes de erro nos wrappers git (três opções identificadas em review v2 do prompt T-fix).
+- **(F) PR posterior** implementando ADR-0011 (E-2). Inclui AS-15 com mock filtrado por comando (split em 2 tests, um por helper).
 - **(G) Housekeeping CLAUDE.md `§Status flags`** — drift ≥6 linhas em 3 bullets distintos (catalogado em DD-Tfix-1 da #35).
 
 ## Limitações conhecidas
 
-- **Mecânica fina Windows-stdio não totalmente caracterizada.** Evidência empírica é sólida: variante de `subprocess.run` sem `stdin=` trava em ~10s + variante com `stdin=DEVNULL` retorna em <100ms. Causa proximal confirmada como handle inheritance do anonymous pipe stdin. Causa raiz fina (interação Win32 internals + `Popen.wait()`) merece caracterização em ADR-0012 (E-1). O fix funciona independentemente da explicação fina.
+- **Mecânica fina Windows-stdio não totalmente caracterizada.** Evidência empírica é sólida: variante de `subprocess.run` sem `stdin=` trava em ~10s + variante com `stdin=DEVNULL` retorna em <100ms. Causa proximal confirmada como handle inheritance do anonymous pipe stdin. Causa raiz fina (interação Win32 internals + `Popen.wait()`) merece caracterização em ADR-0011 (E-1). O fix funciona independentemente da explicação fina.
 
-- **Misclassificação `TimeoutExpired → GIT_REF_NOT_FOUND` persiste como débito conhecido.** PR #59 elimina a manifestação atual (handle inheritance Windows) mas não corrige a estrutura — outras causas futuras de `TimeoutExpired` (system pressure, network latency em hipotéticas refs remotas) continuariam sendo colapsadas no errorCode business. Endereçamento estrutural em ADR-0012 (E-2) + PR posterior.
+- **Misclassificação `TimeoutExpired → GIT_REF_NOT_FOUND` persiste como débito conhecido.** PR #59 elimina a manifestação atual (handle inheritance Windows) mas não corrige a estrutura — outras causas futuras de `TimeoutExpired` (system pressure, network latency em hipotéticas refs remotas) continuariam sendo colapsadas no errorCode business. Endereçamento estrutural em ADR-0011 (E-2) + PR posterior.
 
 - **Defeito de aferição mascarado por defeito upstream.** Os defeitos de leitura de campo no `summarize_phase` (`rules_version`/`semgrep_version` lidos do lugar errado) e o assertion literal de INV-1 existiam no script `gate_milestone_b_exercise.py` desde a sessão #34. Não foram detectados naquela sessão porque o defeito do `subprocess.run` (layer-1) mascarava o caminho de execução — gate falhava antes de chegar à fase de aferição. Apenas pós-fix do layer-1 na #35 os defeitos de layer-2 emergiram. Pattern empírico canônico para Capítulo de Método: validação de cobertura tem que assumir que defeitos podem estar empilhados em layers; PASS em um nível não atesta correção em outros níveis.
 

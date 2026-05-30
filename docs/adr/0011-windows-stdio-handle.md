@@ -113,4 +113,4 @@ except GitBinaryUnavailable as exc:
 
 ## Aprovação
 
-Aceita ao registrar em `docs/adrs/ADR-0012.md` via PR `docs/adr-0012`. Implementação em PR técnica subsequente referenciando este ADR como justificativa.
+Aceita ao registrar em `docs/adr/ADR-0011.md` via PR `docs/adr-0011`. Implementação em PR técnica subsequente referenciando este ADR como justificativa.

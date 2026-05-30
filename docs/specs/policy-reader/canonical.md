@@ -496,6 +496,8 @@ Output: {
 
 **Independência de framework.** Esta tool é agnóstica ao valor de `legal_framework`: opera sobre o índice de cláusulas da Política carregada, qualquer que seja a jurisdição. O vocabulário aceito de `lei` no input é determinado pelo campo `accepted_law_identifiers` do header da Política — não codificado na tool. Trocar de framework (e.g., de `LGPD` para `GDPR`) não altera o comportamento da tool, apenas o conjunto de identificadores de lei aceitos e o conjunto de cláusulas indexadas, ambos derivados da Política carregada.
 
+**Consumo no MVP — nenhum (órfã com contrato formal).** A tool está implementada e exposta server-side, mas **não tem consumidor no caminho de veredito do MVP**: o Matcher a autoriza em `allowed_tools` (`matcher.md` §4.1) e **não a satisfaz** — seu `structured_context` não carrega `{lei, artigo}`, então a busca statute→cláusulas não entra no check-all. Reservada ao caminho de **auditoria** (statute → cláusulas), **ortogonal à DD-M3** (`find_clauses_by_applicability`, que cobre code-context → cláusulas). Registrada como **Deferral A** de ADR-0012 (`find_clauses_by_law_article`, orphan-with-formal-contract), com condição de revisão lá.
+
 ### 4.3 `check_applicability`
 
 **Descrição (tool description).**

@@ -116,7 +116,7 @@ O coordinator monta o prompt do Reporter com o estado consolidado a seguir (repr
             "snippet": "<código>",
             "rule_id": "<identificador da regra do Detector>",
             "data_categories": ["<token canônico de POL-000>", ...],
-            "operation_type": "collection",  # MVP v0.1.0
+            "operation_type": "collection",  # MVP v0.1.0; passthrough verbatim do Matcher (valor ilustrativo — pode ser ≠ collection em findings not_applicable, §3.6)
             "verdict": "compliant" | "violation_candidate"
                        | "indeterminate" | "not_applicable",
             "policy_clause_ref": "POL-NNN",  # SEMPRE presente em todos 4 verdicts
@@ -216,7 +216,7 @@ Cada finding é discriminated union por `verdict`. Estrutura comum seguida de ca
     "snippet": <str>,
     "rule_id": <str>,
     "data_categories": [<str>, ...],
-    "operation_type": "collection",  # MVP v0.1.0 per ADR-0007
+    "operation_type": "collection",  # MVP v0.1.0 per ADR-0007; passthrough verbatim (valor ilustrativo — pode ser ≠ collection em not_applicable, §3.6)
     "verdict": <str>,
     "policy_clause_ref": "POL-NNN",  # obrigatório em todos 4 verdicts
                                       # (DD-21 ratificado PR #66; preservado
@@ -732,7 +732,7 @@ Coordinator **NUNCA** usa `num_turns == max_turns_cap` ou `stop_reason` para dis
 
 ### 7.1 Versão da spec
 
-Esta spec carrega `spec_version: 0.3.0` no header. Bump de 0.2.0 → 0.3.0 reflete refinamento substantivo de contract surface pós-dois-reviews-independentes da sessão #42 (cross-check #3 removido, anotações tense forward-looking, invariante §2.2 reescrita, sintaxe few-shot corrigida, aritmética retry reconciliada, hardening UUID/Literal/Windows-replace, locus dos módulos pinado). Bumps prévios: 0.1.0 → 0.2.0 (sessão #41 — três achados de review). Convenção major/minor/patch:
+Esta spec carrega `spec_version: 0.4.0` no header. Bump 0.3.0 → 0.4.0 (sessão #43+, MC-F) cobre a ratificação retroativa de DD-T15 (migração de locus dos módulos para `src/subagents/reporter/`) e o fechamento das forward-refs do contrato `scope` (§2.2/§2.3/§3.1/§4.3/§5.4) — detalhado em §10.6. Bump 0.2.0 → 0.3.0 (sessão #42) refletiu refinamento substantivo de contract surface pós-dois-reviews-independentes (cross-check #3 removido, anotações tense forward-looking, invariante §2.2 reescrita, sintaxe few-shot corrigida, aritmética retry reconciliada, hardening UUID/Literal/Windows-replace, locus dos módulos pinado). Bump 0.1.0 → 0.2.0 (sessão #41 — três achados de review). Convenção major/minor/patch:
 
 - **Major** — break em contract surface (shape do `inputSchema`, shape do envelope de erro, semântica de tool authorization).
 - **Minor** — adição de campos opcionais, novos errorCodes, refinamento de cross-checks, ampliação de behaviors, bump por aplicação de diretrizes forward-looking acumuladas, ou refinamento substantivo de contract surface mediante review pass.
@@ -935,7 +935,7 @@ Tempo estimado: ~30min Code dedicado. Locus convencional do projeto: `scripts/sm
 
 Após esta spec ser ratificada, surgical edits ao coordinator:
 
-1. **`docs/specs/subagents/coordinator.md` §3.4 e §3.5** — substituir `tools=["Read"]` por `tools=[]` per PR #67 evidência empírica. Sub-packaging ratificado em Chat #41: PR único pós-merge desta spec.
+1. **`docs/specs/subagents/coordinator.md` §3.5** — substituir `tools=["Read"]` por `tools=[]` per PR #67 evidência empírica (Reporter; `emit_report` é server tool, visível via `mcp_servers`). **§3.4 (Matcher) NÃO recebe `tools=[]`:** o check-all lê `policy://catalog` via `ReadMcpResourceTool`, built-in governado pelo campo `tools`; `tools=[]` o esconde e quebra o check-all (#48-b, DD-M30) → §3.4 usa `["Read","ReadMcpResourceTool","ListMcpResourcesTool"]`. Sub-packaging ratificado em Chat #41.
 2. **`docs/specs/subagents/coordinator.md` §3.0** — coordinator §3.0 é sentença única separada por `;` (não lista de bullets). Inserir após o `;` que segue "cria `.scratchpad/run-<id>/`" a frase: "; instancia `reporter_sdk_server = create_reporter_server(run_path, run_id)` (factory de `src/subagents/reporter/tools.py`; reuso desta instância em §3.5 stage Reporter)". (Reframe de #41 que prescrevia "adicionar bullet" — bullet structure não existe em §3.0 corrente.)
 3. **`docs/specs/subagents/coordinator.md` §7** — substituir literal `"Emit the consolidated Report JSON"` por referência ao `EMIT_REPORT_DESCRIPTION` canônico (importado de `src/subagents/reporter/constants.py`; symbol único como single source of truth, locus pinado em §1.5 desta spec).
 4. **`docs/specs/subagents/coordinator.md` §7 (version arg)** — confirmar/alinhar `version="0.1.0"` em `create_sdk_mcp_server` call (consistente com §4.8 desta spec).

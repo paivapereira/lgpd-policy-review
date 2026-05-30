@@ -122,7 +122,7 @@ Cada finding casa o schema de `reporter.md` §3.2 (vinculante — o output do Ma
 
     # contexto (passthrough do Classifier — operation_type é o nome real, DD-M10)
     "data_categories": ["<token>", ...],   # passthrough verbatim
-    "operation_type": "collection",        # passthrough do Classifier (MVP: só collection chega a verdict)
+    "operation_type": "collection",        # passthrough verbatim do Classifier (valor ilustrativo); pode ser ≠ collection em findings not_applicable (§3.2 i, §4.4). MVP: só collection gera verdict substantivo.
 
     # veredito (verbatim de check_applicability)
     "verdict": "compliant" | "violation_candidate" | "indeterminate" | "not_applicable",
@@ -462,7 +462,7 @@ Todos ratificados. M1 (check-all/catalog), M2 (find_clauses órfã de seleção,
   2. **✅ `coordinator.md` §3.4 — config do Matcher.** `tools=[]` → `["Read","ReadMcpResourceTool","ListMcpResourcesTool"]` (Gate 6 vale só pro Reporter); + `output_format` (enum-tag) + `max_turns=30` (DD-M15/M14); tabela DD-9.1 (§2) atualizada.
   3. **✅ `coordinator.md` §3.3 nota "scoped access" + §2 tabela.** Adicionado o caveat availability ≠ capability (`mcp_servers` concede alcance; o built-in só fica visível se no `tools` field).
   4. **✅ `classifier.md` §1.4 (l.45) + §10.3 + Gate 6.** Argumento corrigido **preservando o Issue #361** (verdadeiro sobre `allowed_tools`; o defeito era estendê-lo ao `tools` field — campos distintos). §10.3 "Gate resource access" → **PASS** com ponteiro pro `RESULTS.md` (o probe exercitou o shape específico do Classifier, não só o do Matcher).
-  5. **✅ §2 tabela DD-9.1 do `coordinator` + escopo do ADR-0012** atualizados; **⏳ 5a — ADR-0012 não autorado** (número reservado, 5 decisões de Milestone C, PR `chore/sync-adr-references` próprio; rationale a frio = anti-pattern PR-23). Só o **escopo** foi estendido (montagem mecânica) com a nuance capability-vs-availability carimbada. **Autoria deferida a sessão dedicada.**
+  5. **✅ §2 tabela DD-9.1 do `coordinator` + escopo do ADR-0012** atualizados; **✅ 5a — ADR-0012 autorado** (`docs/adr/0012-subagent-tool-governance.md`, aceito retrospectivamente: D1–D4 da #48 + D5 da revisão de doc do mesmo período). A nuance capability-vs-availability entrou em D1–D4; a citação de `tools.py` em D5 foi corrigida para `263-279` (ground truth verificado).
 
   **§10 `coordinator` DD-9.1:** de "persistir pendente" → "evidência persistida" (`RESULTS.md`).
 

@@ -97,3 +97,52 @@ Cross-ref: `sdk_tool_error_channel/RESULTS.md` (achado-irmão — o que o SDK
 silenciosamente NÃO surfa ao consumidor: lá `structuredContent` de `@tool`,
 aqui structured output sob `oneOf`); DD-T16 em `triager.md:198`;
 `.claude/rules/sdk-mcp-conventions.md` (convenções de saída SDK/MCP por camada).
+
+---
+
+## GATE G0 — modelos REAIS (Milestone C, Fase 0)
+
+Fecha o "Limite do observado" acima ("os modelos reais não observado"). Os
+modelos Pydantic reais agora existem (`src/subagents/*/models.py`). G0 verifica
+os modelos verbatim, não stand-ins. `claude-agent-sdk==0.2.87`,
+Windows 11 / PS 5.1, lockdown quintupla + `tools=[]`.
+
+### Arm estático (determinístico, sem auth) — PASS
+
+Contagem de `anyOf` (união) / opcionais nos schemas reais; nenhum `oneOf` nem
+`discriminator`. Orçamento doc: união ≤ 16, opcionais ≤ 24 (matcher §3.3).
+
+| Modelo | anyOf (união) | oneOf | discriminator |
+|---|---|---|---|
+| TriagerDecision | 2 | não | não |
+| DetectorOutput | 0 | não | não |
+| ClassifierOutput | 2 | não | não |
+| MatcherOutput | 5 (Finding: 5 opcionais) | não | não |
+| ReportPayload | 7 | não | não |
+
+Todos folgados sob o orçamento. (Encodado como anchor pytest
+`test_matcher_finding_schema_is_enum_tag_not_oneof` + roundtrip.)
+
+### Arm live (payload realista multi-finding) — PASS
+
+A preocupação residual (#502/#571) é **sensível ao payload**, não só ao schema:
+um output trivial daria falso-verde. O probe força **3 findings** de verdicts
+distintos em `MatcherOutput` e 3 em `DetectorOutput` e checa que
+`structured_output` (i) não é `None`, (ii) **não** vem embrulhado em
+`{"output": {...}}`, e (iii) valida **direto** via `model_validate`.
+
+| Modelo (3 findings) | subtype | structured_output None? | wrapper `{"output"}`? | model_validate |
+|---|---|---|---|---|
+| MatcherOutput | success | não | não | PASS (direto) |
+| DetectorOutput | success | não | não | PASS (direto) |
+
+**Veredito G0: PASS — validate direto, sem wrapper.** Consequência load-bearing
+para a Fase 1: o driver `run_branch_b_stage` faz `output_model.model_validate(
+last_result.structured_output)` **sem** unwrap especulativo de `["output"]`, e
+`SubagentValidationFailed` **não** precisa admitir retry por causa do wrapper. O
+unwrap fica como contingência documentada (coordinator §5 nota wrapper),
+re-confirmável em G2b/G3, **não** adicionado por enquanto (gates.md: sem
+improviso preventivo).
+
+Probe: `g0_real_models_live.py` (mesma pasta). Reprodutível:
+`uv run python scripts/smoke_tests/sdk_output_format_complex/g0_real_models_live.py`.

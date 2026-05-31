@@ -204,6 +204,8 @@ A inclusão do resource `policy://vocabularies` (sem acesso às tools do `policy
 
 Matcher é explicitamente **framework-aware**: consome vocabulários jurisdicionais via `policy://vocabularies` no startup e propaga `legal_framework` no trinque de provenance de cada veredito. Reasoning de aplicabilidade não codifica regras específicas a framework — regras vivem na Política como combinações `applies_to × control × exceptions`. Trocar o framework do cliente (e.g., LGPD → GDPR) é trocar a Política, não reescrever o Matcher.
 
+**Nota (DD-M22, escopo MVP — correção H1).** "Framework-aware" aqui é *consumir vocabulário jurisdicional + propagar `legal_framework` verbatim no trinque de provenance* — **não** validação de handshake jurisdicional. No MVP co-versionado (servidor, Política e consumidor no mesmo release; framework único LGPD), o Matcher **lê** `policy://schema-version` mas **não valida jurisdição** (YAGNI: um check `legal_framework == "LGPD"?` sempre passa, não previne erro alcançável). O eixo **estrutural** (`compatible_schema_range`) já tem dono server-side (`policy-reader` `loader.py`, aborta o boot). Quando a arquitetura multi-client de ADR-0005 materializar, o handshake **jurisdicional** será um check determinístico no **código Python do coordinator** (`if framework not in ACCEPTED: abort`, antes do fan-out) — não lógica de agente no Matcher (preserva a fidelidade-de-conduto DD-M26). Defer datado, não negação do contrato.
+
 ### 5.6 Reporter
 
 **Responsabilidade.** Agrega vereditos em um Report JSON consolidado.

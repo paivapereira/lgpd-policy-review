@@ -653,8 +653,7 @@ Three-beats persiste pós-aplicação como audit trail (per ADR-0002 §Decision 
 
 ---
 
-**Reconciliação M19/M20 (Beat 1 — proposed; AGUARDA REVISÃO antes de
-aplicar a `architecture-overview.md` / `reporter.md`).**
+**Reconciliação M19/M20 (Beat 3 — verified, sessão #50).**
 
 Gateia a autoria de `matcher.md`. Origem: o mecanismo de seleção
 `find_clauses_by_law_article` prescrito no arch está stale pós-MC-F (a
@@ -761,7 +760,12 @@ de índice), então todo o matching de aplicabilidade fica em
   (§3 l.82, §5.5 l.197+l.201, §5.7 linha de resource `policy://catalog`)
   e `reporter.md` (§2.2 cardinalidade DD-M6). M19 incidiu só em §5.5
   l.201 (sem alvo em §5.7, confirmado).
-- Beat 3 (verified): PENDENTE — review independente Chat pós-aplicação.
+- Beat 3 (verified): ✅ sessão #50 — leitura verbatim confirmou aplicação em
+  `architecture-overview.md` (§3 l.66 mermaid `T -->|skip| R`, §3 l.82 check-all
+  sobre `policy://catalog`, §5.5 l.197 catalog + seleção interina, §5.5 l.201
+  `candidate_ref` removido/M19, §5.7 linha `policy://catalog` ✓) e `reporter.md`
+  (§2.2 l.139 cardinalidade DD-M6 `len(findings) ≥ candidates_count`). M19/M20
+  fechados; three-beats persiste como audit trail (ADR-0002 §Decision 5).
 
 ## 11. Gates pré-coordinator-flesh
 

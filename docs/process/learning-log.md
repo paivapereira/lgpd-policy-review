@@ -6908,3 +6908,35 @@ mas o episódio fixou o padrão.
 **Próximo passo:** coordinator-flesh-completo (MC-A, 6ª e última spec de
 subagente) — C1 ✅, C2 ✅ materializado no schema do Report, C3 declarado;
 C12 (`config.py` single-source dos `*_CONFIG`) land junto. Caminho crítico.
+
+
+## Sessão #50 — 2026-05-31 — coordinator-flesh (MC-A) + companion DD-M22 + abertura de planejamento T11
+
+**Conceitos da prova exercitados**
+- D1 (Agentic Architecture & Orchestration): driver único de capture loop (`run_branch_b_stage`) como spine de prompt chaining A''; discriminação `subtype` × `stop_reason` (refusal-first); walking skeleton como técnica de validar *composição* de agentic loops antes de comportamento.
+- D2 (Tool Design & MCP): §3 (Output) de cada subagente como I/O boundary canônico citado verbatim (anti-drift); dois eixos de governança de tool (built-ins via `tools` field vs server tools via `mcp_servers`) — ADR-0012; handshake estrutural vs jurisdicional (resource `policy://schema-version`).
+- D4 (Structured Output): grafo de modelos Pydantic restritos por vocabulário; ACs das specs como contratos executáveis (contract-first); ressalva do wrapper `{"output":{...}}` em schema complexo.
+- D5 (Context Management & Reliability): projeção de erro em envelope externo (`CoordinatorError`) vs token de payload; padrão de honestidade de reliability (não afirmar enforcement que a arquitetura não entrega — o defer do G6); provenance verbatim; âncora de contexto = artefato single-source, não transcrição de deliberação.
+
+**Decisões (ratificadas)**
+- #1 `ReporterPermissionDenied` **estrito** — qualquer `permission_denials` truthy → halt (integridade do run > salvar Report, sob lockdown). Convergidos 4 loci: coordinator §3.5 código + §5 prosa + reporter §6.4 tabela + §6.5 ordering.
+- #2 G6 **deferido** — `verify_passthrough=None` no Matcher no MVP (matcher §3.5/AC-M8: ordem não é garantia estrutural; verificação coordinator-side é follow-up). Classifier 1:1 posicional **fica** no MVP (assimetria legítima 1:1 vs 1:N).
+- #3 `error_max_budget_usd` **já canônico** (detector/triager §6.3 → `SubagentUnresponsive`); não é fork. O `match` arm do driver estava correto; a "decisão aberta" da proposta era premissa falsa (auto-contradição com o próprio código).
+- #4 `CoordinatorError` **mínimo + provisional** — `cause`/`coverage_gap`/`stage`; `partial_scratchpad_path` e audit rico deferidos a Milestone D (acoplam ao contrato da GitHub Action + retenção do scratchpad §8). `coverage_gap` do `DetectorScanFailed` = "cobertura zero, scan não rodou" (não "parcial").
+- G9 logging — **stderr** estruturado (trace); **stdout reservado** ao payload do Report (modo `-p` CI); scratchpad como replay; campos alinhados a `CoordinatorError`.
+- M19/M20 **Beat 3 verified** — leitura verbatim confirmou aplicação em arch (§3 l.66/l.82, §5.5 l.197/l.201, §5.7) + reporter §2.2. Three-beats reconciliado (header "AGUARDA REVISÃO" era stale).
+- DD-M22 companion **aplicado** — rótulo "framework-aware" anotado em arch §5.5 + canonical §3.2/§1/§6.3: handshake estrutural fica server-side; jurisdicional defere (dono futuro = código do coordinator, não Matcher). "Anotar o defer, não negar o contrato."
+
+**Aprendizados**
+- Reframe: o skeleton v3 estava **mais materializado** que a tabela de pendências sugeria (Reporter §3.5, §6 enforcement, `tools` field já feitos) — o flesh real eram 6 gaps concentrados, não reescrita.
+- Cross-doc review profundo pega o que o raso não pega: o 2º review do Code derrubou minha recomendação de G6 ("agrupamento contíguo") lendo matcher §3.5/AC-M8 — o 1º review tinha ratificado meu erro. Leitura verbatim > inferência, sempre.
+- Taxonomia de exceção tem **dois eixos** que não se misturam: base `SubagentToolError` cobre só tool-errors (`DetectorScanFailed` + futuras do Matcher; ADR-0013 a criar); SDK-class (`Refused`/`Validation`/`Unresponsive`/`Execution`) + `SubagentContractViolation` são eixo distinto, fora dessa base.
+- Decomposição de implementação: unidades irredutíveis (grafo de tipos, composição/integração, caminhos de erro) fazem-se **integradas**; só comportamento per-stage decompõe limpo. O default linear de agentes otimiza progresso local sobre coesão global — daí o churn.
+
+**Artefatos**
+- `coordinator.md` flesh: 18 edits (driver §3.0bis, `CoordinatorResult` §3.6, predicado estrito §3.5, +3 exceções §5, config single-source, logging, etc.) — branch `docs/coordinator-flesh-mc-a`, **aguarda commit**. Companions: detector.md (`run_outcome="error"` → `CoordinatorError`, grep zero), reporter.md (truthiness §6.4/§6.5).
+- Companion bucket: branch `docs/companion-edits-m22-beat3` (coordinator §10 Beat 3, arch §5.5, canonical §3.2/§1/§6.3) — **aguarda commit**.
+- Docs de trabalho (não-repo): proposta integrada do flesh, doc de edits, doc de edits do companion.
+
+**Próximo passo**
+- T11+ em **sessão própria de planejamento de implementação** — explorar métodos e eixos de fatiamento, **chegar a decidir lá** (não decidido aqui). Ver session-handoff para o briefing de entrada (decisões herdadas, 2 bifurcações abertas, estado empírico do SDK, ambiente).

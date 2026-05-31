@@ -1,8 +1,8 @@
 # reporter
 
-**spec_version**: 0.4.0
+**spec_version**: 0.5.0
 
-> **Status.** Primeira spec de subagente do projeto. Destilada inicialmente na sessão Chat #39 (draft de 1530 linhas com hard-wrap), revisada por Code (V1 + V2 reviews), refinada via PR #66 (DD-21 — `policy_clause_ref` ratificado) e PR #67 (Gate 6 — `tools=[]` confirmado empiricamente). Sessão Chat #41 ratificou três achados de review e bumped a 0.2.0. Sessão Chat #42 absorveu dois reviews independentes (cross-doc rigoroso + arquitetural-gaps) que convergiram em catch crítico de cross-check #3 vocab source e divergiram em catches complementares; bump a 0.3.0 reflete refinamento substantivo de contract surface: (i) remoção de cross-check #3 (vocab membership é semântica do Matcher per §2.4 + §8.3, não shape do Reporter); (ii) anotações de contingência sobre `tools=[]` tense forward-looking até landing do companion edit ao coordinator §3.5; (iii) reescrita da invariante em §2.2 (Matcher emite finding por par candidato-cláusula, M ≥ N — não igualdade); (iv) correção da sintaxe few-shot em §5.1 (`emit_report({...})`, schema flat sem wrapper `payload`); (v) reescrita da aritmética de retry budget em §1.5 (linguagem reconciliada com §4.5 + §6.7); (vi) hardening: `legal_framework: Literal["LGPD"]` no MVP, `report_id` UUID v4 validation explícita, `os.replace` (Windows-native) declarado em §4.9, locus dos módulos pinado em `src/coordinator/{models,constants,system_prompts,tools}.py`. Segunda passada de review dentro de #42 absorveu quatro fixes documentacionais consolidados no mesmo PR (sem bump 0.3.1, por consenso entre os dois reviewers): renumbering propagation a §8.3 (remoção do bullet vocab + #4a/4b → #3a/3b + #5 → #4) e §10.3 (Gate 4 #4b → #3b); residual "trinque" → "triple" no `<input>` do `REPORTER_SYSTEM_PROMPT` em §5.1; stale "ou inline" removido de §7.2 alinhando ao pin de módulos em §1.5. Sessão #43+ aplicou MC-F: bump a 0.4.0 — ratificação retroativa de DD-T15 (migração de locus dos módulos do Reporter para `src/subagents/reporter/`), fechamento das forward-refs de `scope` (§2.2/§2.3/§3.1/§4.3/§8.4) e da §5.4, e correção do shape de `scope` nos few-shots de §5.1.
+> **Status.** Primeira spec de subagente do projeto. Destilada inicialmente na sessão Chat #39 (draft de 1530 linhas com hard-wrap), revisada por Code (V1 + V2 reviews), refinada via PR #66 (DD-21 — `policy_clause_ref` ratificado) e PR #67 (Gate 6 — `tools=[]` confirmado empiricamente). Sessão Chat #41 ratificou três achados de review e bumped a 0.2.0. Sessão Chat #42 absorveu dois reviews independentes (cross-doc rigoroso + arquitetural-gaps) que convergiram em catch crítico de cross-check #3 vocab source e divergiram em catches complementares; bump a 0.3.0 reflete refinamento substantivo de contract surface: (i) remoção de cross-check #3 (vocab membership é semântica do Matcher per §2.4 + §8.3, não shape do Reporter); (ii) anotações de contingência sobre `tools=[]` tense forward-looking até landing do companion edit ao coordinator §3.5; (iii) reescrita da invariante em §2.2 (Matcher emite finding por par candidato-cláusula, M ≥ N — não igualdade); (iv) correção da sintaxe few-shot em §5.1 (`emit_report({...})`, schema flat sem wrapper `payload`); (v) reescrita da aritmética de retry budget em §1.5 (linguagem reconciliada com §4.5 + §6.7); (vi) hardening: `legal_framework: Literal["LGPD"]` no MVP, `report_id` UUID v4 validation explícita, `os.replace` (Windows-native) declarado em §4.9, locus dos módulos pinado em `src/coordinator/{models,constants,system_prompts,tools}.py`. Segunda passada de review dentro de #42 absorveu quatro fixes documentacionais consolidados no mesmo PR (sem bump 0.3.1, por consenso entre os dois reviewers): renumbering propagation a §8.3 (remoção do bullet vocab + #4a/4b → #3a/3b + #5 → #4) e §10.3 (Gate 4 #4b → #3b); residual "trinque" → "triple" no `<input>` do `REPORTER_SYSTEM_PROMPT` em §5.1; stale "ou inline" removido de §7.2 alinhando ao pin de módulos em §1.5. Sessão #43+ aplicou MC-F: bump a 0.4.0 — ratificação retroativa de DD-T15 (migração de locus dos módulos do Reporter para `src/subagents/reporter/`), fechamento das forward-refs de `scope` (§2.2/§2.3/§3.1/§4.3/§8.4) e da §5.4, e correção do shape de `scope` nos few-shots de §5.1. Sessão 2026-05-30 (C2/Opção B) bumpou a 0.5.0 — adição do campo top-level opcional `scan_provenance`, fechando o forward-ref do Detector (§3.5/§10.5(5)).
 
 > **Companion edits pendentes a `coordinator.md`.** Catalogadas em §10.5 (6 edits — item 6 adicionado em #42). Decisão de sub-packaging ratificada em sessão Chat #41 e mantida em #42: **PR único pós-merge desta spec**, narrativa "sync coordinator with reporter.md spec_version 0.3.0". Surgical edits triviais, ~30min de Code work agregado.
 
@@ -129,6 +129,10 @@ O coordinator monta o prompt do Reporter com o estado consolidado a seguir (repr
         },
         ...
     ],
+
+    # Scan provenance (per-scan; detector §3.2) — presente no normal path,
+    # ausente/None no skip path (§2.3; tabela de presença §3.5)
+    "scan_provenance": <ScanProvenance | None>,
 }
 ```
 
@@ -198,8 +202,11 @@ Payload retornado pelo Reporter via `emit_report` (string JSON serializável; sc
         "total": <int>,  # == sum(counts.values()); cross-check em §4.8
     },
     "findings": [<Finding>, ...],
+    "scan_provenance": <ScanProvenance | None>,  # detector §3.2; provenance de EXECUÇÃO do scan, top-level/per-scan (C2)
 }
 ```
+
+> O campo opcional **`scan_provenance`** (top-level) carrega a proveniência de **execução do scan** conforme `detector.md` §3.2 — `rules_version`, `semgrep_version`, `scan_metadata`. É a **mesma** model `ScanProvenance` do `DetectorOutput.provenance` (não uma cópia): o coordinator a repassa **verbatim** ao estado consolidado do Reporter; o Reporter não a computa nem a transforma (§8.1). Distinta da trinca policy/legal (§3.3): aquela é jurídico-temporal **per-finding**; esta é de execução **per-scan**, top-level. O locus físico da model (`src/`) é decisão de impl T11+ — provável import da model compartilhada do Detector pelo Reporter; nota de débito, não pinada aqui.
 
 > 💡 **Conceito Claude relevante (Domínio 5 — Context Management & Reliability):** o discriminador `run_outcome` materializa structured error metadata aplicado também ao caminho de sucesso. Quatro tokens distintos sinalizam quatro causas operacionais raiz para um Report com `findings: []` ou sem-substantive-verdict, sem ambiguidade. Auditor downstream (humano, SDR β, audit script) distingue "Triager pulou", "Detector achou zero candidatos", "Matcher devolveu tudo not_applicable", e "tem findings substantivos" sem inferir a partir do shape — o token declara.
 
@@ -317,6 +324,15 @@ def derive_run_outcome(
     return "success_with_findings"
 ```
 
+**Presença de `scan_provenance` por caminho (C2/Opção B).** O campo está presente em **todo** caminho em que houve scan — incluindo `success_no_candidates` (o Detector rodou e achou zero candidatos → `scan_provenance` presente, com `findings: []`). Está **ausente apenas** em `skipped_by_triager` (nunca houve Detector, logo não há scan de onde extrair proveniência).
+
+| `run_outcome` | `scan_provenance` |
+|---|---|
+| `success_with_findings` | presente |
+| `success_no_candidates` | presente (scan rodou, zero candidatos) |
+| `success_all_not_applicable` | presente |
+| `skipped_by_triager` | ausente (sem Detector) |
+
 ### 3.6 Casos que parecem erro mas não são
 
 - **`findings: []` em `success_no_candidates`** — Detector achou zero candidatos; pipeline atravessa normalmente até Reporter. Não é erro.
@@ -365,6 +381,7 @@ JSON Schema dict, gerado via `ReportPayload.model_json_schema()` na factory `cre
 | `scope`                   | `TriagerInput` (Pydantic, ratificado em Triager §2.1) | sim         | coordinator |
 | `summary`                 | `SummaryModel`                            | sim         | coordinator |
 | `findings`                | `list[Finding]` (discriminated union)     | sim         | Matcher |
+| `scan_provenance`         | `Optional[ScanProvenance]` (default `None`; mesma model do `DetectorOutput.provenance`, detector §3.2) | não (opcional) | coordinator (de `DetectorOutput.provenance`; ausente em `skipped_by_triager`) |
 
 `SummaryModel` carrega `counts` (4 ints, zeros explícitos) + `total` (int com `Field(ge=0)`; cross-check via `model_validator` contra sum). `Finding` é discriminated union por `verdict`. `extra='forbid'` em todos os modelos — campos não-declarados produzem `ValidationError` no parsing.
 
@@ -598,7 +615,12 @@ Construct the Report payload by copying the provided fields verbatim into the st
       "reason": "session_id não é dado de identificação pessoal; POL-005 governa nome/CPF/email/etc.",
       "policy_schema_version": "0.1.0", "policy_version": "1.2.0", "legal_framework": "LGPD"
     }
-  ]
+  ],
+  "scan_provenance": {
+    "rules_version": "2026.04.1",
+    "semgrep_version": "1.163.0",
+    "scan_metadata": {"base_ref": "main", "head_ref": "feature/x", "files_scanned": 3, "elapsed_seconds": 4.2}
+  }
 }
 </example_input>
 
@@ -618,7 +640,12 @@ emit_report({
   },
   "findings": [
     {... same 3 findings, verbatim ...}
-  ]
+  ],
+  "scan_provenance": {
+    "rules_version": "2026.04.1",
+    "semgrep_version": "1.163.0",
+    "scan_metadata": {"base_ref": "main", "head_ref": "feature/x", "files_scanned": 3, "elapsed_seconds": 4.2}
+  }
 })
 </example_tool_call>
 </example>
@@ -647,7 +674,7 @@ Pivot para 4-shot completo (1 per verdict, incluindo indeterminate) se Gate 5 (s
 
 O prompt não trata skip path como caso especial. Mesma instrução ("copy-verbatim do user message; call emit_report once") opera em ambos os caminhos. Diferenças entre normal e skip são apenas nos valores do input JSON (`run_outcome`, `triager_skip_reason`, `findings`), não na lógica do Reporter.
 
-**Forward ref.** A defesa do prompt unified depende de coordinator §3.1 montar o input JSON do skip path com a mesma estrutura top-level do normal path (mesmas chaves, valores zerados/None onde aplicável). Estrutura mostrada em §2.3 presume essa invariante. Triager spec v0.1.0 §3.1 define `TriagerSkip.skip_reason` como campo string obrigatório no caminho skip, permitindo ao coordinator §3.1 popular `triager_skip_reason` no Reporter input preservando top-level shape (per reporter.md §2.3). Sem pivot para conditional prompt necessário.
+**Forward ref.** A defesa do prompt unified depende de coordinator §3.1 montar o input JSON do skip path com a mesma estrutura top-level do normal path (mesmas chaves, valores zerados/None onde aplicável). Estrutura mostrada em §2.3 presume essa invariante. Triager spec v0.1.0 §3.1 define `TriagerDecision.skip_reason` (opcional, presente quando `decision=='skip'`) no caminho skip, permitindo ao coordinator §3.1 popular `triager_skip_reason` no Reporter input preservando top-level shape (per reporter.md §2.3). Sem pivot para conditional prompt necessário.
 
 ## 6. Error handling
 
@@ -732,7 +759,7 @@ Coordinator **NUNCA** usa `num_turns == max_turns_cap` ou `stop_reason` para dis
 
 ### 7.1 Versão da spec
 
-Esta spec carrega `spec_version: 0.4.0` no header. Bump 0.3.0 → 0.4.0 (sessão #43+, MC-F) cobre a ratificação retroativa de DD-T15 (migração de locus dos módulos para `src/subagents/reporter/`) e o fechamento das forward-refs do contrato `scope` (§2.2/§2.3/§3.1/§4.3/§5.4) — detalhado em §10.6. Bump 0.2.0 → 0.3.0 (sessão #42) refletiu refinamento substantivo de contract surface pós-dois-reviews-independentes (cross-check #3 removido, anotações tense forward-looking, invariante §2.2 reescrita, sintaxe few-shot corrigida, aritmética retry reconciliada, hardening UUID/Literal/Windows-replace, locus dos módulos pinado). Bump 0.1.0 → 0.2.0 (sessão #41 — três achados de review). Convenção major/minor/patch:
+Esta spec carrega `spec_version: 0.5.0` no header. Bump 0.4.0 → 0.5.0 (2026-05-30, C2/Opção B) adiciona o campo top-level opcional `scan_provenance`, fechando o forward-ref do Detector (§3.5/§10.5(5)); minor por §7.1 ('adição de campos opcionais'). Bump 0.3.0 → 0.4.0 (sessão #43+, MC-F) cobre a ratificação retroativa de DD-T15 (migração de locus dos módulos para `src/subagents/reporter/`) e o fechamento das forward-refs do contrato `scope` (§2.2/§2.3/§3.1/§4.3/§5.4) — detalhado em §10.6. Bump 0.2.0 → 0.3.0 (sessão #42) refletiu refinamento substantivo de contract surface pós-dois-reviews-independentes (cross-check #3 removido, anotações tense forward-looking, invariante §2.2 reescrita, sintaxe few-shot corrigida, aritmética retry reconciliada, hardening UUID/Literal/Windows-replace, locus dos módulos pinado). Bump 0.1.0 → 0.2.0 (sessão #41 — três achados de review). Convenção major/minor/patch:
 
 - **Major** — break em contract surface (shape do `inputSchema`, shape do envelope de erro, semântica de tool authorization).
 - **Minor** — adição de campos opcionais, novos errorCodes, refinamento de cross-checks, ampliação de behaviors, bump por aplicação de diretrizes forward-looking acumuladas, ou refinamento substantivo de contract surface mediante review pass.
@@ -769,6 +796,8 @@ O Report carrega top-level quatro versões:
 
 Consumer downstream parseia o Report e usa o quartet para: (i) determinar capabilities do parser; (ii) audit chain (qual Política gerou este finding); (iii) cross-version comparison de Reports históricos.
 
+**`scan_provenance` ao lado do quarteto (C2).** A proveniência de **execução do scan** (`scan_provenance`, §3.1 — `rules_version`/`semgrep_version`/`scan_metadata`) fica top-level ao lado do quarteto de versão, mas é categoria distinta: o quarteto é proveniência de **versão** (qual schema/Política/jurisdição), `scan_provenance` é proveniência de **qual scan detectou** os candidatos. Per-scan (não per-finding: per-finding sugeriria `rules_version` distinto entre findings do mesmo scan — `detector.md` §3.2). Paralela à proveniência **legal** (a trinca per-finding, §3.3): execução vs julgamento.
+
 ### 7.4 Mutabilidade durante execução
 
 Os quatro campos do quartet são **fixos por instância do coordinator**. `report_schema_version` é pinado em build time; os três da Política são carregados em startup pelo `policy-reader` e propagados verbatim em cada veredito do Matcher. Nenhum hot-reload no MVP. Reload requer restart do MCP server `policy-reader` + nova execução do coordinator.
@@ -778,7 +807,7 @@ Os quatro campos do quartet são **fixos por instância do coordinator**. `repor
 ### 8.1 Não-objetivos do Reporter
 
 1. **Não consolida estado upstream.** Estado é consolidado pelo coordinator antes do prompt ser montado.
-2. **Não recomputa discriminadores.** `run_outcome`, `summary.counts`, `summary.total` vêm do coordinator (DD-7.3 inversão).
+2. **Não recomputa discriminadores nem proveniência.** `run_outcome`, `summary.counts`, `summary.total` vêm do coordinator (DD-7.3 inversão); `scan_provenance` (C2) também é injetada pronta pelo coordinator (de `DetectorOutput.provenance`) e propagada verbatim — o Reporter não computa proveniência de scan, recebe-a do estado consolidado.
 3. **Não reclassifica vereditos.** Cada `verdict` propaga verbatim do Matcher.
 4. **Não re-ordena findings.** Ordem do Matcher preservada.
 5. **Não filtra findings.** Mesmo findings com `verdict == "not_applicable"` aparecem no Report (audit trail per ADR-0007).
@@ -812,6 +841,8 @@ Reporter **NÃO** consegue verificar:
 - Correção do framework declarado em `legal_framework` (responsabilidade do `policy-reader`).
 
 Falhas semânticas upstream propagam silenciosamente. Defesa em profundidade é responsabilidade de specs upstream — cada estágio valida seu próprio output antes de emitir. Reporter é último saneamento; não primeiro nem único.
+
+**`scan_provenance` não adiciona cross-check (C2/Opção B).** O campo é per-scan e não tem contraparte per-finding, logo **não toca** os cross-checks #1-#4 (§4.8): todos eles operam sobre campos per-finding ou sobre a trinca de versão top-level. O Reporter propaga `scan_provenance` verbatim sem validação adicional — coerente com a fronteira passthrough (§2.4).
 
 ### 8.4 Decisões deferidas
 
@@ -946,12 +977,21 @@ Sub-pacote total: ~6 edits, sub-30min Code work, defensável como PR único ao c
 
 ### 10.6 Histórico de versões pós-#42
 
+#### 0.5.0 (2026-05-30, C2/Opção B)
+
+Bump minor — adição do campo top-level opcional `scan_provenance` (contrato de structured output do Branch B):
+
+- **`scan_provenance: Optional[ScanProvenance] = None`** (§3.1, §3.3, §3.5, §4.3): proveniência de execução do scan (`rules_version`/`semgrep_version`/`scan_metadata`), mesma model do `DetectorOutput.provenance` (`detector.md` §3.2), repassada verbatim pelo coordinator. Fecha o forward-ref do Detector (`detector.md` §3.5/§10.5(5)).
+- **Semântica de presença** (§3.5): presente em todo caminho com scan (incl. `success_no_candidates`); ausente só em `skipped_by_triager`.
+- **Sem impacto nos cross-checks** (§8.3): per-scan, sem contraparte per-finding — cross-checks #1-#4 intactos.
+- **Few-shots** (§5.1): `scan_provenance` adicionado ao exemplar `success_with_findings`.
+
 #### 0.4.0 (sessão #43+, MC-F)
 
 Bump minor cobrindo ratificação retroativa de DD-T15 + fechamento de forward-refs do contrato `scope`:
 
 - **Migração de locus dos módulos Python** (§1.1, §1.5, §4.3, §4.8, §5.1, §8, §10.5 itens 2-3): `src/coordinator/{models,constants,system_prompts,tools}.py` → `src/subagents/reporter/{models,constants,system_prompts,tools}.py`, per convenção `src/subagents/<name>/` consagrada em triager.md §1.5 (DD-T15). Diretório `src/coordinator/` continua existindo para `coordinator.py`; só os módulos do Reporter migraram.
 - **Contrato `scope: TriagerInput`** (§2.2, §2.3, §3.1, §4.3): substitui `dict` opaco; shape canônico `{pr_number, base_ref, head_ref, repo_url}` definido em Triager spec v0.1.0 §2.1. Coerência interna §2.4 passthrough preservada.
-- **Fechamento de forward-refs**: §5.4 reescrito (Triager spec ratifica `TriagerSkip.skip_reason`, sem pivot para conditional prompt); §8.4 perde bullet "Estruturação Pydantic de scope" (catch R2-F5 / #42 — fechado por construção em Triager §2.1).
+- **Fechamento de forward-refs**: §5.4 reescrito (Triager spec ratifica `TriagerDecision.skip_reason`, sem pivot para conditional prompt); §8.4 perde bullet "Estruturação Pydantic de scope" (catch R2-F5 / #42 — fechado por construção em Triager §2.1).
 - **Correção de few-shots** (§5.1, ~linhas 570 + 614): campo `scope` em `example_input`/`example_tool_call` passa de `{"pr_number": 42, "repo": "example/app"}` (shape ad-hoc) para shape canônico TriagerInput. Porção `findings` dos few-shots intacta (depende da Matcher spec, sessão futura).
 - **Nota técnica sobre `output_format` shape** (companion edit T1 a coordinator.md §3.1): a forma envelopada `{"type": "json_schema", "schema": TriagerDecision.model_json_schema()}` (confirmada empiricamente em `scripts/smoke_tests/sdk_output_format_lockdown/smoke_test.py` lines 110-113) é o que SDK 0.2.87 efetivamente aceita. A prescrição abreviada em triager.md §10.5 item 1 (`output_format=TriagerDecision.model_json_schema()`) é shorthand; a forma envelopada é o contrato wire-level.

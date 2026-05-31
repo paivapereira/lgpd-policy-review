@@ -132,70 +132,71 @@ Operacionalmente: o system prompt instrui uso de `Glob` para descobrir paths alt
 
 ## 3. Output contract
 
-### 3.1 Shape canônico — discriminated union
+### 3.1 Shape canônico — flat enum-tag
 
 Output emitido em `ResultMessage.structured_output` após validação do SDK contra o schema declarado em `output_format`. Shape canônico, discriminado por valor de `decision`:
 
 ```python
-from typing import Literal, Annotated, Union
-from pydantic import BaseModel, Field
+from typing import Literal, Optional
+from pydantic import BaseModel, ConfigDict, model_validator
 
-class TriagerProceed(BaseModel):
-    decision: Literal["proceed"]
-    relevance_summary: str  # Por que esta PR vale análise downstream
+class TriagerDecision(BaseModel):
+    """Wire model (flat enum-tag) — o que vai ao output_format.
 
-class TriagerSkip(BaseModel):
-    decision: Literal["skip"]
-    skip_reason: str  # Por que esta PR não vale análise downstream
+    NÃO é discriminated-union: union no root emite `oneOf`, que desliga o
+    constrained decoding do SDK (DD-T16, verificado em sdk_output_format_complex;
+    a doc lista `anyOf` como o mecanismo de união suportado, não `oneOf`).
+    O encoding é enum-tag: `decision` Literal + os dois campos direcionais como
+    opcionais (`anyOf[str,null]`).
+    """
+    model_config = ConfigDict(extra="forbid")
+    decision: Literal["proceed", "skip"]
+    relevance_summary: Optional[str] = None  # presente sse decision == "proceed"
+    skip_reason: Optional[str] = None        # presente sse decision == "skip"
 
-TriagerDecision = Annotated[
-    Union[TriagerProceed, TriagerSkip],
-    Field(discriminator="decision"),
-]
+    @model_validator(mode="after")
+    def _directional_xor(self):
+        # DD-T02 preservada: nomes direcionais mantidos; o xor (relevance_summary
+        # XOR skip_reason) é enforçado AQUI (validação), não pela gramática wire.
+        if self.decision == "proceed":
+            if self.relevance_summary is None or self.skip_reason is not None:
+                raise ValueError("proceed exige relevance_summary e proíbe skip_reason")
+        else:  # skip
+            if self.skip_reason is None or self.relevance_summary is not None:
+                raise ValueError("skip exige skip_reason e proíbe relevance_summary")
+        return self
 ```
 
-Justificativa do discriminated union (vs campo único `rationale`): `docs/architecture-overview.md` §5.2 prescreve fields distintos (`relevance_summary` xor `skip_reason`). Shape unificado perderia a semântica direcional do nome do campo — `rationale` em proceed e em skip não são intercambiáveis (um justifica análise downstream; outro justifica ausência dela), e Pydantic discriminator força essa não-intercambiabilidade por construção (ver DD-T02).
+O xor NÃO está na gramática wire (não pode estar — seria `oneOf`); está no `model_validator`. Consequência aceita: o SDK pode emitir `{decision:proceed, skip_reason:...}` que passa a gramática mas falha o validator → `SubagentValidationFailed` (fail-loud, correto).
 
-A discriminated union TriagerProceed xor TriagerSkip também **suporta por construção** a invariante de prompt unificado declarada em `reporter.md` §5.4. A invariante governa a shape do input que o coordinator constrói para o Reporter: top-level keys estáveis independente do branch (proceed vs skip) tomado pelo Triager. O Triager não monta esse input diretamente — coordinator §3.1 mapeia o output do Triager para o input do Reporter. O que esta spec provê: `TriagerSkip.skip_reason` é campo string obrigatório (per schema acima), permitindo coordinator popular `triager_skip_reason` no Reporter input preservando shape top-level (per reporter.md §2.3). Sem pivot para conditional prompt necessário. Companion edit a Reporter §5.4 (remover forward-ref) catalogado em §10.5.
+Justificativa dos campos direcionais (vs campo único `rationale`): `docs/architecture-overview.md` §5.2 prescreve fields distintos (`relevance_summary` xor `skip_reason`). Shape unificado perderia a semântica direcional do nome do campo — `rationale` em proceed e em skip não são intercambiáveis (um justifica análise downstream; outro justifica ausência dela). No encoding flat, a não-intercambiabilidade é garantida pelo `model_validator` (xor), não mais por discriminated-union (ver DD-T02, DD-T16).
+
+O modelo flat `TriagerDecision` também **suporta** a invariante de prompt unificado declarada em `reporter.md` §5.4. A invariante governa a shape do input que o coordinator constrói para o Reporter: top-level keys estáveis independente do branch (proceed vs skip) tomado pelo Triager. O Triager não monta esse input diretamente — coordinator §3.1 mapeia o output do Triager para o input do Reporter. O que esta spec provê: `TriagerDecision.skip_reason` é campo opcional presente quando `decision=='skip'` (per schema acima), permitindo coordinator popular `triager_skip_reason` no Reporter input preservando shape top-level (per reporter.md §2.3). Sem pivot para conditional prompt necessário. Companion edit a Reporter §5.4 (remover forward-ref) catalogado em §10.5.
 
 **Custo de schema compilation.** Doc oficial (`build-with-claude/structured-outputs`) registra que `anyOf` / union types têm custo exponencial de compilação de grammar (interpretação a partir da tabela canônica "Schema complexity limits"):
 
 > "Parameters with union types | 16 | Total parameters that use `anyOf` or type arrays across all strict schemas. **These are especially expensive because they create exponential compilation cost.**"
 
-Triager usa 1 union (TriagerDecision) com 2 variantes — bem dentro do limite documentado de 16 union types por request. Mas o custo é informativo: schemas com mais unions inflam compilation latency no first-hit. Caching de 24h amortiza após primeira compilação (ver §1.5 grammar compilation latency).
+O schema flat tem **0 uniões no nível raiz** (sem `oneOf`); as únicas uniões contadas são os 2 opcionais `relevance_summary`/`skip_reason` (cada um `anyOf:[str,null]`) — **2 de 16**, bem dentro do limite documentado. Mas o custo é informativo: schemas com mais uniões inflam compilation latency no first-hit. Caching de 24h amortiza após primeira compilação (ver §1.5 grammar compilation latency).
 
 ### 3.2 Schema produzido por `model_json_schema()`
 
-Pydantic 2.x gera JSON Schema com `oneOf` no nível raiz para discriminated union. Estrutura aproximada (verbatim depende da versão de Pydantic; verificação empírica em T11+):
+Pydantic 2.x gera, para o modelo flat (enum-tag), um JSON Schema de **objeto no nível raiz** — sem `oneOf`, sem `discriminator`. Estrutura aproximada (verbatim depende da versão de Pydantic; verificação empírica em T11+):
 
 ```json
 {
-  "$defs": {
-    "TriagerProceed": {
-      "properties": {
-        "decision": {"const": "proceed", "title": "Decision", "type": "string"},
-        "relevance_summary": {"title": "Relevance Summary", "type": "string"}
-      },
-      "required": ["decision", "relevance_summary"],
-      "title": "TriagerProceed",
-      "type": "object"
-    },
-    "TriagerSkip": {
-      "properties": {
-        "decision": {"const": "skip", "title": "Decision", "type": "string"},
-        "skip_reason": {"title": "Skip Reason", "type": "string"}
-      },
-      "required": ["decision", "skip_reason"],
-      "title": "TriagerSkip",
-      "type": "object"
-    }
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "decision": {"enum": ["proceed", "skip"], "title": "Decision", "type": "string"},
+    "relevance_summary": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": null, "title": "Relevance Summary"},
+    "skip_reason": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": null, "title": "Skip Reason"}
   },
-  "discriminator": {"propertyName": "decision", "mapping": {...}},
-  "oneOf": [{"$ref": "#/$defs/TriagerProceed"}, {"$ref": "#/$defs/TriagerSkip"}]
+  "required": ["decision"]
 }
 ```
 
-Interação `oneOf` + SDK `output_format=json_schema` não foi testada no smoke-test (que usou shape unificado `{decision, rationale}` por simplicidade). Decisão deferida formalizada como **DD-T16** em §8.4: confirmar em T11+ que o SDK aceita schemas com `oneOf` / `discriminator` no nível raiz; fallback é serialização ao shape unificado com pós-validação no coordinator se incompatibilidade aparecer.
+Objeto flat, sem união no nível raiz: `decision` é `enum` required (required-first ordering, doc abr/2026); `relevance_summary` e `skip_reason` são opcionais `anyOf:[{string},{null}]` — **2 nós `anyOf`**, folgado abaixo do limite documentado de 16 parâmetros de união. O custo exponencial de compilação de `oneOf` no nível raiz (que desligava silenciosamente o constrained decoding — DD-T16) **não se aplica** a este schema: não há `oneOf` nem `discriminator`. O xor `relevance_summary` / `skip_reason` é enforçado pelo `model_validator` (§3.1), não pela gramática wire — ver DD-T16 (§8.4, **fechada**).
 
 ### 3.3 Casos que parecem erro mas não são
 
@@ -235,7 +236,9 @@ async for message in query(prompt=triager_prompt, options=triager_options):
     if isinstance(message, ResultMessage):
         if message.subtype == "success" and message.stop_reason != "refusal":
             decision = TriagerDecision.model_validate(message.structured_output)
-            # Discriminator do Pydantic resolve para TriagerProceed ou TriagerSkip
+            # decision.decision é Literal["proceed","skip"] — type-safe; o model_validator
+            # (§3.1) já garantiu o xor relevance_summary/skip_reason. Ramificar em
+            # decision.decision; não há mais subtipo (TriagerProceed/Skip) a resolver.
             break
         elif message.subtype == "success" and message.stop_reason == "refusal":
             # Caso especial: SDK marcou success mas modelo refusou; structured_output pode estar ausente
@@ -244,7 +247,7 @@ async for message in query(prompt=triager_prompt, options=triager_options):
             raise SubagentValidationFailed(stage="triager", subtype=message.subtype)
 ```
 
-Validação Pydantic adicional no coordinator (`model_validate`) é defense-in-depth, não redundância: o SDK valida contra JSON Schema antes de devolver, mas tipos Python ricos (discriminated union, runtime variants) só emergem após `model_validate`. Custo: ~µs; ganho: tipos seguros downstream + segunda barreira contra schema drift entre SDK e Pydantic.
+Validação Pydantic adicional no coordinator (`model_validate`) é defense-in-depth, não redundância: o SDK valida contra JSON Schema antes de devolver, mas tipos Python ricos (o `decision` como `Literal` tipado + o xor garantido pelo `model_validator`) só emergem após `model_validate`. Custo: ~µs; ganho: tipos seguros downstream + segunda barreira contra schema drift entre SDK e Pydantic.
 
 Discriminação dupla `subtype` × `stop_reason` no caminho de sucesso é documentada na doc oficial (`agent-sdk/agent-loop`): "The result also includes a `stop_reason` field ... To detect refusals, check `stop_reason == 'refusal'`." Ver §6.3 para tabela completa.
 
@@ -584,7 +587,7 @@ Honestidade epistêmica análoga ao Matcher (`docs/REQUIREMENTS.md` RF-005 + `do
 | DD-T05     | `changed_paths` no scope compartilhado entre subagents                                               | Classifier spec não autorada; decisão prematura criaria invariant não-justificado | Quando Classifier spec for autorada (sessão #44+)        |
 | DD-T11     | Modelo dedicado ao Triager (Haiku 4.5 vs Opus 4.7 adaptive)                                          | Otimização de modelo introduziria variável adicional durante validação funcional  | Pós-produção, após sistema 100% funcional               |
 | DD-T14     | Adicionar `reasoning` field opcional ao schema (chain-of-thought estruturado antes da decisão)       | Doc canônica de ticket-routing usa `<reasoning>` tags antes do output classificado; benefício não medido empiricamente | Quando T11+ executar catálogo de PRs sintéticos com e sem o campo |
-| DD-T16     | Aceitação de schemas com `oneOf` / `discriminator` no nível raiz pelo SDK `output_format=json_schema` | Smoke-test usou shape unificado (sem discriminator)                                | Quando implementação T11+ tentar discriminated union   |
+| DD-T16     | **Fechada** — `oneOf`/`discriminator` no nível raiz desliga o constrained decoding do SDK | Verificado (`sdk_output_format_complex`; doc abr/2026 lista `anyOf`, não `oneOf`, como mecanismo de união suportado). Reencodado para flat enum-tag (§3.1); o fallback virou o design | — (fechada; reabre só se o SDK passar a aceitar `oneOf` no root sem custo) |
 
 **Notas sobre DD-T11 (fechada via deferment).** A doc oficial de ticket-routing (`use-case-guides/ticket-routing`) recomenda Claude Haiku 4.5 como modelo ideal para classification: "Many customers have found `claude-haiku-4-5-20251001` an ideal model for ticket routing, as it is the fastest and most cost-effective model in the Claude 4 family while still delivering excellent results." Material acumulado da pesquisa em docs oficiais (sessão #43): Haiku 4.5 é 3.75x mais barato que Sonnet, ~3x mais rápido, e classificado como ASL-2 (vs ASL-3 de Sonnet/Opus, com `refusal` rates correspondentes mais baixos per `build-with-claude/handling-stop-reasons`). Caveats descobertos: `effort` parameter não se aplica a Haiku 4.5 (lista oficial cobre apenas Opus 4.7/4.6/4.5 e Sonnet 4.6). Gate epistêmico para reabertura: smoke-test análogo a `sdk_output_format_lockdown` com `model="claude-haiku-4-5-20251001"` para confirmar coexistência de Haiku + output_format + lockdown. Se PASS, troca de modelo é mecânica; se FAIL, fallback documentado para Opus/Sonnet com `effort="low"`.
 
@@ -657,7 +660,7 @@ Não aplicável. Triager é stateless (§7.4). Critério estrutural: ausência d
 | DD       | Status                                                                            |
 |----------|-----------------------------------------------------------------------------------|
 | DD-T01   | Fechada via spec §1.4 + smoke-test PR pre-Fase-0 + endorsement direto da doc oficial `agent-sdk/structured-outputs` |
-| DD-T02   | Fechada via spec §3.1 (com nota de custo exponencial dentro do limite 16)         |
+| DD-T02   | Fechada via spec §3.1. **Preservada sob o reencode flat enum-tag (DD-T16):** nomes direcionais (`relevance_summary`/`skip_reason`) mantidos; o xor migra de discriminated-union (grammar) para `model_validator` (validação) — não revertida, só o enforcement amoleceu (paralelo ao soft-membership do Classifier, classifier §3.3) |
 | DD-T03   | Fechada via spec §1.3 (alinhada a arch §5.2 + §5.7)                               |
 | DD-T04   | Fechada via spec §1.4                                                             |
 | DD-T05   | **Aberta** (deferida para Classifier spec; companion edit a arch-overview catalogado) |
@@ -671,11 +674,11 @@ Não aplicável. Triager é stateless (§7.4). Critério estrutural: ausência d
 | DD-T13   | Fechada via spec §6.3 (lista canônica completa de 5 subtypes + 7 stop_reasons)    |
 | DD-T14   | **Aberta** (reasoning field; deferida para T11+ com catálogo MC-D)                |
 | DD-T15   | Fechada via spec §1.5 + §8.4 nota (convenção uniforme `src/subagents/<name>/`; débito eliminado via Provisão MC-F pré-T11+) |
-| DD-T16   | **Aberta** (oneOf/discriminator schema; deferida para T11+ tentativa de discriminated union) |
+| DD-T16   | **Fechada** via spec §3.1/§3.2 (reencode flat enum-tag; `oneOf` no root desliga constrained decoding — verificado) |
 
-13 DDs fechadas, 3 abertas (DD-T05, DD-T14, DD-T16). Catalogadas em §8.4 como decisões deferidas.
+14 DDs fechadas, 2 abertas (DD-T05, DD-T14). Catalogadas em §8.4 como decisões deferidas.
 
-> **Nota de categoria.** Das 13 fechadas, DD-T11 está em categoria distinta — **fechada via deferment para produção** (decisão consciente de adiar otimização de modelo, com gate epistêmico declarado para reabertura) — enquanto as outras 12 são fechadas por design ratificado nesta spec. DD-T14 e DD-T16 (abertas) são análogas a DD-T11 no sentido de carregarem gate empírico de reabertura, mas diferem por não ter direção pré-aprovada — aguardam evidência empírica em T11+. Categorização útil para reader navigation: spec resolve por design o que pode ser resolvido por design; o que precisa de evidência fica deferred com gate explícito.
+> **Nota de categoria.** Das 14 fechadas, DD-T11 está em categoria distinta — **fechada via deferment para produção** (decisão consciente de adiar otimização de modelo, com gate epistêmico declarado para reabertura) — enquanto as outras 13 são fechadas por design ratificado nesta spec. DD-T14 (aberta) é análoga a DD-T11 no sentido de carregar gate empírico de reabertura, mas difere por não ter direção pré-aprovada — aguarda evidência empírica em T11+. Categorização útil para reader navigation: spec resolve por design o que pode ser resolvido por design; o que precisa de evidência fica deferred com gate explícito.
 
 ### 10.5 Companion edits e Provisões pendentes a outros docs
 
@@ -686,7 +689,7 @@ Catálogo de edits a aplicar fora desta spec após merge:
 2. **`coordinator.md` §5** — adicionar entrada catalogando tipos de message não-padrão que o loop deve tolerar (e.g., `RateLimitEvent`). Contexto: `RateLimitEvent` foi observado em Gate 1 (sessão #38) e documentado em `coordinator.md` §11 AC2; reaparece no smoke-test `sdk_output_format_lockdown` (SF-2), mas o README desse smoke-test declara incorretamente que o tipo "não foi observado em smoke-tests anteriores" (ver companion edit #6 abaixo). Patch sugerido: adicionar nota em coordinator §5 declarando que loop deve tolerar tipos não-padrão sem rebentar (log e continue), referenciando coordinator §11 AC2 como locus observacional.
 
 3. **`docs/tasks.md` §Tasks T11+** — quando decompor, prever ao menos uma task dedicada a implementação do Triager:
-   - Definir `src/subagents/triager/models.py` com `TriagerDecision` discriminated union (per DD-T15).
+   - Definir `src/subagents/triager/models.py` com `TriagerDecision` flat enum-tag (per DD-T15/DD-T16).
    - Definir `src/subagents/triager/prompt.py` com template canônico de §5.1 (incluindo `<examples>` block).
    - Definir `src/subagents/triager/__init__.py` declarando `spec_version: str = "0.1.0"` para provenance §9.4.
    - Tests cobrindo §9.1, §9.2, §9.3, §9.4.
@@ -699,7 +702,7 @@ Catálogo de edits a aplicar fora desta spec após merge:
 
 7. **Provisão MC-F — Reporter spec 0.3.0 → 0.4.0 + module migration sob DD-T15** (PR housekeeping pré-T11+). Escopo:
    - Reabrir `docs/specs/subagents/reporter.md`; bump minor 0.3.0 → 0.4.0 com mudança em §1.5 ("Locus físico"): substituir `src/coordinator/{models,constants,system_prompts,tools}.py` por `src/subagents/reporter/{models,constants,system_prompts,tools}.py`. Adicionar nota em §10 (changelog interno) declarando ratificação retroativa de DD-T15.
-   - Remover forward-ref em `reporter.md` §5.4: o bullet que diz "Triager spec (a redigir, sessão pós-Reporter+sanity) ratifica a invariante ou força pivot para conditional prompt; revisão de §5.4 a re-confirmar nesse momento" deve ser substituído por "Triager spec v0.1.0 §3.1 define `TriagerSkip.skip_reason` como campo string obrigatório no caminho skip, permitindo ao coordinator §3.1 popular `triager_skip_reason` no Reporter input preservando top-level shape (per reporter.md §2.3). Sem pivot para conditional prompt necessário."
+   - Remover forward-ref em `reporter.md` §5.4: o bullet que diz "Triager spec (a redigir, sessão pós-Reporter+sanity) ratifica a invariante ou força pivot para conditional prompt; revisão de §5.4 a re-confirmar nesse momento" deve ser substituído por "Triager spec v0.1.0 §3.1 define `TriagerDecision.skip_reason` (opcional, presente quando `decision=='skip'`) no caminho skip, permitindo ao coordinator §3.1 popular `triager_skip_reason` no Reporter input preservando top-level shape (per reporter.md §2.3). Sem pivot para conditional prompt necessário."
    - Atualizar `reporter.md` §3.1: substituir `"scope": {...}` (dict opaco no payload) por `"scope": TriagerInput` (cross-ref'ando Triager §2.1 para shape canônico `{pr_number, base_ref, head_ref, repo_url}`). Acoplamento literal `Report.scope = TriagerInput` ratificado nesta spec (§2.1); versioning coupling deliberado declarado em §7.1.
    - Atualizar `reporter.md` §4.3 inputSchema table: a row `scope` passa de `dict (opaco — não validado por Pydantic model dedicado no MVP; ver §8.4 decisões deferidas)` para `TriagerInput (Pydantic, ratificado em Triager §2.1)`.
    - Remover bullet "Estruturação Pydantic de scope (catch R2-F5 / #42)" da §8.4 do Reporter (deferment listing): Triager spec v0.1.0 §2.1 fechou esta decisão por construção (TriagerInput é Pydantic BaseModel tipado, variante (b) do espaço de design — abordagem ratificada; field set definido pela Triager spec supera sugestão exploratória do Reporter §8.4).

@@ -57,7 +57,6 @@ from subagents.reporter.models import RunOutcome, SummaryCounts, SummaryModel
 from subagents.reporter.system_prompts import REPORTER_SYSTEM_PROMPT
 from subagents.reporter.tools import create_reporter_server
 from subagents.triager.models import TriagerDecision, TriagerInput
-from subagents.triager.system_prompts import TRIAGER_SYSTEM_PROMPT
 
 log = logging.getLogger("coordinator")
 
@@ -145,7 +144,10 @@ def _build_consolidated_state(
 # ---------------------------------------------------------------------------
 def _triager_options() -> ClaudeAgentOptions:
     return ClaudeAgentOptions(
-        system_prompt=TRIAGER_SYSTEM_PROMPT,
+        # DD-4: the canonical §5.1 prompt (with the PR context + tool instructions)
+        # is rendered by build_triager_prompt and delivered as the turn prompt
+        # (triager §2.2); the stage runs in SDK minimal system-prompt mode (§5.1 note).
+        system_prompt=None,
         tools=["Read", "Glob"],
         allowed_tools=["Read", "Glob"],
         mcp_servers={},

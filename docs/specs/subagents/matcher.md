@@ -30,7 +30,7 @@ Consome o `classifier_output` (lista de candidatos enriquecidos com `structured_
 
 ### 1.4 Invocador e modo de invocação
 
-Invocado **uma vez por run** pelo coordinator, via `query()` do `claude-agent-sdk`, em sessão única que recebe o `classifier_output` inteiro (todos os candidatos numa janela de contexto). O AgentDefinition aplica a quíntupla canônica de denial-on-miss (`permission_mode`, `setting_sources`, `strict_mcp_config`, `allowed_tools`, `mcp_servers`) + `system_prompt` (role) + `tools` (built-ins; ver §4.2 e DD-M30) + `output_format` + `max_turns`. Autoritativo: `coordinator.md` §3.4 (companion edit pendente — DD-M15/M30, §10.5).
+Invocado **uma vez por run** pelo coordinator, via `query()` do `claude-agent-sdk`, em sessão única que recebe o `classifier_output` inteiro (todos os candidatos numa janela de contexto). O AgentDefinition aplica a quíntupla canônica de denial-on-miss (`permission_mode`, `setting_sources`, `strict_mcp_config`, `allowed_tools`, `mcp_servers`) + `system_prompt` (role) + `tools` (built-ins; ver §4.2 e DD-M30) + `output_format` + `max_turns`. Autoritativo: `coordinator.md` §3.4 (✅ aplicado — coordinator §3.4 referencia `MatcherOutput.model_json_schema()` + `max_turns` + tools-field; DD-M15/M30 fechados, §10.5 itens 1-2).
 
 ### 1.5 Stack e governança
 
@@ -141,6 +141,30 @@ Cada finding casa o schema de `reporter.md` §3.2 (vinculante — o output do Ma
 
 **Zero `candidate_ref` (DD-M19/M9).** O finding **não** carrega `candidate_ref`. A identidade do par é `(file, line, rule_id)` + `policy_clause_ref`. O `candidate_ref` que existia em `architecture-overview.md` §5.5 era stale e foi removido (Beat 2, #48). O output de `check_applicability` (`canonical.md` §4.3 l.540-583) **não** o emite.
 
+### 3.1bis Envelope de saída — `MatcherOutput`
+
+O Matcher emite um **envelope objeto-no-topo**, não uma lista nua:
+
+```python
+class MatcherOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    findings: list[Finding]
+```
+
+Mesma razão de `ClassifierOutput{classified}` (classifier §3.1) e
+`DetectorOutput{findings, provenance}` (detector §3.2): o `output_format`
+espera um schema de **objeto no topo**; array-at-root é frágil de gramática.
+O `Finding` é o shape de §3.1, codificado enum-tag por §3.3. Sem `provenance`
+no envelope do Matcher (diferente do Detector): a proveniência de execução é
+do scan, não do match; a trinca legal viaja per-finding (§7.3).
+
+**Orçamento (verificado contra doc, abr/2026).** Os limites são **por
+request**; cada subagente é uma `query()` separada → o `Finding` enum-tag tem
+os 16-uniões / 24-opcionais inteiros para si. O envelope (`findings: list`)
+não adiciona união. Contar verbatim os `anyOf[T,null]` do `Finding` (campos
+variantes por-verdict + opcionais) contra 16 ao gerar o schema — folgado
+esperado, mas é o único subagente enum-tag-pesado.
+
 ### 3.2 Os quatro vereditos e seus campos variantes
 
 Discriminados por `verdict`, mutuamente exclusivos (`canonical.md` §4.3 l.579-585). Todos os campos de prosa são **gerados pela tool** (§2.4):
@@ -209,7 +233,7 @@ Além da quíntupla canônica (`coordinator.md` §3.4):
 - **`tools` field (DD-M30, verificado #48-b):** deve incluir os **built-ins de resource** `ReadMcpResourceTool` e `ListMcpResourcesTool`. O `tools` field governa os built-ins visíveis, e a #48-b mediu os três estados lado a lado contra o `policy-reader` real: sob `tools=[]` **e** sob `tools=["Read"]` o `ReadMcpResourceTool` está **ausente** (o modelo verbaliza "ReadMcpResourceTool is not available"; só os `mcp__policy-reader__*` sobrevivem, via `mcp_servers`); só sob `tools=["Read", "ReadMcpResourceTool", "ListMcpResourcesTool"]` (ou com o field omitido, pagando 1 turn de ToolSearch) o catálogo é lido. **Dois eixos ortogonais:** server tools (`mcp__*`) governados por `mcp_servers` sobrevivem a `tools=[]`; built-ins de resource governados pelo `tools` field **somem** com `tools=[]`. Logo `tools=["Read", "ReadMcpResourceTool", "ListMcpResourcesTool"]`. **Consequência cross-doc:** o `tools=[]` que o `coordinator.md` §3.4 (l.155, pivô do Gate 6) declara para o Matcher **quebra o check-all** — o Gate 6 estava certo para o Reporter (`emit_report` é server tool, visível sob `tools=[]`) e errado para o Matcher; e a afirmação de `classifier.md:45` ("Matcher lê resource sob `tools=[]` sem conflito") é **defeito empírico**. Ambos são companion edits (§10.5).
 - **`allowed_tools`:** `mcp__policy-reader__check_applicability`, `mcp__policy-reader__get_clause`, `mcp__policy-reader__find_clauses_by_law_article`.
 - **`mcp_servers`:** `{policy-reader: ...}`. O grant de resource é per-server (verificado #48, Check B: `ReadMcpResourceTool` alcança `policy://catalog` sob grant bare — **desde que** o built-in esteja no `tools` field, ver acima). A concessão de catalog ao Matcher é afirmação positiva de `canonical §1/§3.1` (resources consumidos pelo Matcher), não inferência por silêncio de D4 — D4 governa só a fronteira tools-exclusivas (correção M2).
-- **`output_format`:** schema enum-tag do finding (§3.3). **Companion edit pendente** ao `coordinator.md` §3.4 (ausente hoje — item 1 da #47; DD-M15).
+- **`output_format`:** schema = `MatcherOutput.model_json_schema()` (§3.1bis) — envelope objeto-no-topo embrulhando o `Finding` enum-tag (§3.3). **Companion edit já aplicado**: coordinator §3.4 referencia `MatcherOutput.model_json_schema()`.
 - **`max_turns = 30` (DD-M14):** A check-all é call-heavy — o número de chamadas é **`N × (C+1)`** (N candidatos × cláusulas active, +1 pela POL-000 sempre presente), não só função do catálogo: no MVP bundled `C=0` (só POL-000), logo o fator dominante é **N** (contagem de candidatos), não o tamanho do catálogo. 30 dá folga a N pequeno; **recalibrar empiricamente** quando N ou as substantivas per-client crescerem — o piso real depende de quantas chamadas `check_applicability` o modelo agrupa por turn (blocos `tool_use` paralelos), **não medido**. A migração para `find_clauses_by_applicability` (DD-M3) corta de N×C para N×K.
 
 ### 4.3 O loop check-all (DD-M1)
@@ -258,7 +282,8 @@ Verificado #48 (probe §5): `applies_to` é interseção de conjuntos pura, **se
 # Pseudocódigo do coordinator (autoritativo: coordinator.md §3.4)
 async for msg in query(prompt, options=matcher_agent_definition):
     if isinstance(msg, ResultMessage):
-        findings = msg.structured_output   # validado contra o schema do finding
+        matcher_output = MatcherOutput.model_validate(msg.structured_output)
+        findings = matcher_output.findings   # envelope desempacotado (§3.1bis)
 ```
 
 Erros de `check_applicability` chegam no stream como envelopes **Option B**: `isError=False` + `errorCode` em `structuredContent` (§6.2). Discriminar por **presença de `errorCode`**, nunca por `isError`.
@@ -436,7 +461,7 @@ O Matcher é **conduto fiel** de `check_applicability` (DD-M26). Ele reporta o q
 - `docs/specs/subagents/reporter.md` §2.2 (estado consolidado + cardinalidade), §3.2 (shape do finding — **vinculante**), §3.3 (provenance), §3.4 (ordering).
 - `docs/specs/subagents/classifier.md` §2/§3 (`structured_context` consumido), §7.1 (postura `extra` / DD-C9).
 - `docs/specs/subagents/detector.md` §3.1 (passthrough `DetectorFinding`).
-- `docs/specs/subagents/coordinator.md` §3.4 (invocação — companion edits pendentes), §5 (hierarquia de exceções).
+- `docs/specs/subagents/coordinator.md` §3.4 (invocação — companion edits aplicados, §10.5 itens 1-2), §5 (hierarquia de exceções).
 - `docs/architecture-overview.md` §3, §5.5, §5.7 (Beat 2 aplicado #48).
 - `.claude/rules/sdk-mcp-conventions.md` (Option B; discriminação por `errorCode`).
 - `policy/` (Política bundled: `policy.yaml`, `clauses/POL-000.yaml`, `vocabularies/LGPD/*.yaml`).

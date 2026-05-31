@@ -100,12 +100,17 @@ async for msg in query(
         permission_mode="dontAsk",
         setting_sources=[],
         strict_mcp_config=True,
+        output_format={
+            "type": "json_schema",
+            "schema": DetectorOutput.model_json_schema(),
+        },
+        max_turns=30,                   # detector §1.4 (aritmética 2+N)
     ),
 ):
     ...
 ```
 
-Output Pydantic-validado, gravado em `02-detector.json`.
+Output Pydantic-validado, gravado em `02-detector.json`. O coordinator desempacota o `DetectorOutput`: `findings` → Classifier (§3.3); `provenance` (`ScanProvenance`) → scratchpad `02-detector.json` **e** ao estado consolidado do Reporter (§3.5), per `reporter.md` §3 `scan_provenance` (C2).
 
 Sem branching condicional: zero candidatos é caso válido (`findings: []` propaga ao Classifier → Matcher → Reporter; Reporter formata Report final propagando verbatim o `run_outcome` pré-computado pelo coordinator a partir de estado observável (DD-1.2 V2); Reporter não inventa nem reclassifica discriminador).
 
@@ -133,6 +138,11 @@ async for msg in query(
         permission_mode="dontAsk",
         setting_sources=[],
         strict_mcp_config=True,
+        output_format={
+            "type": "json_schema",
+            "schema": ClassifierOutput.model_json_schema(),
+        },
+        max_turns=20,                   # classifier §1.5 (provisional, MC-D)
     ),
 ):
     ...
@@ -273,7 +283,7 @@ Onde `reporter_sdk_server` é instância de `create_sdk_mcp_server` (ver §7).
 
 Halt-condition: ausência de invocação de `emit_report` no stream completo da query do Reporter → `ReportNotEmitted` erro estruturado. Enforcement via inspeção Python do message stream **filtrando por `block.name`** ao longo de todos os `AssistantMessage` recebidos, não via hook PostToolUse (decisão sessão #37, ratificada #38; hook seria belt-and-suspenders sobre tool authorization, que já garante exclusividade do Reporter sobre `emit_report` via whitelist sob `dontAsk`). Filter por `name` é defesa preventiva contra futuros built-in tool blocks intermediários introduzidos por versões posteriores do SDK; sob `tools=[]` corrente (PR #67), ToolSearch é skipped, mas o filter permanece para robustness (ratificado em Reporter spec §6.7 + §10.5 item 6 / sessão #42).
 
-Halt-condition aplica uniformemente: tanto path normal (Matcher → Reporter) quanto skip path (Triager skip → Reporter com `skip_reason`) requerem invocação de `emit_report` antes da terminação da query. Coordinator deve consumir o stream até `ResultMessage` (signal de término) acumulando filtered match; não retornar no primeiro `ToolUseBlock` qualquer.
+No caminho normal, o coordinator injeta no estado consolidado do Reporter — ao lado de `run_outcome`, `summary`, `scope` — também a `scan_provenance` (de `DetectorOutput.provenance`, §3.2; per `reporter.md` §3, C2); ela é **ausente** no skip path (sem Detector, logo sem scan). Halt-condition aplica uniformemente: tanto path normal (Matcher → Reporter) quanto skip path (Triager skip → Reporter com `skip_reason`) requerem invocação de `emit_report` antes da terminação da query. Coordinator deve consumir o stream até `ResultMessage` (signal de término) acumulando filtered match; não retornar no primeiro `ToolUseBlock` qualquer.
 
 ### §3.6 Termination
 

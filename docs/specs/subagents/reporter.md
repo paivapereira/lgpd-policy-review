@@ -383,7 +383,7 @@ JSON Schema dict, gerado via `ReportPayload.model_json_schema()` na factory `cre
 | `findings`                | `list[Finding]` (discriminated union)     | sim         | Matcher |
 | `scan_provenance`         | `Optional[ScanProvenance]` (default `None`; mesma model do `DetectorOutput.provenance`, detector §3.2) | não (opcional) | coordinator (de `DetectorOutput.provenance`; ausente em `skipped_by_triager`) |
 
-`SummaryModel` carrega `counts` (4 ints, zeros explícitos) + `total` (int com `Field(ge=0)`; cross-check via `model_validator` contra sum). `Finding` é discriminated union por `verdict`. `extra='forbid'` em todos os modelos — campos não-declarados produzem `ValidationError` no parsing.
+`SummaryModel` carrega `counts` (4 ints, zeros explícitos) + `total` (int com `Field(ge=0)`). O cross-check `total == sum(counts.values())` **não** vive no modelo: é executado no handler (§4.8, cross-check #3b), produzindo o errorCode `TOTAL_NOT_SUM_OF_COUNTS`. Um `model_validator` de igualdade no `SummaryModel` rejeitaria o payload no parsing (`ValidationError` genérico) **antes** do handler, tornando esse errorCode inalcançável (A9, MC-C) — o modelo carrega a forma (`Field(ge=0)`), a consistência agregada é cross-check auditável do handler. `Finding` é discriminated union por `verdict`. `extra='forbid'` em todos os modelos — campos não-declarados produzem `ValidationError` no parsing.
 
 ### 4.4 Output em sucesso
 
@@ -920,7 +920,7 @@ Falhas semânticas upstream propagam silenciosamente. Defesa em profundidade é 
 
 ### 10.3 Gates pré-implementação
 
-**Gate 4 — Pydantic v2 `model_validator` em `SummaryModel`.** Confirmar que validator declarativo para cross-check #3b funciona em Pydantic 2.13.4. Smoke-test trivial (~5min).
+**Gate 4 — cross-check `total == sum(counts)` no handler (não `model_validator`).** Resolvido por A9 (MC-C): o cross-check #3b vive no handler do `emit_report` (errorCode `TOTAL_NOT_SUM_OF_COUNTS`, §4.8), **não** num `model_validator` declarativo do `SummaryModel` — que rejeitaria o payload no parsing antes do handler, tornando o errorCode inalcançável. `SummaryModel` carrega só a forma (`Field(ge=0)`). Verificação migra para o teste de handler da Fase 2a (`test_emit_report_counts_disagree`).
 
 **Gate 5 — Smoke-test do `REPORTER_SYSTEM_PROMPT`.** Antes de implementar coordinator §3.5 e Reporter stage para integração, rodar `query()` isolado com:
 - `REPORTER_SYSTEM_PROMPT` da §5.1;

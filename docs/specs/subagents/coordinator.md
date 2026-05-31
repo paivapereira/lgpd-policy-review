@@ -461,7 +461,11 @@ campos** (`stage`/quando/recoverable), e a hierarquia (irmã vs base) é deferid
 a **ADR-0013** (follow-up). As exceções SDK-class (`SubagentRefusedTask`,
 `SubagentValidationFailed`, `SubagentUnresponsive`, `SubagentExecutionError`) e
 `SubagentContractViolation` são eixo distinto da base de tool-error — não entram
-sob `SubagentToolError`.
+sob `SubagentToolError`. A base mínima `SubagentToolError(Exception)` foi
+**introduzida em MC-C** (Fase 0, com `DetectorScanFailed` como única subclasse no
+MVP — barato e não-breaking); a **formalização da hierarquia** (irmãs, base rica,
+`is_retryable` como contrato) permanece deferida a **ADR-0013**. A introdução
+antecipa a base, não a decide.
 
 **Nota (wrapper `{"output":{...}}` — observação, não bloqueio).** O smoke #50
 (ST-B) mostrou que o wrapper não se manifesta em schema enum-tag simples

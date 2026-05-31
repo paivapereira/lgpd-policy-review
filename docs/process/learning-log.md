@@ -6940,3 +6940,20 @@ C12 (`config.py` single-source dos `*_CONFIG`) land junto. Caminho crítico.
 
 **Próximo passo**
 - T11+ em **sessão própria de planejamento de implementação** — explorar métodos e eixos de fatiamento, **chegar a decidir lá** (não decidido aqui). Ver session-handoff para o briefing de entrada (decisões herdadas, 2 bifurcações abertas, estado empírico do SDK, ambiente).
+
+---
+
+## Nota de processo (Code, MC-C Phase 2a) — 2026-05-31 — red-first auditável só no grão do commit
+
+> Anotada pela sessão Code da Phase 2a (não é o entry da sessão MC-C #51, que é
+> curado pelo Chat). Lição de PROCESSO, não débito de produto.
+
+- red-first só é auditável se observável no **grão do commit**. O commit
+  `082ec82` (Phase 2a) contém âncoras E impl juntos; o "RED" existe só nas
+  docstrings dos testes, não no histórico git — a vermelhidão é reconstruível
+  mas não auditável commit-a-commit.
+- Daqui pra frente (Fases 2b/3): âncoras red entram em commit **SEPARADO** do
+  impl que as fecha — ex. `test: anchors RED` seguido de `feat: impl → GREEN`.
+- Considerar formalizar como regra em `CLAUDE.md` ou `.claude/rules/`.
+- Não reescrever `082ec82`: o tree já é hermeticamente verde e correto;
+  reescrever história por uma propriedade que o conteúdo já garante não compensa.

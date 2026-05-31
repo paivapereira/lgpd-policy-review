@@ -696,6 +696,14 @@ sessão housekeeping futura — a correção do texto é o que minor-bumpa
   com `system_prompt=None` (SDK minimal mode, §5.1 nota) — passar o template raw
   embarcaria `{pr_number}`/`{{…}}` literais no system prompt. Alinhar o
   pseudocódigo §3.1 ao wiring real.
+- `reporter.md` §6.2 — reescrever o critério de `isRetryable` em termos
+  **mecânicos** (erro transitório / re-execução idêntica segura), não
+  **cognitivos** (modelo-pode-reconstruir, L700). A semântica do flag é
+  retry-automático-de-infra (a orquestração re-executa a chamada idêntica),
+  ortogonal ao validation-retry loop conduzido pelo modelo via `content` (DD-2).
+  Sob a definição mecânica, `PYDANTIC_VALIDATION=False` em §6.3 está CORRETO e a
+  impl (`tools.py:85-87`) é fiel — o débito é só de prosa. Corrigir no mesmo
+  housekeeping PR de §4.5/§6.1/coordinator §3.1 — mesmo minor-bump.
 
 **Débito de contradição spec-interna MC-C Phase 2a (categoria DISTINTA do doc-lag
 acima — não é doc-atrás-de-impl, é spec que se contradiz; exige ADR, deferido a
@@ -714,6 +722,19 @@ Phase 3 hardening):**
   sucesso) = **Phase 3 hardening + ADR**, fora do escopo "close the ends" da 2a.
   A âncora 2a `test_reporter_multiple_emissions_raises` pina a semântica AS-IS de
   §3.5 (docstring marca a incompatibilidade); sem teste de retry-success na 2a.
+
+**Débito de produto MC-C → Phase 3 (reliability hardening; categoria DISTINTA do
+doc-lag e da contradição acima — é um errorCode de §6.3 declarado mas não
+implementado, não um desalinhamento doc↔impl):**
+
+- **`SCRATCHPAD_WRITE_FAIL` não implementado.** `reporter.md` §6.3 (L716)
+  declara um 7º errorCode `SCRATCHPAD_WRITE_FAIL` (system-class) que o handler
+  não emite: `_atomic_write_json` (`tools.py:36-42`) não tem try/except — uma
+  falha de `os.replace` levanta exceção crua em vez de envelope estruturado.
+  Consistente com o escopo auto-declarado da 2a (só cross-checks #1-#4), mas é o
+  único ponto onde a escrita do `99-report.json` pode falhar silenciosamente.
+  Phase 3: envolver `_atomic_write_json` em try/except e emitir envelope DD-2 com
+  errorCode system-class em vez de exceção crua.
 
 ---
 

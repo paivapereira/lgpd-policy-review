@@ -2,17 +2,7 @@
 
 **Tipo.** Python main loop — não AgentDefinition. Cada etapa do pipeline é uma chamada `query()` do `claude-agent-sdk` cujo `ClaudeAgentOptions` declara `system_prompt=SUBAGENT_SYSTEM_PROMPT` direto, sem `agents={}` e sem dispatch via Agent tool (decisão Coordinator A'' / sessão #38, refinamento sobre A' inicial / sessão #37). Subagente é o main agent dessa query; pattern alinha literalmente com prompt chaining (D1.6 do exam guide canônico).
 
-**Status.** Skeleton v3 (sessão Chat #42 sub-packaging post-merge da Reporter spec 0.3.0). Substitui drafts skeleton-37 (sessão #37), skeleton-38 (primeira passagem sessão #38), e skeleton v2 (PR #63 ratificada). Sincronizado com Reporter spec 0.3.0 via 6 surgical edits do §10.5: (i) `tools=[]` em §3.5 (Reporter; PR #67 Gate 6, evidência empírica em `scripts/smoke_tests/sdk_tools_empty_list/`) — nota: §3.4 (Matcher) foi posteriormente atualizado em #48 para `["Read","ReadMcpResourceTool","ListMcpResourcesTool"]`, pois `tools=[]` esconde os built-ins de resource e quebra o check-all (ver corpo §3.4 + tabela §2; DD-M30); (ii) instanciação de `reporter_sdk_server` em §3.0 (factory `create_reporter_server` de `src/coordinator/tools.py` (os três módulos do Reporter — `tools.py`, `constants.py`, `models.py` — migraram para `src/subagents/reporter/` em MC-F/sessão #43+ per DD-T15 / triager.md §1.5); reuso da instância em §3.5); (iii) §7 reescrito com **factory pattern** alinhado a Reporter spec §4.8: `create_reporter_server(run_path, expected_report_id)` envolve `@tool` decorator + `create_sdk_mcp_server`, com closure capture sobre `run_path` (sink #1 do dual sink) + `expected_report_id` (cross-check #4); inclui `EMIT_REPORT_DESCRIPTION` importado de `src/coordinator/constants.py` + `ReportPayload.model_json_schema()` de `src/coordinator/models.py` + `ToolAnnotations` declaradas (Edit 3 estendido em sessão #42 second-pass review para resolver assimetria entre §3.0 que chama factory e §7 que mostrava definição module-level — assimetria não estava no escopo literal do §10.5 item 3 mas foi exposta pela aplicação minimal, ratificada caminho (A)); (iv) `version="0.1.0"` em §7 com nota cross-ref alinhando pre-1.0 do projeto; (v) §2 quíntupla canônica enumerada explicitamente como 5 elementos de denial-on-miss (`permission_mode`, `setting_sources`, `strict_mcp_config`, `allowed_tools`, `mcp_servers`) + `system_prompt` (role definition, separado) + `tools` (context restriction, eixo ortogonal availability vs denial-on-miss; ratificado em Reporter spec §1.4 + §1.5); (vi) §3.5 comentário do filter `block.name` atualizado com novo rationale (defesa preventiva contra futuros built-in tool blocks intermediários do SDK, não anti-ToolSearch corrente). Cross-ref incidental adicionado em §3.5 `max_turns=3` apontando aritmética canônica para Reporter spec §1.5 (alinha com padrão de cross-refs estabelecido em §2 + §7; ratificado em sessão #42 second-pass review). Também aplicado reflow mecânico do arquivo (remoção de hard-wrap; 890 → ~500 linhas) por consistência com Reporter spec 0.3.0 sem-hard-wrap — invariante de zero mudanças semânticas além das listadas acima. Pattern A'' + (b2) preservados. Flesh completo após specs dos demais 4 subagentes redigidas em ordem Triager → Detector → Classifier → Matcher (sessão #42+).
-
-**Pendência metodológica.** Cinco decisões load-bearing de Milestone C serão ratificadas em ADR-0012 retroativo (sessão futura pós-coordinator-flesh):
-
-- Divergência de método contra `docs/specs/_template.md` (preâmbulo §inicial, sentença sobre derivação de `_template-subagent.md`): template como hipótese de trabalho destilado no Reporter-flesh, não autorado upfront.
-- Não-uso de ADR-0003 dual canonical+compact: subagent specs são comportamentais (contract surface), não wire format MCP, e já são compact-sized 1-2 páginas.
-- Pattern A'' (system_prompt direto, sem AgentDefinition); decisão #38 sobre #37 A'.
-- Caminho (b2) para `policy://vocabularies` access: subagentes carregam diretamente via `ReadMcpResourceTool`, coordinator não pré-carrega; preserva ADR-0005 Decision 4 textbook case (com nuance de granularidade per-server discutida em §3.3).
-- Quíntupla canônica + quatro camadas de enforcement como pattern arquitetural do lockdown agent CI/CD-headless (defense candidate forte D2.3).
-
-Número ADR-0012 fica reservado pendente PR `chore/sync-adr-references` removendo refs stale "ADR-0012" em `docs/process/milestoneB.md` (linhas 50, 102, 106, 107, 112, 114) + triagem caso-a-caso em `docs/process/learning-log.md` (forward refs legítimas a "ADR-0012 retroativo Milestone C" preservadas; refs stale para Windows-stdio E-2 absorvido em ADR-0011 substituídas por "ADR-0011").
+**Status.** Spec completa (flesh MC-A, sessão #50). Os contratos técnicos (quíntupla canônica §2, factory `create_reporter_server` §7, Pattern A'' §2, quatro camadas de enforcement §6) estão no corpo. Histórico de derivação do skeleton (drafts #37/#38, reflow, ratificações) vive no learning-log; decisões load-bearing de Milestone C em ADR-0012 (já autorado).
 
 **Gate pré-coordinator-flesh** (§11): smoke-test residual de `ToolUseBlock.input` attribute shape para custom tools — único item load-bearing não-resolvido via doc canônica.
 
@@ -52,15 +42,81 @@ Cada etapa segue protocolo idêntico: (a) coordinator monta prompt injetando out
 
 ### §3.0 Initialization
 
-Parse `.mcp.json` com whitelist `EXPECTED_SERVERS` (ver §6 Camada 1); gera `run_id` (UUID v4); cria `.scratchpad/run-<id>/`; instancia `reporter_sdk_server = create_reporter_server(run_path, run_id)` (factory de `src/subagents/reporter/tools.py`; reuso desta instância em §3.5 stage Reporter); valida env vars opcionais (`POLICY_READER_ROOT`, `SEMGREP_RUNNER_ROOT`, `SEMGREP_RUNNER_TIMEOUT_SECONDS`) e usa fallbacks CWD-relative quando ausentes.
+Carrega a config de MCP via `src/coordinator/config.py` (single-source; ver §6 Camada 1): o módulo parseia `.mcp.json` com whitelist `EXPECTED_SERVERS`, expõe `mcp_servers_dict` e os slices nomeados `POLICY_READER_CONFIG = mcp_servers_dict["policy-reader"]` e `SEMGREP_RUNNER_CONFIG = mcp_servers_dict["semgrep-runner"]` (as âncoras `*_CONFIG` que §3.2–§3.4 usam); gera `run_id` (UUID v4); cria `.scratchpad/run-<id>/`; instancia `reporter_sdk_server = create_reporter_server(run_path, run_id)` (factory de `src/subagents/reporter/tools.py`; reuso desta instância em §3.5 stage Reporter); valida env vars opcionais (`POLICY_READER_ROOT`, `SEMGREP_RUNNER_ROOT`, `SEMGREP_RUNNER_TIMEOUT_SECONDS`) e usa fallbacks CWD-relative quando ausentes.
 
 **Sob (b2), coordinator NÃO carrega `policy://vocabularies`.** Classifier e Matcher consomem o resource diretamente via `ReadMcpResourceTool` em suas respectivas queries, conforme ADR-0005 Decision 4 (Resource vs Tool textbook case): `policy://vocabularies` é shared resource; `get_clause`, `find_clauses_by_law_article`, `check_applicability` são tools exclusivas do Matcher.
+
+**Logging/observabilidade (decisão deste flesh; reporter §8.4 a delegou aqui).** O coordinator emite log **estruturado em stderr**; **stdout é reservado ao payload do Report** (capturado em §3.6, consumido pelo caller CI em modo `-p` headless — poluir stdout quebraria a captura). Eventos mínimos do MVP: no startup, `run_id`; por stage, uma linha de transição (`stage.start`) e uma de resultado (`stage.result` com `subtype`, `stop_reason`); no halt, a exceção tipada com seus campos (`stage`; quando aplicável `errorCode`/`isRetryable`). O scratchpad (`NN-<stage>.json`, §4) permanece como **audit trail de replay**; stderr é o **trace de execução**. Campos alinhados ao envelope `CoordinatorError` (§3.6). Design completo de observabilidade (níveis, sinks externos, correlação de runs) é Milestone D.
+
+### §3.0bis Driver dos stages Branch B
+
+Os quatro stages Branch B (Triager, Detector, Classifier, Matcher) compartilham o mesmo spine de captura/discriminação; só os **deltas** variam (output model, scratchpad, hook de tool, verificação de passthrough). O spine vive **aqui** (anti-drift rule #3: mecânica de erro só em §5/§3.0bis, nunca duplicada nos corpos §3.1–§3.4). Invariantes travados empiricamente em `scripts/smoke_tests/sdk_l2_capture/RESULTS.md` (#50): emissão de `ResultMessage` precede o raise (→ `last_result` é capturável); `refusal` discrimina por `stop_reason` (o `subtype` vem `'success'` sob refusal — não confiar nele); nunca discriminar pela string da exceção; sem `break` (eventos trailing).
+
+```python
+async def run_branch_b_stage(
+    *,
+    stage: str,
+    prompt: str,
+    options: ClaudeAgentOptions,            # delta por stage (corpo em §3.1-§3.4)
+    output_model: type[BaseModel],          # delta: TriagerDecision / DetectorOutput / ...
+    scratchpad_name: str,                   # delta: "01-triager.json" / ...
+    on_tool_result=None,                    # delta: so Detector (inspecao scan_diff, §3.2)
+    verify_passthrough=None,                # delta: so Classifier (1:1); None no Triager e no Matcher (G6)
+    upstream=None,                          # delta: output do stage anterior p/ verify_passthrough
+) -> BaseModel:
+    log.info("stage.start", extra={"run_id": run_id, "stage": stage})
+    last_result: ResultMessage | None = None
+    try:
+        async for msg in query(prompt=prompt, options=options):
+            if on_tool_result is not None:
+                on_tool_result(msg)         # Detector: scan_diff errorCode -> pode levantar DetectorScanFailed
+            if isinstance(msg, ResultMessage):
+                last_result = msg           # SEM break: eventos trailing (ex. prompt_suggestion)
+            # demais tipos (SystemMessage/RateLimitEvent/UserMessage): audit, log-and-continue
+    except DetectorScanFailed:
+        raise                               # erro de tool ja tipado pelo hook; nao mascarar
+    except Exception as e:
+        if last_result is None:
+            raise CoordinatorStreamFailure(stage=stage) from e
+        # senao: exit deliberado pos-result (is_error=True); last_result e autoritativo
+
+    if last_result is None:
+        raise CoordinatorStreamFailure(stage=stage)        # caminho sem excecao tambem
+    log.info("stage.result", extra={"run_id": run_id, "stage": stage,
+                                     "subtype": last_result.subtype,
+                                     "stop_reason": last_result.stop_reason})
+    if last_result.stop_reason == "refusal":               # PRECEDE subtype (mente: 'success')
+        raise SubagentRefusedTask(stage=stage)
+    match last_result.subtype:
+        case "error_max_turns" | "error_max_budget_usd":
+            raise SubagentUnresponsive(stage=stage)
+        case "error_during_execution":
+            raise SubagentExecutionError(stage=stage)
+        case "error_max_structured_output_retries":
+            raise SubagentValidationFailed(stage=stage)
+        case "success":
+            try:
+                obj = output_model.model_validate(last_result.structured_output)
+            except ValidationError as ve:
+                raise SubagentValidationFailed(stage=stage, raw=last_result.structured_output) from ve
+            if verify_passthrough is not None:
+                verify_passthrough(obj, upstream)          # Classifier (1:1); None no Matcher (G6) e Triager
+            write_scratchpad(scratchpad_name, obj)         # §4
+            return obj
+        case other:
+            raise SubagentExecutionError(stage=stage, detail=f"unexpected subtype {other!r}")
+```
+
+O `match subtype` casa as tabelas §6.3 dos quatro subagentes (incl. `error_max_budget_usd → SubagentUnresponsive`, detector/triager §6.3). As exceções estão na tabela §5. **`verify_passthrough` por stage:** Triager `None` (1º stage, sem upstream); Detector `None` (constrói de `scan_diff`, não de upstream Branch B); Classifier presente (1:1 posicional, classifier §4.3); Matcher **`None` no MVP** — a verificação coordinator-side de ordem/completude é follow-up explícito (matcher §3.5/AC-M8: a ordem não é garantia estrutural), ratificada como diferida na decisão #2.
 
 ### §3.1 Etapa 1 — Triager
 
 ```python
-async for msg in query(
+triager_out = await run_branch_b_stage(
+    stage="triager",
     prompt=build_triager_prompt(pr_metadata),
+    output_model=TriagerDecision,
+    scratchpad_name="01-triager.json",
     options=ClaudeAgentOptions(
         system_prompt=TRIAGER_SYSTEM_PROMPT,
         tools=["Read", "Glob"],
@@ -69,19 +125,13 @@ async for msg in query(
         permission_mode="dontAsk",
         setting_sources=[],
         strict_mcp_config=True,
-        output_format={
-            "type": "json_schema",
-            "schema": TriagerDecision.model_json_schema(),
-        },
-        max_turns=20,                   # Triager spec v0.1.0 §1.5 calibração provisional
+        output_format={"type": "json_schema", "schema": TriagerDecision.model_json_schema()},
+        max_turns=20,                   # Triager spec v0.1.0 §1.5 calibracao provisional
     ),
-):
-    ...
+)
 ```
 
-> **Tolerância a tipos não-padrão no stream.** O loop `async for msg in query(...)` em todos os stages (não só Triager) recebe ocasionalmente tipos como `RateLimitEvent` — observado em Gate 1 (sessão #38; ver §11 AC2 para enumeração canônica dos tipos de message) e em `scripts/smoke_tests/sdk_output_format_lockdown/README` (SF-2). Tipos não-padrão são tolerados via `isinstance`-filtering: o coordinator extrai semântica apenas de `AssistantMessage` (captura de tool calls / structured output) e `ResultMessage` (terminação); demais são audit trail silencioso (log-and-continue). Não há tratamento ativo de `RateLimitEvent` — rate limiting é orquestrado upstream pelo CLI/SDK.
-
-Output Pydantic-validado, gravado em `01-triager.json`.
+Validação, discriminação (subtype × stop_reason) e escrita do scratchpad ficam no driver §3.0bis. A nota de tolerância a tipos não-padrão no stream (RateLimitEvent etc.) move-se para §3.0bis (vale para todos os stages, não só Triager).
 
 Branching:
 - `decision == "skip"` → coordinator pula §3.2-§3.4 e segue direto para §3.5 (Reporter) com input mínimo carregando `skip_reason` no metadata. Reporter é invocado normalmente (preserva arch-overview §4.3 "Reporter como único locus emissor").
@@ -90,8 +140,12 @@ Branching:
 ### §3.2 Etapa 2 — Detector
 
 ```python
-async for msg in query(
-    prompt=build_detector_prompt(pr_metadata, triager_output),
+detector_out = await run_branch_b_stage(
+    stage="detector",
+    prompt=build_detector_prompt(pr_metadata, triager_out),
+    output_model=DetectorOutput,
+    scratchpad_name="02-detector.json",
+    on_tool_result=inspect_scan_diff_result,   # §5: errorCode em structuredContent (Option B) -> isRetryable -> DetectorScanFailed
     options=ClaudeAgentOptions(
         system_prompt=DETECTOR_SYSTEM_PROMPT,
         tools=["Read"],
@@ -100,25 +154,26 @@ async for msg in query(
         permission_mode="dontAsk",
         setting_sources=[],
         strict_mcp_config=True,
-        output_format={
-            "type": "json_schema",
-            "schema": DetectorOutput.model_json_schema(),
-        },
-        max_turns=30,                   # detector §1.4 (aritmética 2+N)
+        output_format={"type": "json_schema", "schema": DetectorOutput.model_json_schema()},
+        max_turns=30,                   # detector §1.4 (aritmetica 2+N)
     ),
-):
-    ...
+)
 ```
 
-Output Pydantic-validado, gravado em `02-detector.json`. O coordinator desempacota o `DetectorOutput`: `findings` → Classifier (§3.3); `provenance` (`ScanProvenance`) → scratchpad `02-detector.json` **e** ao estado consolidado do Reporter (§3.5), per `reporter.md` §3 `scan_provenance` (C2).
+O coordinator desempacota o `DetectorOutput`: `findings` → Classifier (§3.3); `provenance` (`ScanProvenance`) → `02-detector.json` **e** ao estado consolidado do Reporter (§3.5), per reporter.md §3 `scan_provenance` (C2). `inspect_scan_diff_result` é o backstop coordinator-side do erro de tool **específico do Detector** (§5); os demais stages não têm hook análogo — ver nota de assimetria em §5.
 
 Sem branching condicional: zero candidatos é caso válido (`findings: []` propaga ao Classifier → Matcher → Reporter; Reporter formata Report final propagando verbatim o `run_outcome` pré-computado pelo coordinator a partir de estado observável (DD-1.2 V2); Reporter não inventa nem reclassifica discriminador).
 
 ### §3.3 Etapa 3 — Classifier
 
 ```python
-async for msg in query(
-    prompt=build_classifier_prompt(detector_output),
+classifier_out = await run_branch_b_stage(
+    stage="classifier",
+    prompt=build_classifier_prompt(detector_out.findings),
+    output_model=ClassifierOutput,
+    scratchpad_name="03-classifier.json",
+    verify_passthrough=verify_classifier_passthrough,   # 1:1 posicional vs list[DetectorFinding] (classifier §4.3)
+    upstream=detector_out.findings,
     options=ClaudeAgentOptions(
         system_prompt=CLASSIFIER_SYSTEM_PROMPT,
         # ReadMcpResourceTool/ListMcpResourcesTool are built-ins governed by the
@@ -144,9 +199,10 @@ async for msg in query(
         },
         max_turns=20,                   # classifier §1.5 (provisional, MC-D)
     ),
-):
-    ...
+)
 ```
+
+`verify_classifier_passthrough` é zip por índice: candidato *i* preserva `{file, line, rule_id, snippet, surrounding_context}` do finding *i*; divergência → `SubagentContractViolation` (§5). 1:1 é legítimo aqui (Classifier não muda cardinalidade) — assimetria deliberada vs Matcher (§3.4).
 
 System_prompt instrui: *"Use `ReadMcpResourceTool` with `server='policy-reader'` and `uri='policy://vocabularies'` to load the jurisdictional vocabulary at start of session. Use loaded vocabularies to constrain `operation_type`, `data_categories`, and `declared_legal_basis` values when extracting `structured_context` from candidates."*
 
@@ -166,8 +222,16 @@ Sem branching: pipeline prossegue mesmo com candidatos parcialmente classificáv
 ### §3.4 Etapa 4 — Matcher
 
 ```python
-async for msg in query(
-    prompt=build_matcher_prompt(classifier_output),
+matcher_out = await run_branch_b_stage(
+    stage="matcher",
+    prompt=build_matcher_prompt(classifier_out),
+    output_model=MatcherOutput,
+    scratchpad_name="04-matcher.json",
+    # verify_passthrough OMITIDO no MVP (G6 / decisao #2): a verificacao coordinator-side
+    # de ordem/completude do sweep candidato x clausula e follow-up — matcher §3.5/AC-M8
+    # declaram que a ordem NAO e garantia estrutural (depende do LLM enumerar), e o
+    # finding-unico de curto-circuito (matcher §4.3) torna blocos de tamanho variavel.
+    # Trazer ao MVP exigiria emenda ratificada a matcher.md.
     options=ClaudeAgentOptions(
         system_prompt=MATCHER_SYSTEM_PROMPT,
         # Gate 6 (tools=[]) is correct for the Reporter — emit_report is a server
@@ -193,11 +257,10 @@ async for msg in query(
         },
         max_turns=30,                   # check-all is call-heavy: ~N×(C+1) calls (Matcher spec §4.2 / DD-M14)
     ),
-):
-    ...
+)
 ```
 
-Output Pydantic-validado, gravado em `04-matcher.json`.
+Trinca de provenance preservada verbatim por finding (RF-009); ver matcher §3.1. `len(findings) ≥ candidates_count` (DD-M6, sem invariante de igualdade).
 
 Trinca de provenance (`policy_schema_version`, `policy_version`, `legal_framework`) preservada verbatim por finding (RF-009 + garantia β do SDR — decisão sessão #37). Matcher carrega `policy://vocabularies` via `ReadMcpResourceTool` no startup do prompt (mesmo mecanismo do Classifier) e invoca as três tools de ação para emitir veredicts.
 
@@ -258,7 +321,7 @@ except Exception as exc:
 # DD-10.4 V3 — discriminação tri-axial:
 # denials → subtype → emit_report_seen.
 denials = (final_result.permission_denials or []) if final_result else []
-if denials and not emit_report_seen:
+if denials:                                  # estrito (decisao #1): qualquer denial sob lockdown = anomalia de integridade
     raise ReporterPermissionDenied(
         denials=denials,
         subtype=final_result.subtype if final_result else None,
@@ -287,13 +350,31 @@ No caminho normal, o coordinator injeta no estado consolidado do Reporter — ao
 
 ### §3.6 Termination
 
-Coordinator retorna Report payload (capturado em §3.5 via `block.input` da `ToolUseBlock`) ao caller — GitHub Action (Milestone D) ou exercise script (gate milestone-level). Scratchpad permanece em disco como audit artifact; política de retenção/cleanup a decidir em §8.
+O coordinator retorna ao caller (GitHub Action / exercise script) um **`CoordinatorResult`** — união discriminada no boundary externo:
+
+```python
+@dataclass
+class CoordinatorReport:                 # caminho de sucesso
+    payload: dict                        # ReportPayload capturado de emit_report (§3.5)
+
+@dataclass
+class CoordinatorError:                  # qualquer halt do pipeline
+    cause: Exception                     # excecao tipada de §5 (DetectorScanFailed | SubagentRefusedTask | ...)
+    stage: str                           # blame (toda excecao ja carrega)
+    coverage_gap: str                    # anotacao humana do que nao foi analisado
+
+CoordinatorResult = CoordinatorReport | CoordinatorError
+```
+
+O main entry envolve o pipeline num try/except de topo: sucesso → `CoordinatorReport(payload)`; qualquer exceção tipada de §5 → `CoordinatorError(cause, stage, coverage_gap)`. O `run_outcome="error"` que as specs mencionam **mapeia para `CoordinatorError`**, distinto de `ReportPayload.run_outcome` (que segue 4 tokens de sucesso, reporter §3.1). Para `DetectorScanFailed`, `coverage_gap` é "cobertura zero — scan não rodou" (`scan_diff` é all-or-nothing, detector §8.2), **não** "resultado parcial". Scratchpad permanece em disco como audit artifact. **Forma provisional:** campos ricos de audit (ex. `partial_scratchpad_path`) deferem para Milestone D, quando o contrato da GitHub Action e a retenção do scratchpad (§8) forem desenhados.
 
 ## 4. State passing
 
 Output da etapa N → string JSON serializada → inline no prompt da etapa N+1. Scratchpad é **audit-only** (decisão S2', sessão #37): gravação em disco pelo coordinator após cada etapa, sem leitura pelos subagentes. Subagentes não têm `Read` sobre `.scratchpad/`.
 
 Justificativa de evolução: se outputs intermediários crescerem o suficiente para inflar prompts (Detector > N candidatos com snippets grandes), pivô para S2-com-Read é refactor pequeno — coordinator passa path em vez de conteúdo + subagente ganha `Read` escopado (via `allowed_tools=["Read"]` cuja autorização já existe; mudança fica em prompt + scratchpad layout). Reversibilidade preservada por construção.
+
+O driver §3.0bis grava cada output via `write_scratchpad(name, obj)`: serializa `obj` (Pydantic) como JSON em `<run_path>/<name>` (ex. `01-triager.json`), atomic write, UTF-8/LF. É a materialização da gravação audit-only descrita acima — escrita pelo coordinator, sem leitura pelos subagentes.
 
 ## 5. Error handling e propagation
 
@@ -311,17 +392,18 @@ Cenários estruturados que o coordinator trata:
   carrega só a string JSON, não o dado estruturado. Roteamento por `isRetryable`
   da tabela `semgrep-runner` §5.4: retryable (`SCAN_TIMEOUT`,
   `SEMGREP_EXECUTION_FAILED`) → retry sob orçamento; non-retryable ou retry
-  esgotado → escala como `DetectorScanFailed`, projetado externamente em
-  `run_outcome="error"` com anotação de coverage-gap. `findings: []` nunca
-  aliasa erro (§3.6).
+  esgotado → escala como `DetectorScanFailed`, projetado no **envelope
+  externo `CoordinatorError`** (§3.6; kind de erro do resultado
+  coordinator→caller, **distinto** de `ReportPayload.run_outcome`) com
+  anotação de coverage-gap. `findings: []` nunca aliasa erro.
 - **Triager `decision: "skip"`** → não-erro; branching para §3.5 direto com input mínimo (ver §3.1).
 - **Detector retorna zero candidatos** → não-erro; pipeline prossegue normalmente até §3.5 com `findings: []` propagando.
 - **Família de errorCodes do Reporter** (DD-10.4 V3, três errorCodes discriminados por sinais observáveis distintos):
   - **`ReporterTurnsExhausted`** — `final_result.subtype == "error_max_turns"`. `isRetryable=True` (payload complexo; retry com `max_turns` maior pode resolver).
-  - **`ReportNotEmitted`** — `subtype == "success"` E `emit_report_seen == False` E `permission_denials == []`. `isRetryable=False` (bug em system_prompt ou input; retry mecânico não corrige). Enforcement via inspeção do message stream em Python, não via PostToolUse hook (decisão sessão #37, ratificada #38).
-  - **`ReporterPermissionDenied`** — `final_result.permission_denials != []`. `isRetryable=False` (lockdown configuration bug; retry mecânico não corrige). Inspeção pós-loop obrigatória (AC-2/AC-4 #38c — `subtype` pode ser `"success"` apesar de denial; sem inspeção, coordinator declararia success falsamente).
+  - **`ReportNotEmitted`** — `subtype == "success"` E `emit_report_seen == False` E **não** há denials (`not permission_denials`, robusto a `None`). `isRetryable=False`.
+  - **`ReporterPermissionDenied`** — `permission_denials` truthy (qualquer denial). `isRetryable=False` (anomalia de lockdown). Inspeção pós-loop obrigatória (`subtype` pode ser `"success"` apesar do denial).
 
-Discrimination ordering: denials → subtype → emit_report_seen (denials é signal mais forte de falha estrutural; subtype é signal secundário; emit_report_seen é signal de business outcome).
+Discrimination ordering: `if permission_denials:` (estrito, primeiro) → `subtype == "error_max_turns"` → `not emit_report_seen`.
 - **`.mcp.json` declara server fora do whitelist `EXPECTED_SERVERS`** → halt no startup com erro estruturado (`CoordinatorStartupError`; ver §6).
 - **Subagente retorna texto não-JSON** → mesmo path de Pydantic validation falha.
 - **Subagente não responde / timeout / connection error** → `SubagentUnresponsive` erro estruturado; coordinator decide retry (transient) vs halt conforme política.
@@ -344,6 +426,9 @@ Discrimination ordering: denials → subtype → emit_report_seen (denials é si
 | `MultipleReportEmissions` | Reporter invocou `emit_report` mais de uma vez na mesma query | Não (anti-pattern em system_prompt) |
 | `MalformedToolUseBlock` | `ToolUseBlock` sem campos esperados | Não (sinaliza SDK incompat) |
 | `DetectorScanFailed` | Erro de domínio de `scan_diff` (`errorCode` presente) non-retryable, ou retryable com orçamento esgotado | Não (retry dos codes retryable ocorre antes do raise; non-retryable escalam direto) |
+| `SubagentRefusedTask` | `stop_reason == "refusal"` em stage Branch B (mesmo sob `subtype="success"`) | Não (refusal de safety) |
+| `SubagentExecutionError` | `subtype == "error_during_execution"` ou subtype inesperado | Não |
+| `SubagentContractViolation` | `verify_passthrough` falha (mutação/perda/reordenação) — Classifier no MVP; Matcher diferido (G6) | Não |
 
 **Nota sobre nomenclatura de envelope de erro MCP.** SDK Python usa `is_error: True` (snake_case) no envelope; SDK TypeScript usa `isError: true` (camelCase). FastMCP wire format usa camelCase (`isError`) conforme convenção MCP protocol. Implementação Python do coordinator e do `emit_report` retornam `is_error: True` quando sinalizam erro estruturado ao caller; recepção lê de campo correspondente do envelope MCP. Débito de housekeeping catalogado: verificar se FastMCP servers existentes (`policy-reader`, `semgrep-runner`) usam convenção correta — sessão Code dedicada ~20-30min (catalogado em `docs/tasks.md` §Companion edits).
 
@@ -354,8 +439,8 @@ erro de tool MCP consumida por subagente. Assinatura
 auditoria; `errorCode`/`isRetryable` herdados verbatim do envelope da tool
 (não reinterpretados); `details` opaco por `errorCode`. Duas camadas, não
 exclusivas — a exceção é o sinal de **controle de fluxo interno** (capturada
-no boundary de orquestração); `run_outcome="error"` é a **projeção externa**
-ao Report. Retry-vs-escalate decorre de `isRetryable`, não do tipo da exceção.
+no boundary de orquestração); o **`CoordinatorError` do §3.6** é a projeção
+externa. Retry-vs-escalate decorre de `isRetryable`, não do tipo da exceção.
 
 *Generalização ao Matcher.* O mesmo caminho de detecção ("MCP server retorna
 envelope de erro", acima) cobre as tools do `policy-reader` que o Matcher
@@ -365,25 +450,26 @@ entre exceção-irmã (ex.: `MatcherClauseLookupFailed`) e base compartilhada
 **contrato de campos** acima congela agora, para que a decisão de hierarquia
 seja não-breaking. Promoção a ADR-0013 catalogada como follow-up.
 
-*Débito de consistência de taxonomia (não resolver aqui).* A raiz é
-estrutural: as exceções tipadas que as specs de subagente referenciam nas
-suas tabelas de **classes de erro** e de **subtype/stop_reason**, além de
-pseudocódigo de capture loop e de ACs, nunca foram reconciliadas com esta
-tabela. A reconciliação deve grepar **por nome**, não por §-âncora — a
-numeração de seção não é paralela entre as specs (o detector tem um §6.2
-extra de `scan_diff` que desloca as demais). Ausentes daqui:
-- `SubagentRefusedTask` — classe Refusal; a mais referenciada das ausentes.
-- `SubagentContractViolation` — violação de contrato do próprio subagente
-  (capture loop e classes de erro do classifier; classes de erro do detector).
-- `SubagentExecutionError` — alvo do mapeamento canônico
-  `error_during_execution →` nas tabelas de subtype (forma herdada de
-  `agent-sdk/agent-loop`); presente em classifier e triager, ausente da
-  tabela do detector (perdida no H2 do review) e desta. Confirmar a grafia
-  pretendida antes de promover.
-- `DetectorScanFailed` — resolvida nesta entrada (DD-D5).
-Reconciliar numa passada dedicada no flesh, não nesta consolidação.
-`SubagentRefusedTask` conecta ao item 4 — candidato a entrar junto quando o
-caveat "TS-only" sair do §6.3 do detector.
+*Reconciliação de taxonomia (feita neste flesh).* As três exceções acima foram
+adicionadas à tabela; a reconciliação foi por **nome** (numeração não-paralela
+entre specs). Correção de claim stale: `SubagentExecutionError` **não** está
+ausente da tabela do detector — detector §6.3 a mapeia (`error_during_execution
+→ SubagentExecutionError`). Nota de hierarquia: a **família de erro de tool**
+(`DetectorScanFailed` e futuras tool-errors do Matcher) compartilha a base
+`SubagentToolError` (matcher §6.4/DD-M18); esta tabela congela só **contrato de
+campos** (`stage`/quando/recoverable), e a hierarquia (irmã vs base) é deferida
+a **ADR-0013** (follow-up). As exceções SDK-class (`SubagentRefusedTask`,
+`SubagentValidationFailed`, `SubagentUnresponsive`, `SubagentExecutionError`) e
+`SubagentContractViolation` são eixo distinto da base de tool-error — não entram
+sob `SubagentToolError`.
+
+**Nota (wrapper `{"output":{...}}` — observação, não bloqueio).** O smoke #50
+(ST-B) mostrou que o wrapper não se manifesta em schema enum-tag simples
+(Triager). Mas issues SDK #502/#571 o reportam vivo em schemas complexos
+(arrays grandes, união) — perfil do `MatcherOutput` (`list[Finding]`) e do
+`DetectorOutput` (`list[DetectorFinding]`). Se `error_max_structured_output_retries`
+aparecer empiricamente nesses stages em Milestone D, reavaliar se
+`SubagentValidationFailed` admite 1 retry. Registrado, não bloqueia o flesh.
 
 ## 6. `.mcp.json` consumption — quatro camadas de enforcement
 
@@ -496,7 +582,7 @@ Esclarecimento load-bearing (corrige inconsistência do skeleton #38): **`ToolUs
 
 ## 8. Evoluções previstas
 
-- **Adoção formal de `claude-agent-sdk` como dependência.** PR dedicado `chore/add-claude-agent-sdk-dependency` antes de coordinator-flesh: `pyproject.toml` + `uv.lock` ganham `claude-agent-sdk >=0.1.59` (mínimo para `setting_sources=[]` suportado; idealmente latest stable disponível). ADR-0001 (stack canônica) recebe amendment registrando adição. Não bloqueia redação de specs de subagente; bloqueia início de implementação (T11+).
+- **`claude-agent-sdk` como dependência — feito.** Pinado `==0.2.87` (MC-E, sessão #49); ADR-0001 D2 emendado registrando a adição. Não é mais pendência.
 
 - **SDR como serializador downstream (pattern β).** Report JSON é artefato canônico do sistema multi-agente. Transformação Report → SDR CSV (append, audit governance LGPD Art. 37) é responsabilidade de consumer downstream (GitHub Action ou job de governança independente), não do sistema multi-agente. Três garantias de design no MVP preservam compatibilidade: (i) superset de campos do `structured_context` propagados verbatim por finding; (ii) audit metadata top-level (`report_id`, `report_emitted_at`); (iii) separação Reporter ↔ serializadores externos. Decisão sessão #37.
 
@@ -528,7 +614,7 @@ Esclarecimento load-bearing (corrige inconsistência do skeleton #38): **`ToolUs
 - ADR-0005 (multi-client / framework-agnostic; §Decision 4 textbook case Resource vs Tool — preservado em capability sob (b2); granularidade per-server-via-built-in-tools documentada como nuance em ADR-0012)
 - ADR-0008 (task decomposition e verification)
 - ADR-0011 (Windows-stdio handle inheritance; cascading risk)
-- **ADR-0012 retroativo Milestone C** (a redigir; cobre divergências metodológicas + decisões load-bearing A'', (b2), M2, S2', dual sink emit_report, quíntupla canônica, quatro camadas de enforcement D2.3; **citação pendente PR `chore/sync-adr-references`** removendo refs stale ADR-0012 → ADR-0011 em `docs/process/milestoneB.md` e triagem em `docs/process/learning-log.md`).
+- **ADR-0012 retroativo Milestone C** (autorado, `docs/adr/0012-subagent-tool-governance.md`; cobre divergências metodológicas + decisões load-bearing A'', (b2), M2, S2', dual sink emit_report, quíntupla canônica, quatro camadas de enforcement D2.3; **citação pendente PR `chore/sync-adr-references`** removendo refs stale ADR-0012 → ADR-0011 em `docs/process/milestoneB.md` e triagem em `docs/process/learning-log.md`).
 
 **Specs dos subagentes:**
 - `docs/specs/subagents/reporter.md` — **primeira a redigir; destila `_template-subagent.md`** (ordem híbrida sessão #37)

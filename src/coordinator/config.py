@@ -12,7 +12,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import cast
+
+from claude_agent_sdk import McpServerConfig
 
 from coordinator.errors import CoordinatorStartupError
 
@@ -21,11 +23,12 @@ EXPECTED_SERVERS: frozenset[str] = frozenset({"policy-reader", "semgrep-runner"}
 
 @dataclass(frozen=True)
 class McpServersConfig:
-    """Parsed, whitelisted MCP server configuration."""
+    """Parsed, whitelisted MCP server configuration. Values are typed as the SDK
+    `McpServerConfig` so they thread directly into `ClaudeAgentOptions.mcp_servers`."""
 
-    mcp_servers_dict: dict[str, Any]
-    policy_reader_config: dict[str, Any]
-    semgrep_runner_config: dict[str, Any]
+    mcp_servers_dict: dict[str, McpServerConfig]
+    policy_reader_config: McpServerConfig
+    semgrep_runner_config: McpServerConfig
 
 
 def load_mcp_config(path: Path | str = Path(".mcp.json")) -> McpServersConfig:
@@ -55,7 +58,9 @@ def load_mcp_config(path: Path | str = Path(".mcp.json")) -> McpServersConfig:
     if missing:
         raise CoordinatorStartupError(f"Missing required MCP servers in {path}: {sorted(missing)}")
 
-    mcp_servers_dict: dict[str, Any] = {name: declared[name] for name in EXPECTED_SERVERS}
+    mcp_servers_dict: dict[str, McpServerConfig] = {
+        name: cast(McpServerConfig, declared[name]) for name in EXPECTED_SERVERS
+    }
     return McpServersConfig(
         mcp_servers_dict=mcp_servers_dict,
         policy_reader_config=mcp_servers_dict["policy-reader"],

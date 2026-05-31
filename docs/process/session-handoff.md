@@ -1,29 +1,90 @@
-# Session handoff — fim da sessão #48
+# Session Handoff — para sessão #50 (coordinator-flesh-completo)
 
-## Estado em uma linha
-`matcher.md` 0.1.0 completa e verificada contra a impl em todo ponto load-bearing; último subagente da ordem Triager → Detector → Classifier → **Matcher** fechado. Cascata `tools`-field aplicada no working tree + gate resource-access fechado com evidência persistida. Pronto para PR.
+> Reescrito ao fim da sessão #49. Substitui o handoff anterior por completo.
+> Direct commit em main (ADR-0001 D6).
 
-## O que fechou nesta sessão
-- **matcher.md 0.1.0** (Chat/outputs) — autorada e endurecida contra 4 rodadas de review (Code original + R1 + sessão clean + Code-aplicação). Todos os achados folded; ledger DD-M v3 ratificado (30 DDs).
-- **Cascata `tools` field (5 loci)** aplicada no working tree por Code: `coordinator.md` §3.3 (Classifier config — era quebra ativa), §3.4 (Matcher config + output_format + max_turns=30), §2 (tabela DD-9.1), §3.3-nota (availability≠capability), §10 (DD-9.1 estendido). `classifier.md` §1.4 (argumento corrigido preservando Issue #361), §10.3 (gate → PASS), Gate 6.
-- **Gate resource-access fechado.** `scripts/smoke_tests/check_applicability_48b/RESULTS.md` persistido — 4 shapes de `tools` medidos contra o policy-reader live; resultado bateu com DD-M30 exatamente. Shape específico do Classifier (`["Read","Grep",+2]`) exercitado, não só o do Matcher.
+## Estado do repo (main, pós-merge)
 
-## Pronto para PR (não commitado — main protegida)
-- Branch sugerida: `<definir — ex. docs/sync-tools-field-48b ou docs/session-48>`.
-- Arquivos DESTA sessão: `coordinator.md`, `classifier.md`, `scripts/smoke_tests/check_applicability_48b/RESULTS.md` (novo).
-- **Antes do `git add`:** pedir ao Code a lista do working tree dirty. Há `M` de Beat 2/housekeeping de sessões anteriores (`architecture-overview.md`, `tasks.md`, etc.) que NÃO entram neste PR (um PR por sessão).
-- Corpo do PR: mencionar que o gate resource-access foi exercitado live (evidência no RESULTS.md), pois toca contrato de invocação de subagente.
+Três PRs mergeados na #49, main limpo:
+- **PR #82** `chore/cross-spec-housekeeping` — C4,C5,C6,C7,C8,C9,C11,C14 +
+  citação tools.py:263-279.
+- **MC-E** `chore/add-claude-agent-sdk` — `claude-agent-sdk==0.2.87` pinado;
+  ADR-0001 D2 emendado in-place (2ª vez).
+- **`docs/branch-b-output-contract`** — C1, C2, C3, P4.
 
-## Deferido / pendente
-- **ADR-0012 retroativo** — único item de autoria deferida. Número reservado, 5 decisões de Milestone C, PR `chore/sync-adr-references` próprio. Escopo estendido com a nuance capability-vs-availability (montagem mecânica). Rationale = Chat/João em sessão dedicada, não Code a frio (regra PR-23).
-- **Companion edits de outras cadeias** (entram quando suas sessões fecharem, não no PR do tools-field): M1 (classifier §3.3/DD-C9 degradação stale); jurisdictional defer (canonical §3.2/§6.3 + arch §5.5 rótulo framework-aware); reporter:135 (L2, DD-M3→DD-M1/M6); detector §6.3 (confirmar redação antes de afirmar stale); tasks.md (débito category/Art.11); matcher.md 0.1.0 merge.
-- **Débito jurídico** — motor não consome `category` (personal vs sensitive), trata Art. 11 com régua de dado comum. Sub-modelagem MVP consciente. Pós-MVP.
-- **`find_clauses_by_law_article` órfã** — remoção pende investigação dedicada, fora de escopo #48.
+As 6 specs de subagente (`docs/specs/subagents/{triager,detector,classifier,
+matcher,reporter,coordinator}.md`) estão reconciliadas entre si quanto ao
+contrato de structured output do Branch B. `reporter.md` em 0.5.0.
 
-## RESOLVIDO nesta sessão (era pendência aberta)
-- ~~**l.63 — nota stale "arch §5.5 candidate_ref NÃO relido"**~~ → obsoleta pós-Beat 2 (#48 aplicou drop de candidate_ref em arch §5.5/§5.7 e reporter §2.2; DD-M19). **Remover esta linha.**
+## Objetivo da sessão #50
 
-## Próxima sessão
-- Abrir o PR da sessão #48 (acima).
-- Candidato a foco: redigir o ADR-0012 retroativo (Milestone C), agora que há evidência reproduzível pra ancorar a decisão dos dois eixos de governança de tool.
-- Milestone: com Matcher fechado, a ordem dos 5 subagentes está completa — avaliar entrada no flesh do coordinator (Milestone C, `src/coordinator/` ainda não existe).
+**Coordinator-flesh-completo (MC-A)** — materializar
+`docs/specs/subagents/coordinator.md` de skeleton para spec completa. É a 6ª
+e última spec de subagente; destrava T11+ (implementação).
+
+## Pré-condições (todas satisfeitas — confirmar, não assumir)
+
+- **C1 ✅** — `MatcherOutput` definido (matcher §3.1bis); o
+  `coordinator §3.4` que o referencia agora resolve.
+- **C2 ✅** — `scan_provenance` no ReportPayload (reporter 0.5.0); o
+  coordinator sabe que roteia `DetectorOutput.provenance` ao Reporter
+  (§3.2/§3.5 já têm a nota de roteamento).
+- **C3 ✅** — `output_format` + `max_turns` declarados nos quatro stages
+  Branch B do coordinator (§3.1 Triager, §3.2 Detector, §3.3 Classifier,
+  §3.4 Matcher).
+
+## Landam DENTRO do flesh (não são pré-req; são parte do trabalho)
+
+- **C3 materialização** — os campos estão declarados no skeleton; o flesh
+  os integra ao loop real.
+- **C12** — `config.py` single-source dos `*_CONFIG` (POLICY_READER_CONFIG,
+  SEMGREP_RUNNER_CONFIG, reporter_sdk_server): hoje o elo
+  `mcp_servers_dict` ↔ constantes é indefinido. O flesh estabelece o dono
+  único. Locus provável `src/coordinator/config.py`.
+- **Capture loop rico** — discriminação `subtype` × `stop_reason` (incl.
+  `refusal` dentro de `subtype=success`), `model_validate` por stage, raise
+  tipado, verificação posicional de ordem/identidade. A classe
+  `SubagentContractViolation`/`SubagentValidationFailed` mora junto das
+  exceções tipadas do coordinator (locus provável `src/coordinator/errors.py`).
+
+## Verificação ANTES de escrever (disciplina da #47/#49)
+
+As specs **não têm numeração de seção paralela** — o detector tem um §6.2
+extra que desloca as demais. Âncora por CONTEÚDO, não por §/linha. Ler
+verbatim cada locus do coordinator que o flesh toca antes de afirmar/editar.
+Confirmar especialmente: que os 4 stages têm `output_format`+`max_turns`
+(C3 aplicado), que o roteamento de `scan_provenance` está em §3.2/§3.5, e
+que `MatcherOutput`/`DetectorOutput`/`ClassifierOutput` são os nomes
+referenciados.
+
+## Decisões abertas que o flesh PODE precisar fechar
+
+- **DetectorScanFailed vs run_outcome="error"** — taxonomia de erro
+  non-retryable de `scan_diff` (detector §10.5 item 3; decisão do
+  coordinator, pendente).
+- **DD-T05 / `changed_paths`** (C13) — Glob-by-subagent vs pré-computado;
+  recomendação corrente é manter Glob (zero emenda ao Triager). Baixa
+  prioridade; pode ficar deferida.
+
+## Débitos NÃO deste flesh (housekeeping separado, próximo balde)
+
+1. **6b** — matcher §6.3/§10.5(4) resíduo "TS-only pendente"; detector §6.3
+   já corrigido (#82). Fechar cross-ref.
+2. coordinator §3.4 comentário inline (cosmético).
+3. grep `TS-only\|TypeScript-only` em docs/specs/ antes do PR.
+4. C10 (numeração "Etapa") — baixa prioridade.
+
+E, fora do flesh: **`policy://examples`** (DD-C10) — resource ainda não
+existe; é pré-req do *merge da impl do Classifier*, não do flesh. PR
+autônomo quando chegar a impl.
+
+## Convenções operacionais (carregar sempre)
+
+- Chat planeja/decide/revisa; Code materializa.
+- Conventional Commits, squash-merge, sem `Co-Authored-By`.
+- Commit fica com o João (ou autorização explícita ao Code).
+- PowerShell: NÃO `-m` inline com `§`/`→` (mojibake) — usar `-F` UTF-8 ou
+  GitLens. Edits de spec via applier Python guardado (exactly-once, UTF-8
+  no-BOM, LF) ou Edit tool.
+- **Review = plan mode** (trava de permissão, não pedido).
+- ADR-0001 D6: learning-log + session-handoff são direct commit em main.

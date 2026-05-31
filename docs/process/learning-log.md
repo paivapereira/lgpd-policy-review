@@ -6797,3 +6797,114 @@ Os quatro abaixo são corolários de **um** princípio: *todo locus que afirma u
 - `matcher.md` 0.1.0 mergeia por seu caminho de specs-fora-do-repo.
 - ADR-0012 retroativo: autoria deferida a sessão dedicada (escopo já carimbado; rationale é Chat/João, não Code a frio).
 - Pendentes de outras sessões (não deste PR): M1 (classifier §3.3), jurisdictional defer (canonical §3.2/§6.3 + arch §5.5), reporter:135 (L2), detector §6.3 (confirmar antes), tasks.md, session-handoff l.63.
+
+## #49 — 2026-05-30 — Reconciliação cross-doc C1–C14 + três PRs (housekeeping, dep-add, Branch B output-contract)
+
+**Escopo da sessão.** Sessão de verificação e reconciliação (não de
+autoria nova). Fechou o parecer cross-doc de 14 inconsistências (C1–C14)
+distribuídas pelas 6 specs de subagente, em três PRs sequenciais
+mergeados, deixando os pré-requisitos de contrato do coordinator-flesh
+(MC-A) resolvidos.
+
+Resultado tangível, três PRs:
+- **PR #82** `chore/cross-spec-housekeeping` (commit b0cb389) — reconciliou
+  C4, C5, C6, C7, C8, C9, C11, C14 + correção da citação `tools.py:263-279`
+  nas três pontas (ADR-0012 D5, classifier:175). 8 docs, +28/−14.
+- **MC-E** `chore/add-claude-agent-sdk` — pin `claude-agent-sdk==0.2.87`
+  em pyproject/uv.lock + 2ª emenda in-place ao ADR-0001 D2 (formalização
+  de pin pós-resolução, mesmo tipo da emenda 2026-05-21). Fechou o
+  forward-ref carregado pelas specs (reporter §1.5) + MC-E.
+- **`docs/branch-b-output-contract`** — fechou C1, C2, C3 (+ P4). Contrato
+  de structured output do Branch B como superfície única. 7 docs,
+  +168/−76.
+
+**Conceitos da prova exercitados.**
+
+*Domínio 4 — Prompt Engineering & Structured Output.* Verificado contra
+doc oficial (abr/2026): `output_format` no SDK é o dict
+`{"type":"json_schema","schema":...}` (campo de `ClaudeAgentOptions`);
+no nível da Messages API migrou para `output_config.format` e o beta
+header `structured-outputs-2025-11-13` não é mais necessário — mas o
+campo do SDK não mudou, logo as specs estão corretas. Structured outputs
+são GA em Opus 4.7 (o modelo do projeto), removendo risco latente.
+Limites de complexidade confirmados verbatim: 24 parâmetros opcionais,
+16 de união (`anyOf`/type-arrays, custo exponencial), timeout de
+compilação 180s — **por request**, logo cada subagente (`query()`
+separada) tem o orçamento inteiro. Achado empírico do projeto corroborado:
+`oneOf`/discriminated-union no root desliga silenciosamente o constrained
+decoding; a doc lista `anyOf` como o mecanismo de união suportado, não
+`oneOf`. Encoding correto = enum-tag (`Literal` + `anyOf[T,null]`).
+Property-ordering: campos `required` saem primeiro.
+
+*Domínio 5 — Context Management & Reliability.* C2/Opção B materializou
+provenance trickle-down ao nível arquitetural: o Report passou a carregar
+proveniência de **execução** (`scan_provenance` top-level/per-scan) ao
+lado da proveniência **legal** (trinca per-finding) — as duas metades da
+reprodutibilidade de um achado de conformidade. Report auto-suficiente
+para auditoria = propriedade-tese.
+
+*Domínio 3 — Claude Code Configuration & Workflows.* Padrão de review
+consolidado: **review = plan mode**. Uma sessão de review aberta em plan
+mode é fisicamente incapaz de escrever em arquivo (trava de permissão),
+ao contrário do prompt "não edite" que o agente pode ignorar. Lição
+aprendida ao vivo: uma sessão clean lançada sem plan mode *implementou* em
+vez de revisar — o trabalho era separável (branch própria, uncommitted),
+mas o episódio fixou o padrão.
+
+**Decisões de design fechadas.**
+- **C1 — `MatcherOutput = {findings: list[Finding]}`**: envelope
+  objeto-no-topo, paridade com `ClassifierOutput{classified}` e
+  `DetectorOutput{findings, provenance}`. Array-at-root é frágil de
+  gramática.
+- **C1 — reencode do Triager**: `TriagerDecision` deixou de ser
+  discriminated-union (oneOf no root, DD-T16) e virou flat enum-tag —
+  modelo wire flat (`decision: Literal` + dois `Optional`), xor migrado
+  para `model_validator` (validação), não mais gramática. DD-T02
+  **preservada** (nomes direcionais mantidos; só o enforcement amoleceu,
+  paralelo ao soft-membership do Classifier). DD-T16 **fechada**.
+- **C2 = Opção B (rotear ScanProvenance ao Report)**: `scan_provenance`
+  top-level opcional no ReportPayload, presente em todo caminho com scan
+  (incl. `success_no_candidates`), ausente só em `skipped_by_triager`.
+  Reporter 0.4.0→0.5.0 (minor; campo opcional). Reporter permanece
+  passthrough puro (coordinator injeta). Opção A (scratchpad-only) seria
+  legítima mas exigiria rebaixar a redação do detector (que já se
+  pré-comprometera com "obrigatório") — não era doc-custo-zero.
+- **C3**: `output_format` + `max_turns` declarados no coordinator §3.2
+  (Detector: `DetectorOutput`, 30) e §3.3 (Classifier: `ClassifierOutput`,
+  20). Simetria nos quatro stages Branch B.
+- **MC-E**: exact-pin (não range) por reprodutibilidade; nota de
+  proveniência registrando wheels por-plataforma com Claude Code CLI
+  embutido (declarative vs resolved source, espírito do ADR-0001 D2).
+- **P4.1**: invariante PHI-em-schema em `.claude/rules/privacy-safety.md`
+  — schemas carregam vocabulário de categoria, jamais valor de dado
+  pessoal; verdade por construção, declarada (doc avisa que schema é
+  cacheado sem proteção ZDR).
+
+**Princípio de processo (reforçado, vale carregar).**
+- **Três níveis de review cumpridos no PR Branch B**: revisão do plano
+  (pré-implementação, G1–G6) → implementação com auto-surfaçagem →
+  cross-doc por testemunha neutra em plan mode. A testemunha neutra achou
+  dois itens que as sessões imersas não viram (matcher §1.4/§10.1 "pendente"
+  stale; reporter §2.2 omitindo `scan_provenance` da dict do estado
+  consolidado). Validou o terceiro nível de review.
+- **Verificação verbatim > inferência**, de novo: a citação `tools.py`
+  estava errada em dois loci (268-279 no ADR-0012 D5, 262-273 no classifier);
+  o span real (263-279) só apareceu por dump de linha. Mesma classe de erro
+  que o caveat TS-only do detector (C7).
+- **Squash-merge ⇒ coesão temática do PR é a granularidade de auditoria**:
+  motivo de não enfiar o débito 6b (resíduo TS-only cross-ref no matcher)
+  no PR Branch B — é de outra superfície (família C7), vira housekeeping.
+
+**Débitos abertos (não-bloqueantes; catálogo do próximo housekeeping).**
+1. matcher §6.3 + §10.5(4): resíduo "TS-only pendente de remoção"; detector
+   §6.3 já corrigido (PR #82). Fechar cross-ref. (= 6b do cross-doc review.)
+2. coordinator §3.4: comentário inline `# enum-tag finding schema` poderia
+   citar "envelope MatcherOutput" (cosmético).
+3. Antes do PR: grep `TS-only\|TypeScript-only` em `docs/specs/` p/ outros
+   resíduos C7.
+4. C10 (numeração de "Etapa" tripla) e C13 (DD-T05 changed_paths + arch §5.2)
+   — baixa prioridade, não-bloqueantes.
+
+**Próximo passo:** coordinator-flesh-completo (MC-A, 6ª e última spec de
+subagente) — C1 ✅, C2 ✅ materializado no schema do Report, C3 declarado;
+C12 (`config.py` single-source dos `*_CONFIG`) land junto. Caminho crítico.

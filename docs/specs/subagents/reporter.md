@@ -723,7 +723,7 @@ Erros levantados pelo coordinator pós-loop ao inspecionar o stream:
 
 | Exception                       | Sinal observável                                                | `isRetryable` |
 |---------------------------------|------------------------------------------------------------------|----------------|
-| `ReporterPermissionDenied`      | `final_result.permission_denials != []`                          | False          |
+| `ReporterPermissionDenied`      | `permission_denials` truthy (qualquer denial)                          | False          |
 | `ReporterTurnsExhausted`        | `final_result.subtype == "error_max_turns"`                      | True (com `max_turns` maior) |
 | `ReportNotEmitted`              | `subtype == "success"` E `emit_report_seen == False` E `denials == []` | False    |
 | `MultipleReportEmissions`       | Múltiplos `ToolUseBlock` com `name == "mcp__reporter_tools__emit_report"` no stream | False |
@@ -735,13 +735,13 @@ Erros levantados pelo coordinator pós-loop ao inspecionar o stream:
 Coordinator §3.5 + §5 documentam a ordem canônica de discriminação pós-loop:
 
 ```
-1. denials != []                          → ReporterPermissionDenied
+1. if permission_denials:                  → ReporterPermissionDenied
 2. subtype == "error_max_turns"            → ReporterTurnsExhausted
 3. emit_report_seen == False               → ReportNotEmitted
 4. (else success)                           → return report_payload
 ```
 
-**Corolário sobre `permission_denials` interpretation** (per PR #67 side finding). `permission_denials` é signal de **tentativa fora de allowlist**, não signal de **lockdown funcionando**. Sob `tools=[]` (lockdown ativo per Gate 6), modelo nem tenta built-ins porque eles não estão no contexto — `permission_denials` permanece vazio em runs bem-sucedidos. Confirmação positiva de lockdown funcionando requer combinação de três sinais ortogonais: (a) `permission_denials == []`, (b) ausência de invocation de tool fora do allowlist no stream, (c) opcionalmente verbalização de ausência no AssistantMessage em runs forçados ao limite. `permission_denials` populado indica que modelo tentou tool fora do allowlist mas dentro do contexto — útil para diagnose, não para confirmação de lockdown.
+**Corolário sobre `permission_denials` interpretation** (per PR #67 side finding). `permission_denials` é signal de **tentativa fora de allowlist**, não signal de **lockdown funcionando**. Sob `tools=[]` (lockdown ativo per Gate 6), modelo nem tenta built-ins porque eles não estão no contexto — `permission_denials` permanece vazio em runs bem-sucedidos. Confirmação positiva de lockdown funcionando requer combinação de três sinais ortogonais: (a) `not permission_denials` (vazio ou `None`), (b) ausência de invocation de tool fora do allowlist no stream, (c) opcionalmente verbalização de ausência no AssistantMessage em runs forçados ao limite. `permission_denials` populado indica que modelo tentou tool fora do allowlist mas dentro do contexto — útil para diagnose, não para confirmação de lockdown.
 
 > 💡 **Conceito Claude relevante (Domínio 5 — Context Management & Reliability):** structured error metadata via três axis de discriminação ortogonais: (1) classe (validation/business/system), (2) sinal observável (denials/subtype/emit_seen), (3) retryability. Audit downstream distingue causa raiz a partir do `errorCode` nominalmente, não a partir de exception type hierarchy ou shape heuristics.
 

@@ -6,7 +6,7 @@
 
 **Nome canônico.** `policy-reader`
 
-**Função.** Servidor MCP que expõe a Política de Proteção de Dados versionada — sob o framework jurisdicional declarado em seu header (`legal_framework`) — como recurso consultável e como tool de avaliação de conformidade contextual, para uso pelo subagente Matcher no sistema de code review. O servidor é framework-agnóstico: serve qualquer Política cujo `policy_schema_version` esteja dentro de `compatible_schema_range` (handshake estrutural). O `legal_framework` declarado é exposto via handshake para validação do consumidor (ver §3.2).
+**Função.** Servidor MCP que expõe a Política de Proteção de Dados versionada — sob o framework jurisdicional declarado em seu header (`legal_framework`) — como recurso consultável e como tool de avaliação de conformidade contextual, para uso pelo subagente Matcher no sistema de code review. O servidor é framework-agnóstico: serve qualquer Política cujo `policy_schema_version` esteja dentro de `compatible_schema_range` (handshake estrutural). O `legal_framework` declarado é exposto via handshake para validação do consumidor (ver §3.2; a validação jurisdicional consumer-side é deferida no MVP co-versionado — DD-M22, dono futuro = coordinator).
 
 **Posição na arquitetura.** Ver `docs/architecture-overview.md` §4.2 (MCP servers) e §5.5 (Matcher como consumidor).
 
@@ -93,6 +93,8 @@ A ordem dos itens segue ordem natural do `clause_id` (POL-001, POL-002, ...). N�
 Falha de qualquer uma das duas validações é fail-fast — consumidor não deve tentar tools.
 
 **Onde mora a validação.** Este resource não rejeita consumidores; apenas declara o que a Política instancia. A decisão de prosseguir ou abortar é local ao consumidor: cada subagente (Matcher, Classifier) carrega no seu AgentDefinition a lista de frameworks que aceita operar e o range de schemas que sabe consumir, e compara contra os campos deste resource. O componente não conhece — nem precisa conhecer — a configuração de cada consumidor.
+
+**Nota de escopo (DD-M22 / correção H1, MVP v0.1.0).** A **validação estrutural** (`compatible_schema_range`) é real e tem dono: o `policy-reader` falha o boot via `loader.py` se a Política estiver fora do range. A **validação jurisdicional** descrita acima é, no MVP co-versionado (framework único LGPD, servidor+Política+consumidor no mesmo release), um **deferimento**: nenhum consumidor a implementa hoje — verificado empiricamente (boot com framework sintético não-aceito não aborta; nenhum consumidor compara-e-aborta). O dono futuro do handshake jurisdicional é o **código Python do coordinator** (um check determinístico antes do fan-out aos subagentes), **não** o AgentDefinition do Matcher/Classifier — preserva a fidelidade-de-conduto do Matcher (DD-M26). O resource continua **expondo** `legal_framework` para esse uso futuro; a ausência de dono é débito datado, inalcançável no MVP co-versionado. Ver `matcher.md` §8.4/DD-M22 e `architecture-overview.md` §5.5.
 
 **Casos de erro.** Equivalentes a `policy://catalog`: I/O do arquivo da Política. Sem casos de erro de domínio.
 
@@ -804,7 +806,7 @@ Implementação do `policy-reader` é versionada independentemente da spec. Comp
 
 ### 6.3 Versão da Política — handshake
 
-O resource `policy://schema-version` (estrutura e semântica em §3.2) é o ponto de handshake versional do consumidor com o componente. Sua função no contrato de provenance é registrar contra qual versão de schema o consumidor opera, permitindo fail-fast quando incompatível.
+O resource `policy://schema-version` (estrutura e semântica em §3.2) é o ponto de handshake versional do consumidor com o componente. Sua função no contrato de provenance é registrar contra qual versão de schema o consumidor opera, permitindo fail-fast quando incompatível. O fail-fast **estrutural** (schema fora de `compatible_schema_range`) é o materializado no MVP; o fail-fast **jurisdicional** (`legal_framework` fora da lista aceita pelo consumidor) é deferido — ver nota de escopo em §3.2 (DD-M22).
 
 ### 6.4 Provenance temporal e jurisdicional em retornos de `check_applicability`
 

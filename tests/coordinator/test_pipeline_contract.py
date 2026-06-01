@@ -196,7 +196,8 @@ async def test_stage_wiring_contract(tmp_path, monkeypatch, sdk) -> None:
     by_stage = {c["stage"]: c for c in calls}
     assert by_stage["detector"].get("on_tool_result") is inspect_scan_diff_result
     assert by_stage["classifier"].get("verify_passthrough") is verify_classifier_passthrough
-    assert by_stage["classifier"].get("upstream") == _DETECTOR_OUT["findings"]
+    # upstream is detector_out.findings (list[DetectorFinding] model objects), not raw dicts
+    assert by_stage["classifier"].get("upstream") == outputs["detector"].findings
     assert by_stage["matcher"].get("verify_passthrough") is None  # G6 deferred
 
 

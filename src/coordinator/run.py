@@ -47,7 +47,9 @@ from coordinator.prompts import (
     build_triager_prompt,
 )
 from subagents.classifier.models import ClassifierOutput
+from subagents.classifier.passthrough import verify_classifier_passthrough
 from subagents.classifier.system_prompts import CLASSIFIER_SYSTEM_PROMPT
+from subagents.detector.hooks import inspect_scan_diff_result
 from subagents.detector.models import DetectorOutput, ScanProvenance
 from subagents.detector.system_prompts import DETECTOR_SYSTEM_PROMPT
 from subagents.matcher.models import Finding, MatcherOutput
@@ -312,7 +314,7 @@ async def run_pipeline(
                 scratchpad_name="02-detector.json",
                 run_path=run_path,
                 run_id=run_id,
-                # on_tool_result=inspect_scan_diff_result — wired in Phase 2b
+                on_tool_result=inspect_scan_diff_result,
             )
             assert isinstance(detector_out, DetectorOutput)
             candidates_count = len(detector_out.findings)
@@ -326,7 +328,8 @@ async def run_pipeline(
                 scratchpad_name="03-classifier.json",
                 run_path=run_path,
                 run_id=run_id,
-                # verify_passthrough=verify_classifier_passthrough — wired in Phase 2b
+                verify_passthrough=verify_classifier_passthrough,
+                upstream=detector_out.findings,
             )
             assert isinstance(classifier_out, ClassifierOutput)
 

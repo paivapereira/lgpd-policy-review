@@ -679,6 +679,73 @@ coordinator §10):**
   `consent_required` como comparação de token único, não como
   reasoning de categoria.
 
+**Débito doc-lag MC-C Phase 2a (doc atrás da impl verificada; consolidar numa
+sessão housekeeping futura — a correção do texto é o que minor-bumpa
+`reporter.md`, mantendo DD-3: a impl Phase 2a NÃO bumpa):**
+
+- `reporter.md` §4.5 + §6.1 (envelope de erro) ainda colocam o payload
+  estruturado em `structuredContent`. Per `.claude/rules/sdk-mcp-conventions.md`
+  Eixo 2 (verificado em `sdk_tool_error_channel` v1/v2), o bridge do `@tool`
+  in-process **dropa** `structuredContent` — a impl (MC-C Phase 2a) serializa
+  `{errorCode, message, isRetryable, details}` no `content` (JSON string) + flag
+  `is_error: True`. §4.5/§6.1 absorveram o Eixo 1 (casing) mas não o Eixo 2
+  (canal). Corrigir o texto dos dois loci.
+- `coordinator.md` §3.1 (pseudocódigo) declara `system_prompt=TRIAGER_SYSTEM_PROMPT`
+  estático no stage Triager. A impl (MC-C Phase 2a, DD-4) renderiza o template
+  §5.1 via `build_triager_prompt` (triager §2.2) e o entrega como turn prompt,
+  com `system_prompt=None` (SDK minimal mode, §5.1 nota) — passar o template raw
+  embarcaria `{pr_number}`/`{{…}}` literais no system prompt. Alinhar o
+  pseudocódigo §3.1 ao wiring real.
+- `reporter.md` §6.2 — reescrever o critério de `isRetryable` em termos
+  **mecânicos** (erro transitório / re-execução idêntica segura), não
+  **cognitivos** (modelo-pode-reconstruir, L700). A semântica do flag é
+  retry-automático-de-infra (a orquestração re-executa a chamada idêntica),
+  ortogonal ao validation-retry loop conduzido pelo modelo via `content` (DD-2).
+  Sob a definição mecânica, `PYDANTIC_VALIDATION=False` em §6.3 está CORRETO e a
+  impl (`tools.py:85-87`) é fiel — o débito é só de prosa. Corrigir no mesmo
+  housekeeping PR de §4.5/§6.1/coordinator §3.1 — mesmo minor-bump.
+
+**Débito de contradição spec-interna MC-C Phase 2a (categoria DISTINTA do doc-lag
+acima — não é doc-atrás-de-impl, é spec que se contradiz; exige ADR, deferido a
+Phase 3 hardening):**
+
+- **`coordinator.md` §3.5 (counting de `emit_report`) contradiz `reporter.md` §6.7
+  + §9.2.a (retry).** A discriminação tri-axial de §3.5 (impl fiel em
+  `run.py:_run_reporter_stage`) flipa `emit_report_seen` em TODO `ToolUseBlock`
+  `emit_report`, cega ao sucesso do handler. Logo um caminho válido
+  inválido→retry→válido (§6.7 "Multi-turn no caminho normal" + §9.2.a "retry
+  success; coordinator captura") dispararia `MultipleReportEmissions` no 2º bloco,
+  e o payload capturado seria o 1º (rejeitado), não o corrigido. DD-2 (errorCode
+  legível no `content`) torna o retry funcional e a contradição **viva**.
+  Reconciliação (correlacionar `ToolUseBlock`↔`ToolResultBlock.is_error`;
+  contar/capturar só emissões bem-sucedidas; `MultipleReportEmissions` só no 2º
+  sucesso) = **Phase 3 hardening + ADR**, fora do escopo "close the ends" da 2a.
+  A âncora 2a `test_reporter_multiple_emissions_raises` pina a semântica AS-IS de
+  §3.5 (docstring marca a incompatibilidade); sem teste de retry-success na 2a.
+
+**Débito de produto MC-C → Phase 3 (reliability hardening; categoria DISTINTA do
+doc-lag e da contradição acima — é um errorCode de §6.3 declarado mas não
+implementado, não um desalinhamento doc↔impl):**
+
+- **`SCRATCHPAD_WRITE_FAIL` não implementado.** `reporter.md` §6.3 (L716)
+  declara um 7º errorCode `SCRATCHPAD_WRITE_FAIL` (system-class) que o handler
+  não emite: `_atomic_write_json` (`tools.py:36-42`) não tem try/except — uma
+  falha de `os.replace` levanta exceção crua em vez de envelope estruturado.
+  Consistente com o escopo auto-declarado da 2a (só cross-checks #1-#4), mas é o
+  único ponto onde a escrita do `99-report.json` pode falhar silenciosamente.
+  Phase 3: envolver `_atomic_write_json` em try/except e emitir envelope DD-2 com
+  errorCode system-class em vez de exceção crua.
+
+**Débito de lint pré-existente (NÃO-MC-C; cleanup trivial em chore PR dedicado):**
+
+- **F401 `json` não-usado em `scripts/smoke_tests/check_applicability_48b/probe.py:21`.**
+  Presente em `main` ANTES da Phase 2a (confirmado por stash de todo o trabalho
+  da 2a — o erro sobrevive), logo fora do escopo do PR da feature. `ruff check .`
+  (repo inteiro) acusa; `ruff check src tests` (escopo da feature) está limpo.
+  Fix trivial: `ruff check --fix` ou remover a linha. Atenção de sequência: se o
+  CI roda `ruff check .`, o primeiro run do PR da feature fica vermelho por este
+  motivo fora de escopo — resolver por fora ou num chore PR dedicado antes do merge.
+
 ---
 
 ## Pós-Milestone B aberto

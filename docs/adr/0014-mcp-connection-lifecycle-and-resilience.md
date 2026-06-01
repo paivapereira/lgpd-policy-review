@@ -60,7 +60,7 @@ This is **distinct from** the mock-fidelity risk below (which verifies the API *
 
 ### D2 — Recovery: retry retryable `scan_diff` errors *within the live session*, driven by `isRetryable`
 
-The escalate-all hook remains the deterministic detector (it carries `is_retryable`). Recovery happens **inside one live `ClaudeSDKClient` session per stage** — the `async with` opens the session **once** and **wraps** the bounded retry loop (not the reverse). On `DetectorScanFailed` with `is_retryable is True` and budget not exhausted, the driver **reconnects the server in place** (`await client.reconnect_mcp_server(target)`, then re-waits readiness) and **re-issues the prompt on the same open session**; on `is_retryable is False` or budget exhausted it lets `DetectorScanFailed` propagate. The decision is driven by `isRetryable`, not the exception type (`coordinator.md` §5, l.443). Generalizes to the Matcher's `policy-reader` tool errors (same Option-B envelope).
+The escalate-all hook remains the deterministic detector (it carries `is_retryable`). Recovery happens **inside one live `ClaudeSDKClient` session per stage** — the `async with` opens the session **once** and **wraps** the bounded retry loop (not the reverse). On `DetectorScanFailed` with `is_retryable is True` and budget not exhausted, the driver **reconnects the server in place** (`await client.reconnect_mcp_server(target)`, then re-waits readiness) and **re-issues the prompt on the same open session**; on `is_retryable is False` or budget exhausted it lets `DetectorScanFailed` propagate. The decision is driven by `isRetryable`, not the exception type (`coordinator.md` §5, l.443). **The retry `try/except` must wrap the message-consumption loop**, because the hook raises `DetectorScanFailed` *during* consumption (`subagents/detector/hooks.py:51`), not in the discrimination tail — wrapping only the tail would let a retryable scan-error escape the retry (see Appendix). Generalizes to the Matcher's `policy-reader` tool errors (same Option-B envelope).
 
 **Two recovery mechanisms, and only one is correct here.**
 - *Reconnect* — `reconnect_mcp_server()` on an already-open client: reconnects the server **without tearing down the session**; the `~3.5 s` cold-start is paid once. **This is what the retry uses.**
@@ -124,15 +124,15 @@ async def _run_mcp_stage(options, *, target, prompt, budget, stage, ...):
     async with ClaudeSDKClient(options) as client:        # D1: ONE session per stage (NOT per attempt)
         await _wait_for_connected(client, target, stage)  # D1 (b) readiness gate, once
         for attempt in range(budget):                     # D2: retry WITHIN the live session
-            await client.query(prompt)                    # (re-)issue on the SAME open session
-            last_result = None
-            async for message in client.receive_response():   # D1 (d), under a stage timeout
-                if on_tool_result is not None:
-                    on_tool_result(message)               # SPINE preserved verbatim
-                if isinstance(message, ResultMessage):
-                    last_result = message
-            try:                                          # refusal/subtype/validate/verify/scratchpad
-                return _discriminate_and_capture(last_result, ...)   # — all preserved
+            try:                                          # the try MUST wrap the CONSUMPTION loop,
+                await client.query(prompt)                # not just _discriminate_and_capture: the
+                last_result = None                        # on_tool_result hook raises DetectorScanFailed
+                async for message in client.receive_response():   # DURING consumption (hooks.py:51),
+                    if on_tool_result is not None:        # not in the discrimination tail. If the try
+                        on_tool_result(message)           # wrapped only the tail, a retryable scan-error
+                    if isinstance(message, ResultMessage):  # would escape the retry loop unhandled.
+                        last_result = message
+                return _discriminate_and_capture(last_result, ...)   # refusal/subtype/validate/verify/scratchpad — all preserved
             except DetectorScanFailed as exc:             # D2: retry-vs-escalate by isRetryable
                 if exc.is_retryable and attempt + 1 < budget:
                     await client.reconnect_mcp_server(target)        # RECONNECT in-session — NO re-spawn
@@ -154,4 +154,4 @@ async def _wait_for_connected(client, target, stage):     # D1 (b) readiness gat
     raise CoordinatorStreamFailure(stage=stage)           # D4: never reached 'connected'
 ```
 
-*Notes:* the `async with` opens **one session per stage** and **wraps** the retry loop — D2 recovery reconnects **in-session** (`reconnect_mcp_server`, `client.py:402`), **never re-spawns** (the cold-start is paid once). `get_mcp_status()`/`reconnect_mcp_server()` are streaming-only (`client.py:473`/`402`; control requests require streaming mode, `_internal/query.py:510-511`); `receive_response()` self-terminates on `ResultMessage` (`client.py:605-606`) but can hang otherwise → impose a stage timeout. **The whole sketch is contingent on the D1 verification gate** (that readiness-wait actually re-presents `scan_diff` to the model); `READINESS_*` / `budget` are Deferral A; cross-stage session sharing is Deferral B.
+*Notes:* the `async with` opens **one session per stage** and **wraps** the retry loop — D2 recovery reconnects **in-session** (`reconnect_mcp_server`, `client.py:402`), **never re-spawns** (the cold-start is paid once). **The retry `try/except` wraps the consumption loop, not only `_discriminate_and_capture`**: the Detector's `on_tool_result` hook (`inspect_scan_diff_result`) raises `DetectorScanFailed` *during* message consumption (`subagents/detector/hooks.py:51`), not in the discrimination tail — so a `try` around the tail alone would let a retryable scan-error escape the retry unhandled. (Verified against the real hook, not inferred from the driver comment.) `get_mcp_status()`/`reconnect_mcp_server()` are streaming-only (`client.py:473`/`402`; control requests require streaming mode, `_internal/query.py:510-511`); `receive_response()` self-terminates on `ResultMessage` (`client.py:605-606`) but can hang otherwise → impose a stage timeout. **The whole sketch is contingent on the D1 verification gate** (that readiness-wait actually re-presents `scan_diff` to the model); `READINESS_*` / `budget` are Deferral A; cross-stage session sharing is Deferral B.

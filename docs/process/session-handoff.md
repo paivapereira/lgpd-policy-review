@@ -12,8 +12,19 @@
 `git log main --oneline -6` + `git status` — verifique o estado real; não confie em
 SHAs deste doc se algo mergeou. Plano completo (5 fases):
 `C:\Users\paiva\.claude\plans\quero-que-analise-as-graceful-steele.md` (mas a Fase 3
-está **reconciliada aqui** — não transcreva o plano). **A primeira ação TÉCNICA da
-fase NÃO é implementação — é o D1 verification gate (probe), §2 passo 1.**
+está **reconciliada aqui** — não transcreva o plano).
+>
+> **STATUS pós-gate (sessão D1, 2026-06-01) — registro de fechamento.** O **D1
+> verification gate PASSOU** (RESULTS.md "GATE D1"): o modelo recebe `scan_diff` no
+> snapshot de init E o **chama** (semgrep roda) — readiness-wait re-apresenta o tool;
+> **ADR D1 confirmado COMO ESCRITO**, **DD-3.2 = PASS, sem redirect**. **DD-3.1
+> RATIFICADO = DUAS PRs** (PR-A reliability → PR-B hardening+capstone). Um `findings=[]`
+> observado foi isolado como **fixture-mismatch do probe** (não recognizer, não diff-mode,
+> não readiness — **o BR-CPF recognizer FUNCIONA; a claim central do TCC está intacta**);
+> recipe de fix na §2 passo 5. **A próxima ação TÉCNICA NÃO é mais o gate — é a impl da
+> PR-A.** PORÉM: **NÃO abrir sessão fresca de migração até `prompt-phase3-reliability-v1.md`
+> passar pelo review do Chat** (padrão 2a/2b: Code rascunha → Chat revisa → sessão fresca
+> executa o revisado).
 
 ## 1. Onde estamos
 - **Fases 0/1/2a/2b mergeadas** em `main`: #88 / #89 / #90 / **#92** (Phase 2b). `main` @ `75c7aac`+.
@@ -49,7 +60,7 @@ só existe no **streaming `ClaudeSDKClient`**, não no `query()`. ADR-0014 é o 
   MCP) — assumia que `query()` bastava. Agora **readiness vem ANTES de recovery**.
 
 **ORDEM INTERNA da fase (forçada pela descoberta):**
-1. **D1 verification gate — PRIMEIRA AÇÃO, não implementação.** Probe que abre
+1. **D1 verification gate — ✓ DONE (PASS, RESULTS.md "GATE D1", 2026-06-01).** Probe que abre
    `ClaudeSDKClient`, espera `'connected'` via `get_mcp_status()`, e **confirma que
    `scan_diff` aparece nos tools DISPONÍVEIS PRO MODELO** (não só no status do server).
    Valida OU **REDIRECIONA** o ADR-0014 antes de qualquer código de migração. Pass → ADR D1
@@ -81,6 +92,13 @@ só existe no **streaming `ClaudeSDKClient`**, não no `query()`. ADR-0014 é o 
    coverage_gap, error-envelope, trinca) → escrevê-los; + a acceptance de layer-enforcement.
 5. **Capstone G3:** pipeline completo vivo — **agora roda porque o readiness foi
    consertado**; sem o fix, o G3 falha no mesmo race que travou o G2b (mesma camada).
+   **PRECONDIÇÃO (descoberta na sessão D1): corrigir o fixture do probe ANTES do G3.** O
+   `br-cpf` casa `def $FN(..., cpf, ...)` (PARÂMETRO); `_make_cpf_repo` escreve `cpf` como
+   VARIÁVEL LOCAL → 0 findings (determinístico: param→1, local-var→0; RESULTS.md "GATE D1"
+   §RESOLVED). **O recognizer FUNCIONA — sem bug de detecção; claim do TCC intacta.** Fix:
+   `_make_cpf_repo` (g2b + o D1 gate herdam) adiciona uma função com PARÂMETRO `cpf` no head
+   commit → finding populado → G3 + a 1ª observação do wrapper `{"output"}` em lista não-vazia
+   (#502/#571). Registrar o débito em `docs/tasks.md` §Companion.
 
 **PRONTO — herdar, NÃO reescrever:** todo o flesh de 2a/2b (prompts/hook/passthrough/
 constants/wiring); logging + `_coverage_gap` + `CoordinatorError`; o hook escalate-all
@@ -92,16 +110,19 @@ de hardening (l.121) + a acceptance de layer-enforcement; (e) o **mock `ClaudeSD
 no conftest; (f) o capstone G3.
 
 ## 3. DDs abertos (ratificar ANTES de implementar — a primeira ação é o gate, não isto)
-- **DD-3.1 — sub-divisão de PR.** Fase 3 expandida = **UMA PR ou DUAS?** Reliability
+- **DD-3.1 — sub-divisão de PR — RATIFICADO 2026-06-01 = DUAS PRs** (PR-A reliability
+  primeiro; PR-B hardening+capstone depois). Fase 3 expandida = **UMA PR ou DUAS?** Reliability
   (readiness+recovery, ADR-0014, mudança de transporte do driver, **risco real — o D1 gate
   pode redirecionar**) vs hardening+capstone (logging tests + G3, incremental, baixo risco).
   **Inclinação: SUB-DIVIDIR** (PR reliability primeiro; PR hardening+capstone depois) pra
   não prender o hardening trivial atrás do risco da migração de transporte. Desvia de
   "one PR per phase" — **decisão consciente, registrar** (git-conventions).
-- **DD-3.2 — desfecho do D1 verification gate.** O gate pode gerar uma segunda DD se
-  **redirecionar** (ADR D1 precisa de shape diferente — connected-antes-do-stream, ou
-  re-prompt-após-connect). Não dá pra pré-decidir; o desfecho do gate decide o desenho da migração.
-- **DD-3.3 — texto do `coverage_gap` → RECOMENDAÇÃO: ACENTUADO (ratificar).**
+- **DD-3.2 — desfecho do D1 verification gate — RESOLVIDO 2026-06-01 = PASS, SEM redirect.**
+  O gate passou (RESULTS.md "GATE D1": modelo recebe `scan_diff` no init E o chama). ADR D1
+  procede **como escrito** — não precisou de shape diferente (nem connected-antes-do-stream,
+  nem re-prompt-após-connect). A segunda DD que um redirect geraria não materializou.
+- **DD-3.3 — texto do `coverage_gap` → RATIFICADO 2026-06-01 = ACENTUADO; aplicar na PR
+  HOUSEKEEPING (com §4.3 stale + doc-lags), NÃO na PR-A reliability.**
   **Onde vive (investigado):** é campo do `CoordinatorError` (dataclass `models.py:32`),
   documentado como **"human annotation of what was not analyzed"**, retornado ao **caller
   externo (GitHub Action / exercise script)** (§3.6). **NÃO** vai pro `99-report.json` (esse
@@ -163,6 +184,101 @@ no conftest; (f) o capstone G3.
 - **Ambiente (reverificar):** semgrep `1.163.0` instalado ✓ (uv tool, ADR-0010); `gh` autenticado ✓ (PRs via `gh pr create`).
 
 ## 8. Itens fora-de-código (território Chat/usuário)
-- **ADR-0014** (`docs/adr/0014-...`) — DRAFT, **não-committado**, em revisão no Chat; aceitação **condicional ao D1 verification gate**. **NÃO registrar como ACCEPTED até o gate passar** — se o gate redirecionar (modelo age sobre o snapshot de init), o ADR D1 muda de forma, e um ADR proposed que depende de uma verificação não-feita não vira accepted antes dela (honestidade epistêmica aplicada ao próprio registro de decisão).
-- **PR housekeeping** (separada, não-Fase-3): os débitos de doc-lag de `docs/tasks.md` §Companion + a staleness de `classifier.md` §4.3 (4-vs-5 campos) — memória `mc-c-phase2b-deferred-debts`.
+- **ADR-0014** (`docs/adr/0014-...`) — committado como **`Proposed (DRAFT)`** no #93 (a "não-committado" de versões anteriores deste handoff estava stale: o arquivo está em `main`; só o **Status** não é ACCEPTED). **Condição de aceitação CLEARED 2026-06-01 — o D1 verification gate PASSOU sem redirect** (RESULTS.md "GATE D1"). **PRONTO pro flip `Proposed (DRAFT)` → `Accepted`** — **Chat step do usuário** (linkar RESULTS.md "GATE D1" como evidência + preencher a sessão #). Code NÃO flipa o Status (território Chat).
+- **PR housekeeping** (separada, não-Fase-3): os débitos de doc-lag de `docs/tasks.md` §Companion + a staleness de `classifier.md` §4.3 (4-vs-5 campos) — memória `mc-c-phase2b-deferred-debts`; **+ DD-3.3 (`coverage_gap` acentuado)**; **+ o fixture-fix do `_make_cpf_repo` (param-named `cpf`) + o docstring stale do g2b ARM-D "BLOCKED by readiness"** (registrar em `docs/tasks.md` §Companion).
 - learning-log: a lição `tool_use_result` é canal COMPARTILHADO (acks de structured output + envelopes MCP; `isinstance(dict)` é o discriminador) + "partially-gated" como categoria de desfecho de gate.
+
+## 9. Entry brief da PR-A (prompt-phase3-reliability v2 — Chat-reviewed, ADR-0014-backed)
+
+> O prompt da sessão fresca de **PR-A (reliability)** vive aqui (persistido no handoff por
+> decisão do usuário, não em arquivo separado). DD-A1 foi ratificado = **forma-wrapper**, e a
+> evidência DD-A1(ii) (o hook levanta `DetectorScanFailed` DENTRO do loop de consumo,
+> `hooks.py:51`) **já está codificada no ADR-0014** (D2 + Appendix corrigidos). Abrir a sessão
+> fresca com este §9 + o ADR-0014 + RESULTS.md "GATE D1" como fontes.
+
+**Sessão Code — MC-C Fase 3, PR-A (reliability): readiness + recovery transport migration.**
+Fresh session (`session-management.md`). Maior risco da fase. Design = **ADR-0014**
+(D1+D2+D4+D5; Status `Proposed (DRAFT)`, condição de aceitação CLEARED pelo D1 gate). Ler
+**ADR-0014 inteiro** + **RESULTS.md "GATE D1"** + a spine **`coordinator/driver.py`** +
+**`coordinator/run.py`** + **`subagents/detector/hooks.py`** antes de codar.
+
+**PRIMEIRA AÇÃO (não-impl):** `git log main --oneline -6` + `git status` — confirmar #92/#93 em
+`main`, 127 testes verdes, os 2 probes D1 + RESULTS.md "GATE D1" + esta registration presentes.
+Não confiar em SHAs.
+
+**MODE: plan-mode (Fase 1 DDs → gate → Fase 2).** Enumerar DDs, esperar OK, implementar.
+
+**O que o gate JÁ PROVOU (não re-litigar, não re-rodar):** readiness-wait via `ClaudeSDKClient`
+re-apresenta `scan_diff` ao modelo (init tools incluem o tool; o modelo o chama; semgrep roda).
+ADR D1 **como escrito**. Os shapes de mock-fidelity estão **observados** —
+`scripts/smoke_tests/coordinator_live/d1_mock_fidelity_smoke.py` é a **fonte-de-verdade do shape
+do mock** (não re-inferir da assinatura).
+
+**Fase 1 — DDs a enumerar + recomendar (PARA pro OK):**
+- **DD-A1 — threadar o transporte (RATIFICADO = forma-wrapper; confirmar com o código na frente).**
+  Detector/Classifier/Matcher migram pro `ClaudeSDKClient`; **Triager fica no `query()`**. **DUAS
+  formas registradas:** **(W) wrapper (ADR sketch) — ESCOLHIDA:** extrair o *tail* de
+  discriminação de `run_branch_b_stage` num `_discriminate_and_capture(last_result, ...)`
+  (refusal-precede-subtype, tabela de subtype, validação Pydantic, `verify_passthrough`,
+  `write_scratchpad`, return); um driver novo `_run_mcp_stage` abre cliente + wait-for-connected +
+  drena `receive_response()` e **chama o mesmo `_discriminate_and_capture`**; `run_branch_b_stage`
+  mantém o caminho `query()` (Triager) e **também** chama o tail. **(M) `mcp_target: str|None`**
+  (branch de transporte dentro de `run_branch_b_stage`). **RAZÃO de W:** o tail é uma função única
+  intocada e o contrato externo de `run_branch_b_stage` pro Triager não muda → os anchors de
+  discriminação de `test_driver.py` passam **IDÊNTICOS tautologicamente** (travamento #1 mais
+  forte); M reestrutura a spine, e o anchor do Triager só cobre o branch `query()`. **CUSTO de W
+  (já no ADR D2 + Appendix):** o hook levanta `DetectorScanFailed` DENTRO do `async for` de consumo
+  (`hooks.py:51`), então W **duplica** o loop de consumo + hook + mapeamento `CoordinatorStreamFailure`
+  em `_run_mcp_stage` (~10 linhas), e o **`try/except DetectorScanFailed` do retry envolve o LOOP
+  DE CONSUMO** (não o tail). Net: custo mecânico < benefício (discriminação single-source) → W.
+- **DD-A2 — budgets (ADR Deferral A, provisório GENEROSO).** Cold-start ≈ 3.5 s *idle*; CI sob carga
+  mais lento. Assimetria: timeout generoso só custa latência numa falha rara; apertado custa **falso
+  `CoordinatorStreamFailure`** num server que IA conectar (parece bug). `READINESS_POLL_S=0.5`,
+  **`READINESS_ATTEMPTS≈40` (~20 s)**, `RETRY_BUDGET=1`. Comentário no código: `"margem pra CI sob
+  carga; calibracao real = MC-D"`.
+- **DD-A3 — retry-loop SÓ no Detector — RATIFICADO.** Readiness (D1) nos 3 stages MCP; recovery (D2)
+  só no Detector (único com hook `isRetryable`-driven). Generalização ao Matcher = gated num hook
+  inexistente → **fora da PR-A, flag explícito, NÃO inventar o hook**.
+- **DD-A4 — split de patch-target (ADR D5).** mock client pros stages MCP (`coordinator.driver`);
+  `make_query` permanece pro Triager + Reporter (`coordinator.run`).
+
+**TRÊS INVARIANTES TRAVADAS:**
+1. **Preserved-spine regression (anchor mais importante).** Os anchors de discriminação de
+   `test_driver.py` passam **IDÊNTICOS** pós-swap (mesmos asserts, mock novo). **Se QUALQUER anchor
+   precisar ter os ASSERTS reescritos** (não só patch-target trocado) → **transporte VAZOU →
+   migração não-limpa → PÁRA E REPORTA** (não "ajeita o assert"). Halt-condition (`gates.md`). A
+   forma W foi escolhida pra tornar este anchor tautológico.
+2. **Retry-loop: `async with ClaudeSDKClient(...)` FORA do loop de retry** (sessão por-stage, abre
+   uma vez, envolve readiness-wait + todos os retries). Retry = `reconnect_mcp_server(target)` +
+   re-`query()` **IN-SESSION**, **NUNCA re-spawn**. O `try/except DetectorScanFailed` do retry
+   **envolve o LOOP DE CONSUMO** (ADR D2 + Appendix; `hooks.py:51`).
+3. **Mock `ClaudeSDKClient` espelha o shape OBSERVADO verbatim** (de `d1_mock_fidelity_smoke.py`):
+   `get_mcp_status()` → `{"mcpServers":[{...}]}`; `pending` = `{name,status:'pending',config,scope}`
+   **sem** `tools`/`serverInfo`; `connected` += `serverInfo:{name,version}` +
+   `tools:[{name:'scan_diff',annotations:{}}]`; `reconnect_mcp_server()` → `None`. Async CM,
+   `query()`, `receive_response()` (replay do MESMO script de `make_query` — reusa
+   `sdk.result`/`assistant_tool_use`/`scan_error`), status scriptável (`pending→connected` ou preso
+   `pending` pro readiness-timeout), `reconnect_mcp_server()` call-counted.
+
+**ESCOPO — PR-A SÓ (MATERIALIZAR b/c/e):** (b) migração `ClaudeSDKClient` (forma W) com
+`_discriminate_and_capture` extraído; (c) retry-loop in-session (Detector); (e) mock
+`ClaudeSDKClient` no conftest. **FORA da PR-A** (→ PR-B / housekeeping): anchors de hardening l.121,
+capstone G3, DD-3.3 (`coverage_gap` acentuado), **fixture-fix do `_make_cpf_repo`**.
+
+**AC → testes (red-first):** mock `ClaudeSDKClient` (espelha o smoke); readiness-timeout (preso
+`pending` → `CoordinatorStreamFailure`, D4); `test_as1_retryable_scan_timeout_retries_then_succeeds`
+(**exatamente 1** `reconnect_mcp_server` call, in-session, sem re-spawn);
+`test_as2_retry_exhausted_escalates`; **preserved-spine regression** (anchors de `test_driver.py`
+verdes IDÊNTICOS — halt #1).
+
+**Gates:** trio hermético (`uv run pytest tests/coordinator tests/subagents -q` + `ruff check
+src/coordinator src/subagents tests/...` + `mypy --strict src/coordinator src/subagents`) — alvo
+**127 + novos** verdes; mypy-strict no mock + na união enum-tag. Mock-fidelity + D1 gate **já feitos**.
+
+**Convenções:** imports BARE; mock SDK patch-where-used; `asyncio_mode="auto"`; Windows/PS 5.1; **SEM
+`Co-Authored-By`**; título do PR via UI / subjects internos ASCII; corpo do PR linka ADR-0014 +
+RESULTS.md "GATE D1" + notas de teste manual. PR é passo manual do usuário.
+
+**Fontes-de-verdade:** ADR-0014 (Decision + Appendix, já c/ DD-A1(ii)) · RESULTS.md "GATE D1" ·
+`d1_mock_fidelity_smoke.py` (shape do mock) · `driver.py`/`run.py`/`hooks.py` ·
+`.claude/rules/sdk-mcp-conventions.md`.

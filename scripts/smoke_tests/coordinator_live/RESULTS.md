@@ -204,6 +204,99 @@ when the readiness fix lets the scan run; remains a possible fail-action of the 
 
 ---
 
+## GATE D1 — readiness verification + mock-fidelity (Phase 3, ADR-0014) — PASS
+
+The **first technical action of Phase 3** (session-handoff §2 step 1): a SMOKE gate
+(not a hermetic test — an LLM is non-deterministic; per `gates.md` the persisted
+evidence is the gate's existence + outcome here). It validates — by **observation, not
+inference** — the causal assumption ADR-0014 D1 rests on, **before** any migration code.
+Two probes, both against the real `claude-agent-sdk==0.2.87`, Windows 11 / PS 5.1,
+authenticated session, semgrep 1.163.0 (ADR-0010). Run 2026-06-01.
+
+### Probe 1 — mock-fidelity smoke (`d1_mock_fidelity_smoke.py`, NO LLM)
+
+`.claude/rules/verification-before-inference.md` / handoff §6: observe the REAL
+`ClaudeSDKClient` MCP-control surface so the Phase-3 conftest mock (ADR-0014 D5) mirrors
+the wire shape, not the type signature (a mock that lies + a green test is worse than a
+red one — the `tool_use_result` nested-shape bit the 2b saga the same way).
+
+| Surface | Observed (verbatim) |
+|---|---|
+| `get_mcp_status()` return | `dict`, single top key `mcpServers` → nested `{"mcpServers":[...]}` (confirms the §6-flagged shape) |
+| entry while `pending` | `{'name':'semgrep-runner','status':'pending','config':{...},'scope':'dynamic'}` — **no** `tools`/`serverInfo` |
+| entry while `connected` | adds `'serverInfo':{'name':'semgrep-runner','version':'3.2.4'}` + `'tools':[{'name':'scan_diff','annotations':{}}]` |
+| `reconnect_mcp_server(name)` return | `None` (NoneType); raises on failure; post-call status `connected` |
+| cold-start (calibration, Deferral A) | `pending` polls 0–6, `connected` poll 7 ≈ **3.5 s** — confirms the ADR's ~3.5 s readiness floor |
+
+### Probe 2 — D1 verification gate (`d1_readiness_gate.py`, real SDK + real semgrep)
+
+**Empirical question:** does opening a streaming `ClaudeSDKClient` and polling
+`get_mcp_status()` to `'connected'` **before** `client.query(prompt)` make `scan_diff`
+available **to the model** — i.e., does the model **act with** the tool (vs G2b, where the
+one-shot `query()` fired on turn 1 with `tools:['Read','StructuredOutput']`, `scan_diff`
+never registered, `findings=[]`)? Per the gate's contract, `get_mcp_status→'connected'` is
+**necessary-not-sufficient** (server-emits ≠ model-receives; the handshake's
+`tools.listChanged:true` is protocol support, not a relay guarantee). The gate passes
+**only** if the model actually **calls** `scan_diff`.
+
+| Observable | G2b (one-shot `query()`) | D1 gate (`ClaudeSDKClient` + wait-for-connected) |
+|---|---|---|
+| init `SystemMessage` `mcp_servers` | `[{...,'status':'pending'}]` | `[{'name':'semgrep-runner','status':'connected'}]` |
+| init `SystemMessage` model `tools` | `['Read','StructuredOutput']` | **`['Read','StructuredOutput','mcp__semgrep-runner__scan_diff']`** |
+| model emits `ToolUseBlock` `scan_diff` | **never** (acted turn 1) | **YES** — `name='mcp__semgrep-runner__scan_diff'` |
+| `scan_diff` executes | never | **YES** — semgrep 1.163.0, `files_scanned:1`, ~8.3 s |
+| `ResultMessage.subtype` | (n/a) | `success` |
+
+Reproduced across **two runs** (the model-receives observables are stable; semgrep is
+deterministic). The init tool snapshot the model acts on now **includes** `scan_diff` — the
+exact inversion of G2b. The ADR D1 redirect condition (model acts on a tool-less init
+snapshot) **did not fire**.
+
+**Verdict: PASS.** Readiness-wait **does** re-present `scan_diff` to the model. ADR-0014 D1
+is the fix **as written** (open client → wait-for-connected → `query` → `receive_response`);
+no redesign needed. This resolves **DD-3.2** (the D1 gate desfecho): PASS → ADR D1 proceeds;
+no REDIRECT. (Acceptance of ADR-0014 from DRAFT remains a Chat/user step, handoff §8 — the
+gate clears the condition; it does not itself flip the Status field.)
+
+### Downstream observation (NOT the gate's question) — `findings:[]`, now newly observable
+
+With readiness fixed, the scan ran for the first time in the agent loop — and the
+**`scan_diff` tool itself returned `"findings":[]`** (raw `structuredContent`:
+`{rules_version, semgrep_version:'1.163.0', scan_metadata:{base_ref,head_ref,files_scanned:1,
+elapsed_seconds:8.3}, findings:[]}`). The model **faithfully transcribed** it:
+`DetectorOutput={'findings':[],'provenance':{...threaded correctly...}}`, validated clean,
+`subtype=success`. So:
+- This is **not** a readiness failure, **not** a model-transcription error, **not** the
+  `{"output"}` wrapper — the wrapper stayed **quiet** on the list-shaped `DetectorOutput`
+  (but only the **empty-list** case; the non-empty-list wrapper risk #502/#571 is **still
+  unobserved**, because semgrep matched nothing).
+- It surfaces a genuinely new, **deterministic** fact: the synthetic-CPF probe repo
+  (`cpf = '529.982.247-25'`, added line) does **not** trigger the BR-CPF recognizer via
+  `scan_diff` **diff-mode** here (`files_scanned:1`, zero findings). The g2b probe **assumed**
+  this fixture would detect (ARM D), but the race had prevented anyone from ever validating
+  it; ARM E used a hand-built finding, never real semgrep.
+
+**RESOLVED — probe-fixture mismatch** (Detector/semgrep-runner layer, orthogonal to the
+readiness/recovery ADR; investigated 2026-06-01). The `br-cpf` rule (`rules/br_cpf.yaml`)
+matches `def $FN(..., cpf, ...)` / `def $FN(..., cpf: $T, ...)` — a function **parameter**
+named `cpf`, a **purely syntactic** match (DD-T07-3a, ratified 1-pattern-per-rule; matching
+the CPF *value* in assignment / dict-key / attribute contexts is a **documented post-MVP
+gap**). But `_make_cpf_repo` writes `cpf` as a **local variable** (`def register(user): cpf =
+'529.982.247-25'`), so the rule correctly matches nothing — the synthetic CPF *value* is
+irrelevant (the rule never inspects it). Confirmed deterministically (semgrep `br_cpf.yaml`):
+the local-var form → **0** findings; `def register(user, cpf):` → **1** `br-cpf` finding.
+Cross-checked against the passing `test_as1_br_cpf_matches_function_param` (positive fixture
+`br_cpf_function_param.py` = `def create_user_account(cpf: str, ...)`). So **not** a recognizer
+bug, **not** diff-mode, **not** readiness.
+
+**Fix (PR-B, before G3):** make `_make_cpf_repo` (g2b + the D1 gate inherit it; and the now-stale
+g2b ARM-D "BLOCKED by readiness" docstring) add a function with a `cpf` **parameter** in the head
+commit, so `scan_diff` diff-mode flags the added `def` line → populated `DetectorOutput` → G3
+exercises the full pipeline AND finally observes the non-empty-list `{"output"}` wrapper
+(#502/#571, still unobserved). Register the fixture-fix debt in `docs/tasks.md` §Companion.
+
+---
+
 # Phase 2a — CONSOLIDATE BRIEF for the next Code session (MC-C continuation)
 
 > Written at the end of the Phase 0+1 session (context budget). Per

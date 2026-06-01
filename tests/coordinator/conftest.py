@@ -13,6 +13,7 @@ truthiness; trailing events after ResultMessage (no break).
 """
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from typing import Any, Callable
 
@@ -21,6 +22,7 @@ from claude_agent_sdk import (
     AssistantMessage,
     ResultMessage,
     SystemMessage,
+    ToolResultBlock,
     ToolUseBlock,
     UserMessage,
 )
@@ -66,6 +68,31 @@ def system_msg() -> SystemMessage:
 
 def user_msg() -> UserMessage:
     return UserMessage(content="tool result echo")
+
+
+def scan_error_user_msg(
+    error_code: str,
+    *,
+    is_retryable: bool,
+    details: dict[str, Any] | None = None,
+    findings: list[Any] | None = None,
+) -> UserMessage:
+    """A UserMessage carrying a `scan_diff` Option-B error envelope (sdk-mcp-conventions
+    Eixo 2): wire `isError=False`, the structured payload under
+    `tool_use_result.structuredContent` with `errorCode` present (the discriminator).
+    `findings`, when supplied, co-exist with the errorCode to exercise the 'nothing
+    leaks as a fabricated finding' invariant (detector §6.2). Shape confirmed against
+    claude-agent-sdk==0.2.87 `UserMessage.tool_use_result: dict|None`; the nested
+    `structuredContent` key is verified live at G2b."""
+    envelope: dict[str, Any] = {"errorCode": error_code, "isRetryable": is_retryable}
+    if details is not None:
+        envelope["details"] = details
+    if findings is not None:
+        envelope["findings"] = findings
+    return UserMessage(
+        content=[ToolResultBlock(tool_use_id="tu-scan", content=json.dumps(envelope), is_error=False)],
+        tool_use_result={"structuredContent": envelope, "isError": False},
+    )
 
 
 def make_query(
@@ -120,6 +147,7 @@ def sdk() -> SimpleNamespace:
         assistant_tool_use=assistant_tool_use,
         system=system_msg,
         user=user_msg,
+        scan_error=scan_error_user_msg,
         make_query=make_query,
         sequential=make_sequential_query,
     )

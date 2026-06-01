@@ -6957,3 +6957,89 @@ C12 (`config.py` single-source dos `*_CONFIG`) land junto. Caminho crítico.
 - Considerar formalizar como regra em `CLAUDE.md` ou `.claude/rules/`.
 - Não reescrever `082ec82`: o tree já é hermeticamente verde e correto;
   reescrever história por uma propriedade que o conteúdo já garante não compensa.
+
+  ## #51 — MC-C Phase 2b (MCP middle) — 2026-06-01
+
+**Escopo:** Detector → Classifier → Matcher flesh + a saga de debugging do G2b 
+agent-loop. PR #92 (partially-gated). ADR-0014 (draft, Fase 3).
+
+### Conceitos da prova exercitados
+- **D1 — query() one-shot vs ClaudeSDKClient streaming.** query() é fire-and-stream, 
+  sem controle de sessão; readiness/reconnect de MCP (get_mcp_status, 
+  reconnect_mcp_server) só existem no ClaudeSDKClient (control requests gate em 
+  streaming mode, query.py:510-511). Descoberto ao diagnosticar o race — o driver 
+  usa query() per-stage, que não espera readiness.
+- **D2 — tool_use_result é canal COMPARTILHADO.** Carrega tanto o ack de structured 
+  output do SDK ('Structured output provided successfully', uma str) quanto envelopes 
+  de tool MCP (dict). isinstance(dict) é o discriminador correto. Assumir canal 
+  dedicado = o crash do Bug-2.
+- **D2 — MCP server lifecycle per-stage vs per-session.** 5 query() independentes, 
+  cada um spawna só seus mcp_servers. Isolamento per-stage (menor-privilégio de tools, 
+  ADR-0012) colide com readiness quando o server tem cold-start lento.
+- **D2 — stdio transport: stdout é sagrado (só JSON-RPC).** Banner do FastMCP vai pro 
+  stderr corretamente; foi descartado como causa por observação, mas a regra ficou: 
+  qualquer ruído no stdout corromperia o handshake.
+- **D5 — reliability: readiness + recovery são um aparato só.** Esperar 'connected' 
+  (readiness) e re-tentar transient (recovery) ambos precisam de controle de sessão. 
+  Unificados sob um ADR, não dois follow-ups soltos.
+- **D1/D5 — reconnect ≠ re-spawn.** Reconectar server numa sessão viva (barato) vs 
+  fechar+reabrir o cliente (cold-start completo). Confundir os dois no retry-loop 
+  multiplica o custo — pego no review do ADR-0014.
+
+### Decisões
+- DD-a/b/c resolvidas por leitura de spec autoritativa (não decreto): hook em 
+  detector/hooks.py; passthrough 5-campos incl. surrounding_context (coordinator §3.3 
+  l.205, não o §4.3 stale); tools equality order-sensitive.
+- DD-d = escalate-all, ratificada — MAS re-rotulada de "resolved" para divergência 
+  deliberada de invariante de spec (detector §6.2 + coordinator §5 l.428 mandam 
+  retry-antes-do-raise; impl atrasa a spec, spec não está over-specified). Retry-loop 
+  deferido pra Fase 3.
+- G2b = PARTIALLY-GATED (categoria nova): determinísticos PASS, agent-loop bloqueado 
+  por gap de readiness da camada driver. Race real em produção, não artefato de teste 
+  (Triager declara mcp_servers={}, semgrep-runner sempre frio no Detector).
+- {"output"} wrapper: NÃO observado no DetectorOutput de lista (scan nunca rodou); NÃO 
+  fechado por G0 (G0 só cobriu o enum-tag do Matcher). Gated junto com o race.
+
+### Lições de processo (transversais — as que mais importam)
+- **Observar antes de AGIR, e antes de DECIDIR.** A saga teve 4 diagnósticos, cada um 
+  revisado pela observação seguinte: cwd era red herring; o crash era o ack-string; 
+  "server não registrou" era cold-start (não os 3 suspeitos óbvios); o race é real 
+  (não artefato). Segurei o conserto em todas as 4 bifurcações. Aplicado 
+  PREVENTIVAMENTE ao ADR-0014: a suposição causal "readiness-wait resolve o race" é 
+  inferência não-observada → virou D1 verification gate antes de comprometer o design.
+- **A verdade da integração vive no ponto de consumo, sob o transporte real.** 
+  Hermético prova a lógica; Inspector-CLI prova o contrato do server; só o agent-loop 
+  prova o relay SDK→CLI→stdio. Os 3 bugs (ack-string, lifecycle, race) só apareceram 
+  no agent-loop. "Gated" só é honesto quando a camada que o gate interroga rodou — o 
+  "implemented and gated" inicial foi prematuro por confundir Inspector-CLI com loop.
+- **"Verificado" precisa nomear QUAL ponta.** A OPEN ASSUMPTION do nested-shape foi 
+  marcada RESOLVED com evidência do lado do servidor (Inspector-CLI), mas o shape que 
+  importa é o que chega ao consumidor (hook via relay). Servidor-emite ≠ 
+  consumidor-recebe quando há relay no meio.
+- **Red-first auditável só no grão do commit** (herdado do #50/2a, aplicado: 2b separou 
+  test:RED → feat:impl em commits distintos, ao contrário do 082ec82 monolítico).
+- **Co-Authored-By drift:** Code adicionou o trailer contra git-conventions nos 2 
+  primeiros commits da 2b; corrigido prospectivamente (memória no-coauthor-trailer), 
+  não reescrevi história.
+- **shell/PS (fora do escopo da prova):** inline-Python pesado em PS 5.1 → arquivo .py 
+  temporário, não python -c com aspas aninhadas (o {p['baseRefName']} vazado). PR body 
+  via arquivo UTF-8, não HEREDOC.
+
+### Artefatos
+- PR #92 (feat/mc-c-phase2b-mcp-middle, partially-gated). Commits ac19182 (RED) → 
+  c3943f0 (impl) → 4e391ba (G2b evidence) → a3da204 (Bug-2 fix) → 56bf2dc (G2b 
+  partially-gated).
+- ADR-0014 (draft, Fase 3): MCP connection lifecycle & resilience. Readiness + recovery 
+  unificados; D1 verification gate pendente.
+- Memórias: mc-c-phase2b-deferred-debts (race+retry sob 1 ADR + §4.3 doc-lag), 
+  no-coauthor-trailer.
+- RESULTS.md "GATE G2b" (determinísticos PASS + race documentado).
+
+### Próximo passo
+- Merge #92 (considerar review de contexto fresco antes — saga longa, autor saturado).
+- Sequenciamento: levar o plano completo das 5 fases pro Chat — o que resta de MC-C 
+  antes da Fase 3, e se reliability vem antes ou depois. Inclinação: Fase 3 (D1 
+  verification gate primeiro) antes, porque sem ela nada roda end-to-end e a 
+  verificação pode redirecionar o ADR.
+- Housekeeping PR (doc-lag §4.5/§6.1/§6.2/coordinator §3.1 + §4.3) — trivial, a 
+  qualquer momento.

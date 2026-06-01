@@ -49,6 +49,59 @@ MCP middle that Phase 2b authors.
 
 ---
 
+## GATE G2a — close the ends: Triager + Reporter (Phase 2a) — PASS
+
+**Probe:** `g2a_ends_live.py`. Three ISOLATED live arms against the real
+`claude-agent-sdk==0.2.87` (Windows 11 / PS 5.1, authenticated session) — NO
+semgrep, NO MCP middle (that is G2b). The hermetic, replayable cross-check
+assertions live in `tests/subagents/reporter/test_emit_report.py` +
+`tests/coordinator/test_triager_stage.py` + `test_reporter_stage.py` (97 green);
+this probe confirms the *composition* the mock cannot: the §5.1 Triager prompt
+under `system_prompt=None` (DD-4) emitting valid decisions live, and emit_report
+round-tripping through the real in-process `reporter_tools` server. Arms are
+isolated at the stage (driver / `_run_reporter_stage`), NOT `run_pipeline` — a
+live proceed must NOT fall through to the Detector (semgrep = G2b).
+
+**Empirical questions:** (1) does the rendered §5.1 Triager prompt under SDK
+minimal system-prompt mode (DD-4) emit a valid `TriagerDecision` live for both a
+proceed-signalling and a skip-signalling worktree? (2) does emit_report round-trip
+live through the real server with the four §4.8 cross-checks executing (all pass
+on a valid payload) + the atomic write + `ToolUseBlock.input` capture?
+
+**Result (run 2026-05-31):**
+
+| Arm | Observable | Value |
+|---|---|---|
+| A — Triager proceed | `decision` | `proceed` (valid `TriagerDecision`, output_format) |
+| A | `relevance_summary` | concrete pt — cites `src/app/registration.py` + CPF/email |
+| B — Triager skip | `decision` | `skip` (valid `TriagerDecision`) |
+| B | `skip_reason` | concrete pt — cites `docs/` only, no app code |
+| C — Reporter | payload captured verbatim (no recompute) | **True** |
+| C | `99-report.json` written (dual-sink #1) | **True** |
+| C | `report_id` round-trips (closure cross-check #4 passed) | **True** |
+
+**Verdict: PASS** — the rendered §5.1 prompt + `system_prompt=None` (DD-4) produces
+valid proceed AND skip decisions live (the wiring the hermetic suite cannot prove);
+emit_report round-trips live through the real in-process server with the §4.8
+cross-checks executing and the DD-2 content-channel envelope in place. The
+cross-check NEGATIVE cases (each errorCode firing + the DD-2 channel) are pinned
+hermetically by the 7 `test_emit_report_*` anchors; the §9.2 tri-axial / anti-pattern
+branches by `test_reporter_stage.py`.
+
+**Note (Phase-3 debt, surfaced this session):** a live *invalid*-payload Reporter
+run would expose the §3.5 ↔ §6.7/§9.2.a retry contradiction (the coordinator flips
+`emit_report_seen` on EVERY emit_report block, so the model's retry-after-error path
+would raise `MultipleReportEmissions` and capture the *rejected* payload). NOT
+exercised here by design — reconciling §3.5 with the retry semantics (correlate
+`ToolUseBlock`↔`ToolResultBlock.is_error`; count/capture only SUCCESSFUL emits) is
+deferred to Phase 3 (ADR pending) and registered in `docs/tasks.md`.
+
+**Deferred to G2b (proceed path):** the full Triager→Detector→Classifier→Matcher→
+Reporter live run requires real `policy-reader` + `semgrep-runner` + the semgrep
+binary (ADR-0010) — Phase 2b.
+
+---
+
 # Phase 2a — CONSOLIDATE BRIEF for the next Code session (MC-C continuation)
 
 > Written at the end of the Phase 0+1 session (context budget). Per

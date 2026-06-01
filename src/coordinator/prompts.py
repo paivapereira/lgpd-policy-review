@@ -12,15 +12,19 @@ from typing import Any
 from subagents.classifier.models import ClassifierOutput
 from subagents.detector.models import DetectorFinding
 from subagents.triager.models import TriagerDecision, TriagerInput
+from subagents.triager.system_prompts import TRIAGER_SYSTEM_PROMPT
 
 
 def build_triager_prompt(scope: TriagerInput) -> str:
-    return (
-        "Analyze this pull request for LGPD-compliance relevance.\n"
-        f"pr_number: {scope.pr_number}\n"
-        f"base_ref: {scope.base_ref}\n"
-        f"head_ref: {scope.head_ref}\n"
-        f"repo_url: {scope.repo_url}\n"
+    # Renders the §5.1 format-string template (triager §2.2): the four single-brace
+    # PR refs are substituted; double-brace JSON examples collapse to single-brace.
+    # Delivered as the turn prompt (coordinator §3.1); the Triager stage runs in
+    # SDK minimal system-prompt mode (DD-4 / §5.1 note).
+    return TRIAGER_SYSTEM_PROMPT.format(
+        pr_number=scope.pr_number,
+        base_ref=scope.base_ref,
+        head_ref=scope.head_ref,
+        repo_url=scope.repo_url,
     )
 
 

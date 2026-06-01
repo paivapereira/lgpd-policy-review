@@ -102,6 +102,66 @@ binary (ADR-0010) — Phase 2b.
 
 ---
 
+## GATE G2b — MCP middle: Detector + Classifier + Matcher (Phase 2b) — PASS (deterministic) + scripted (agent-loop)
+
+Two layers, per `gates.md` (the gate's existence + outcome is the persisted evidence):
+
+- **Deterministic tool-boundary arms** — MCP Inspector CLI (`mcp-testing.md`), reproducible,
+  NO LLM. Confirm the server contracts the JSON handoff depends on. Run 2026-05-31 from the
+  repo root.
+- **Agent-loop composition arms** — `g2b_mcp_middle_live.py`, non-deterministic LLM; the
+  authenticated-session exercise. The hermetic replayable assertions live in
+  `tests/coordinator/` + `tests/subagents/` (126 green: prior 97 + 29 Phase-2b).
+
+**Empirical question (G2b):** do the projection renames, the Classifier passthrough zip, the
+Detector scan-diff error inspection, and the Matcher short-circuit/curto-circuito behave
+correctly across the JSON handoff — and does the `{"output"}` wrapper stay quiet on real
+`DetectorOutput`/`MatcherOutput`?
+
+### Deterministic arms (Inspector CLI `--config .mcp.json`) — PASS (run 2026-05-31)
+
+| Arm | Observable (verbatim) | Result |
+|---|---|---|
+| `scan_diff` Option-B error (`--server semgrep-runner ... --tool-name scan_diff --tool-arg base_ref=nonexistent-ref-aaaa --tool-arg head_ref=HEAD`) | `isError:false` + `structuredContent={errorCode:"GIT_REF_NOT_FOUND", isRetryable:false, details:{ref_param,...}}` | **PASS** — the exact nested shape the Detector hook reads (DD-d); `isRetryable:false` matches canonical §5.4 |
+| `policy://vocabularies` (`--server policy-reader --method resources/read --uri policy://vocabularies`) | top-level JSON object keyed `operation`/`lawful_basis`/`control`/`out_of_scope`, each `{schema_version, framework, values[]}` | **PASS** — Classifier resource-load reachable |
+| `check_applicability` projection (`--tool-name check_applicability --tool-arg clause_id=POL-000 --tool-arg 'structured_context={"data_categories":["dados_de_documentos_oficiais"],"operation":"collection","legal_basis":"consent"}'`) | accepts the projected `{data_categories, operation, legal_basis}` structured_context; returns `structuredContent={verdict:"not_applicable", policy_clause_ref:"POL-000", policy_schema_version, policy_version, legal_framework}`, `isError:false`, **NO `{"output"}` wrapper** | **PASS** — projection contract + verdict envelope (incl. the per-finding trinca) |
+
+Note: `check_applicability` with a non-canonical `data_categories` token (`"cpf"`) returns
+Option-B `errorCode:"INVALID_DATA_CATEGORY"` — confirming the Matcher's fail-loud path for a
+genuinely out-of-vocab value (matcher §6.2), distinct from the `is None`/`[]` short-circuit.
+
+**DD-d nested `structuredContent` (open assumption) — RESOLVED.** The server emits the error
+payload under `structuredContent` (verbatim above); `claude-agent-sdk==0.2.87` relays
+`data["tool_use_result"]` verbatim from the CLI wire (`_internal/message_parser.py:83`) into
+`UserMessage.tool_use_result`. So the hook's discriminator
+(`tool_use_result["structuredContent"]["errorCode"]`) is sound; the defensive `or {}` guards
+make any CLI-relay surprise non-fatal regardless.
+
+**`{"output"}` wrapper — quiet.** G0 (`sdk_output_format_complex/RESULTS.md`) proved the
+enum-tag `MatcherOutput`/`DetectorOutput` schema does NOT trigger the #502/#571 wrapper; the
+driver does NO unwrap (kept). The tool-level verdict/error envelopes carry their payload
+directly under `structuredContent` (no wrapper). The live agent-emission re-confirm is ARM
+D/F of the probe.
+
+### Agent-loop arms (`g2b_mcp_middle_live.py`) — authenticated-session exercise
+
+Four isolated arms (isolated at the driver, NOT `run_pipeline`), ready to run:
+ARM D Detector on a synthetic-CPF git repo + real semgrep (`DetectorOutput` populated, no
+wrapper, hook silent on a clean scan); ARM E Classifier reading `policy://vocabularies`
+(`verify_classifier_passthrough` passes); ARM F Matcher check-all on the real policy-reader
+(`MatcherOutput` no wrapper, cardinality floor, POL-000 floor); ARM G the wired hook
+escalating a scan error as `DetectorScanFailed`. Per `gates.md` the LLM run is not
+reproducible-deterministic; its outcome (when run) is the persisted evidence appended here.
+
+**Verdict (deterministic portion): PASS.** Hermetic gate green (126); ruff + mypy --strict
+clean; the three tool-boundary contracts confirmed verbatim; DD-d resolved; wrapper quiet at
+G0 + tool level. Agent-loop arms scripted for the authenticated milestone run. **Phase-3
+debt (registered):** the retryable-scan retry-under-budget loop (coordinator §5 l.428 +
+detector §6.2) is DEFERRED — the 2b hook escalates-all; no LIVE retryable-retry arm exists
+because there is nothing to retry yet (intentional, not forgotten).
+
+---
+
 # Phase 2a — CONSOLIDATE BRIEF for the next Code session (MC-C continuation)
 
 > Written at the end of the Phase 0+1 session (context budget). Per

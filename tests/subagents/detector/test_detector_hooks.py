@@ -94,6 +94,27 @@ def test_detector_empty_findings_valid() -> None:
     assert inspect_scan_diff_result(clean_hit) is None
 
 
+def test_inspect_scan_diff_nondict_shapes_degrade() -> None:
+    """Bug-2 regression (the ARM-D crash). `message.tool_use_result` is delivered as a
+    STRING when the scan_diff MCP server fails to spawn — and a real production timeout /
+    semgrep crash can also surface a non-envelope string. The `or {}` guard covered None
+    but NOT a truthy str (`'str'.get` -> AttributeError -> CoordinatorStreamFailure). The
+    hook must DEGRADE CLEANLY (no errorCode seen) on ANY non-dict shape — a non-dict is not
+    an Option-B domain envelope; infra failures surface via the stream, not as a fabricated
+    DetectorScanFailed. RED against the pre-fix hook (AttributeError)."""
+    nondict_tool_results: list[Any] = [
+        "error: MCP server connection closed",  # str tool_use_result — the observed crash
+        ["unexpected", "list"],  # list
+        42,  # int
+    ]
+    for tur in nondict_tool_results:
+        assert inspect_scan_diff_result(UserMessage(content="x", tool_use_result=tur)) is None
+    # structuredContent itself non-dict (str) must also degrade, not crash at the 2nd .get
+    assert inspect_scan_diff_result(
+        UserMessage(content="x", tool_use_result={"structuredContent": "not-a-dict"})
+    ) is None
+
+
 def test_inspect_scan_diff_shape_surprise_degrades_no_raise() -> None:
     """Defensive guard: a shape surprise (non-UserMessage, missing tool_use_result, or
     missing/empty structuredContent) degrades to 'no errorCode seen' (clean path) — never

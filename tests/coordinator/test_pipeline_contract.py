@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from coordinator import run as run_mod
+from coordinator.driver import RETRY_BUDGET
 from coordinator.models import CoordinatorError, CoordinatorReport
 from coordinator.prompts import build_classifier_prompt
 from subagents.classifier.models import ClassifierOutput
@@ -97,9 +98,12 @@ async def test_as1_e2e_json_handoff(tmp_path, monkeypatch, sdk) -> None:
     Classifier candidates (5 fields verbatim) → Matcher findings → Reporter payload; all
     five stages invoked; audit scratchpads written. The clean passthrough does NOT trip
     the wired verifier."""
-    fake, state = sdk.sequential(_proceed_scripts(sdk))
-    monkeypatch.setattr("coordinator.driver.query", fake)
-    monkeypatch.setattr("coordinator.run.query", fake)
+    # ADR-0014 D5 split transport (Triager+Reporter query() / 3 MCP stages mock client),
+    # one shared counter; contract assertions below unchanged (rider-3 replumb-only).
+    query_fn, client_cls, state = sdk.transport(_proceed_scripts(sdk))
+    monkeypatch.setattr("coordinator.driver.query", query_fn)
+    monkeypatch.setattr("coordinator.run.query", query_fn)
+    monkeypatch.setattr("coordinator.driver.ClaudeSDKClient", client_cls)
 
     result = await run_mod.run_pipeline(_scope(), mcp_config_path=_mcp_json(tmp_path), scratchpad_root=tmp_path)
 
@@ -122,9 +126,10 @@ async def test_as3_e2e_classifier_passthrough_verbatim(tmp_path, monkeypatch, sd
             {**_CLASSIFIER_OUT["classified"][0], "surrounding_context": "# TAMPERED"},
         ]
     }
-    fake, _ = sdk.sequential(_proceed_scripts(sdk, classifier_out=tampered))
-    monkeypatch.setattr("coordinator.driver.query", fake)
-    monkeypatch.setattr("coordinator.run.query", fake)
+    query_fn, client_cls, _ = sdk.transport(_proceed_scripts(sdk, classifier_out=tampered))
+    monkeypatch.setattr("coordinator.driver.query", query_fn)
+    monkeypatch.setattr("coordinator.run.query", query_fn)
+    monkeypatch.setattr("coordinator.driver.ClaudeSDKClient", client_cls)
 
     result = await run_mod.run_pipeline(_scope(), mcp_config_path=_mcp_json(tmp_path), scratchpad_root=tmp_path)
 
@@ -136,9 +141,10 @@ async def test_as4_e2e_dual_sink_capture(tmp_path, monkeypatch, sdk) -> None:
     """Dual sink observable by the coordinator: (1) the audit scratchpads 02/03/04 written
     by the driver; (2) the Report payload captured in-memory via ToolUseBlock.input. (The
     99-report.json handler sink runs only under the real SDK — LIVE / Phase-2a unit.)"""
-    fake, _ = sdk.sequential(_proceed_scripts(sdk))
-    monkeypatch.setattr("coordinator.driver.query", fake)
-    monkeypatch.setattr("coordinator.run.query", fake)
+    query_fn, client_cls, _ = sdk.transport(_proceed_scripts(sdk))
+    monkeypatch.setattr("coordinator.driver.query", query_fn)
+    monkeypatch.setattr("coordinator.run.query", query_fn)
+    monkeypatch.setattr("coordinator.driver.ClaudeSDKClient", client_cls)
 
     result = await run_mod.run_pipeline(_scope(), mcp_config_path=_mcp_json(tmp_path), scratchpad_root=tmp_path)
 
@@ -156,9 +162,10 @@ async def test_e2e_detector_scan_error_halts(tmp_path, monkeypatch, sdk) -> None
         [sdk.result(subtype="success", structured_output={"decision": "proceed", "relevance_summary": "PII"})],
         [sdk.scan_error("GIT_REF_NOT_FOUND", is_retryable=False), sdk.result(subtype="success", structured_output=_DETECTOR_OUT)],
     ]
-    fake, _ = sdk.sequential(scripts)
-    monkeypatch.setattr("coordinator.driver.query", fake)
-    monkeypatch.setattr("coordinator.run.query", fake)
+    query_fn, client_cls, _ = sdk.transport(scripts)
+    monkeypatch.setattr("coordinator.driver.query", query_fn)
+    monkeypatch.setattr("coordinator.run.query", query_fn)
+    monkeypatch.setattr("coordinator.driver.ClaudeSDKClient", client_cls)
 
     result = await run_mod.run_pipeline(_scope(), mcp_config_path=_mcp_json(tmp_path), scratchpad_root=tmp_path)
 
@@ -171,8 +178,10 @@ async def test_stage_wiring_contract(tmp_path, monkeypatch, sdk) -> None:
     """The Phase 2b wiring deltas (coordinator §3.2-§3.4): the Detector stage is invoked
     with on_tool_result=inspect_scan_diff_result; the Classifier with
     verify_passthrough=verify_classifier_passthrough + upstream=detector findings; the
-    Matcher with verify_passthrough None (G6 deferred). Captures kwargs via a
-    run_branch_b_stage recorder. RED before impl (deltas not wired)."""
+    Matcher with verify_passthrough None (G6 deferred). Post ADR-0014 D1 the 3 MCP stages run
+    via `_run_mcp_stage`, so the recorder is installed at BOTH `run_branch_b_stage` (Triager)
+    and `_run_mcp_stage` (MCP stages); this also anchors the Phase-3 transport wiring —
+    per-stage `target`, and that ONLY the Detector carries a retry budget (DD-A3)."""
     calls: list[dict[str, Any]] = []
     outputs = {
         "triager": TriagerDecision.model_validate({"decision": "proceed", "relevance_summary": "PII"}),
@@ -185,7 +194,8 @@ async def test_stage_wiring_contract(tmp_path, monkeypatch, sdk) -> None:
         calls.append(kwargs)
         return outputs[kwargs["stage"]]
 
-    monkeypatch.setattr("coordinator.run.run_branch_b_stage", _recorder)
+    monkeypatch.setattr("coordinator.run.run_branch_b_stage", _recorder)  # Triager
+    monkeypatch.setattr("coordinator.run._run_mcp_stage", _recorder)  # Detector/Classifier/Matcher
     monkeypatch.setattr(
         "coordinator.run.query",
         sdk.make_query([sdk.assistant_tool_use("mcp__reporter_tools__emit_report", _reporter_payload()), sdk.result()]),
@@ -199,6 +209,18 @@ async def test_stage_wiring_contract(tmp_path, monkeypatch, sdk) -> None:
     # upstream is detector_out.findings (list[DetectorFinding] model objects), not raw dicts
     assert by_stage["classifier"].get("upstream") == outputs["detector"].findings
     assert by_stage["matcher"].get("verify_passthrough") is None  # G6 deferred
+    # the scan hook is ONLY on the Detector; passthrough verify is ONLY on the Classifier
+    assert by_stage["classifier"].get("on_tool_result") is None
+    assert by_stage["matcher"].get("on_tool_result") is None
+    assert by_stage["detector"].get("verify_passthrough") is None
+    # Phase-3 transport wiring (ADR-0014 D1 + DD-A3): which server each MCP stage waits on,
+    # and that ONLY the Detector is given a retry budget.
+    assert by_stage["detector"].get("target") == "semgrep-runner"
+    assert by_stage["detector"].get("retries") == RETRY_BUDGET
+    assert by_stage["classifier"].get("target") == "policy-reader"
+    assert by_stage["matcher"].get("target") == "policy-reader"
+    assert by_stage["classifier"].get("retries", 0) == 0  # readiness only, no retry
+    assert by_stage["matcher"].get("retries", 0) == 0
 
 
 def test_build_classifier_prompt_carries_candidates() -> None:

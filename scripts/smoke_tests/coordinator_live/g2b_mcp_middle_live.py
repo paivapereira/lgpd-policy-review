@@ -24,6 +24,16 @@ Four ISOLATED arms (isolated at the driver, NOT run_pipeline):
   G. Detector hook (error) — scan_diff on a bad base_ref -> the wired hook raises
      DetectorScanFailed through the driver (errorCode in structuredContent, Option B).
 
+STATUS (2026-06-01) — ARM D is currently BLOCKED by a driver-layer MCP-readiness gap, NOT a
+bug in this probe. The one-shot `query()` path does not wait for the semgrep-runner's ~3.5 s
+cold-start (servers re-spawn per stage; readiness/recovery live only on the streaming
+`ClaudeSDKClient`), so `scan_diff` is not registered when the Detector acts (`status:
+'pending'` at init) → `findings=[]`. Deferred to the "MCP connection lifecycle & resilience
+in the driver" reliability ADR (Fase 3). See RESULTS.md "GATE G2b ... PARTIALLY-GATED". The
+`uv run --project` launch here is a foreign-cwd robustness aid, NOT the race fix. Re-run after
+the readiness fix to complete D/E/F/G + the `{"output"}` wrapper observation on the real
+list-shaped DetectorOutput.
+
 Pre-reqs: semgrep==1.163.0 (ADR-0010) on PATH; real policy-reader + semgrep-runner via
 .mcp.json; authenticated Claude Code session. Run (PowerShell, no WSL):
   uv run python scripts/smoke_tests/coordinator_live/g2b_mcp_middle_live.py
@@ -33,10 +43,13 @@ from __future__ import annotations
 import asyncio
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
-from coordinator.config import load_mcp_config
+from claude_agent_sdk import SystemMessage, UserMessage
+
+from coordinator.config import McpServersConfig, load_mcp_config
 from coordinator.driver import run_branch_b_stage
 from coordinator.prompts import (
     build_classifier_prompt,
@@ -52,8 +65,43 @@ from subagents.matcher.models import MatcherOutput
 from subagents.triager.models import TriagerDecision, TriagerInput
 
 _CFG = ".mcp.json"
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]  # scripts/smoke_tests/coordinator_live/<file>
 # Synthetic CPF (valid checksum, NOT real PII) — triggers the br_cpf recognizer.
 _SYNTHETIC_CPF = "529.982.247-25"
+
+
+def _cfg_with_project_semgrep() -> McpServersConfig:
+    """Bug-1 fix (caller-side; scan_diff scans Path.cwd() by ratified design, tools.py:271 /
+    canonical §4.2 / DD-T06-3,19 — NOT a contract change). The probe os.chdir()s into the
+    synthetic-CPF repo so the spawned semgrep-runner inherits that cwd; but the default
+    `uv run python -m ...` then runs from a dir with no project env. Override the
+    semgrep-runner command with `uv run --project <PROJECT_ABS>` so uv resolves the env from
+    the project while the spawned server's cwd stays the synthetic repo (verified: uv
+    --project keeps cwd)."""
+    base = load_mcp_config(_CFG)
+    patched = {
+        "command": "uv",
+        "args": ["run", "--project", str(_PROJECT_ROOT), "python", "-m", "mcp_servers.semgrep_runner.server"],
+    }
+    return McpServersConfig(
+        mcp_servers_dict={**base.mcp_servers_dict, "semgrep-runner": patched},  # type: ignore[dict-item]
+        policy_reader_config=base.policy_reader_config,
+        semgrep_runner_config=patched,  # type: ignore[arg-type]
+    )
+
+
+def _observe(message: object) -> None:
+    """Instrumentation (arm-level, less invasive than the hook): log the init
+    SystemMessage.data (registered tools + mcp_server statuses — Suspect 1/2/3 ground
+    truth) and the type+repr of each UserMessage.tool_use_result, then delegate to the
+    real hook. Captures the shape the CONSUMER receives via the SDK relay."""
+    if isinstance(message, SystemMessage):
+        data = getattr(message, "data", None)
+        print(f"  [observe] SystemMessage subtype={message.subtype!r} data={repr(data)[:1500]}", file=sys.stderr)
+    elif isinstance(message, UserMessage):
+        tur = message.tool_use_result
+        print(f"  [observe] tool_use_result type={type(tur).__name__} repr={repr(tur)[:500]}", file=sys.stderr)
+    inspect_scan_diff_result(message)
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -91,21 +139,27 @@ def _scope(base: str = "main", head: str = "feature/x") -> TriagerInput:
 
 
 async def _arm_d_detector_live() -> tuple[bool, bool]:
-    cfg = load_mcp_config(_CFG)
+    # G2B_OBSERVE_BROKEN=1 -> DEFAULT (no --project) launch, to capture the failed-server
+    # str shape once (diagnostic); else the Bug-1-fixed launch (`uv run --project`).
+    broken = bool(os.environ.get("G2B_OBSERVE_BROKEN"))
+    cfg = load_mcp_config(_CFG) if broken else _cfg_with_project_semgrep()
     repo, base, head = _make_cpf_repo()
     run_path = Path(tempfile.mkdtemp(prefix="g2b-det-run-"))
+    opts = _detector_options(cfg)
+    print(f"  [observe] options.mcp_servers={opts.mcp_servers}", file=sys.stderr)
+    print(f"  [observe] options.allowed_tools={opts.allowed_tools}", file=sys.stderr)
     cwd = os.getcwd()
-    os.chdir(repo)  # the spawned semgrep-runner inherits cwd -> scans this repo
+    os.chdir(repo)  # the spawned semgrep-runner inherits cwd -> scan_diff scans this repo
     try:
         out = await run_branch_b_stage(
             stage="detector",
             prompt=build_detector_prompt(_scope(base, head), TriagerDecision(decision="proceed", relevance_summary="cpf")),
-            options=_detector_options(cfg),
+            options=opts,
             output_model=DetectorOutput,
             scratchpad_name="02-detector.json",
             run_path=run_path,
             run_id="g2b-det",
-            on_tool_result=inspect_scan_diff_result,
+            on_tool_result=_observe,
         )
     finally:
         os.chdir(cwd)

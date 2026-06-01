@@ -102,6 +102,108 @@ binary (ADR-0010) — Phase 2b.
 
 ---
 
+## GATE G2b — MCP middle: Detector + Classifier + Matcher (Phase 2b) — PARTIALLY-GATED
+
+Outcome (per `gates.md` — the gate's existence + outcome IS the persisted evidence):
+**deterministic tool-boundary arms PASS; the agent-loop arm is BLOCKED by a pre-existing
+driver-layer (MC-A) MCP-readiness gap that this gate EXPOSED.** Two layers:
+
+- **Deterministic tool-boundary arms** — MCP Inspector CLI (`mcp-testing.md`), reproducible,
+  NO LLM. Confirm the server contracts the JSON handoff depends on.
+- **Agent-loop composition arm** — `g2b_mcp_middle_live.py`, real SDK. RAN and EXPOSED the
+  readiness gap (below). The hermetic, replayable assertions live in `tests/coordinator/` +
+  `tests/subagents/` (127 green: prior 97 + 30 Phase-2b incl. the Bug-2 anchor).
+
+**Empirical question (G2b):** do the projection renames, the Classifier passthrough zip, the
+Detector scan-diff error inspection, and the Matcher short-circuit/curto-circuito behave
+correctly across the JSON handoff — and does the `{"output"}` wrapper stay quiet on real
+`DetectorOutput`/`MatcherOutput`?
+
+### Deterministic arms (Inspector CLI `--config .mcp.json`) — PASS (run 2026-05-31)
+
+| Arm | Observable (verbatim) | Result |
+|---|---|---|
+| `scan_diff` Option-B error (`--server semgrep-runner ... --tool-name scan_diff --tool-arg base_ref=nonexistent-ref-aaaa --tool-arg head_ref=HEAD`) | `isError:false` + `structuredContent={errorCode:"GIT_REF_NOT_FOUND", isRetryable:false, details:{ref_param,...}}` | **PASS** — the exact nested shape the Detector hook reads (DD-d); `isRetryable:false` matches canonical §5.4 |
+| `policy://vocabularies` (`--server policy-reader --method resources/read --uri policy://vocabularies`) | top-level JSON object keyed `operation`/`lawful_basis`/`control`/`out_of_scope`, each `{schema_version, framework, values[]}` | **PASS** — Classifier resource-load reachable |
+| `check_applicability` projection (`--tool-name check_applicability --tool-arg clause_id=POL-000 --tool-arg 'structured_context={"data_categories":["dados_de_documentos_oficiais"],"operation":"collection","legal_basis":"consent"}'`) | accepts the projected `{data_categories, operation, legal_basis}` structured_context; returns `structuredContent={verdict:"not_applicable", policy_clause_ref:"POL-000", policy_schema_version, policy_version, legal_framework}`, `isError:false`, **NO `{"output"}` wrapper** | **PASS** — projection contract + verdict envelope (incl. the per-finding trinca) |
+
+Note: `check_applicability` with a non-canonical `data_categories` token (`"cpf"`) returns
+Option-B `errorCode:"INVALID_DATA_CATEGORY"` — confirming the Matcher's fail-loud path for a
+genuinely out-of-vocab value (matcher §6.2), distinct from the `is None`/`[]` short-circuit.
+
+**DD-d nested `structuredContent` (open assumption) — RESOLVED.** The server emits the error
+payload under `structuredContent` (verbatim above); `claude-agent-sdk==0.2.87` relays
+`data["tool_use_result"]` verbatim from the CLI wire (`_internal/message_parser.py:83`) into
+`UserMessage.tool_use_result`. So the hook's discriminator
+(`tool_use_result["structuredContent"]["errorCode"]`) is sound; the defensive `or {}` guards
+make any CLI-relay surprise non-fatal regardless.
+
+**`{"output"}` wrapper — see the agent-loop section below.** It is **NOT** closed by G0; the
+honest status is "not observed on the real list-shaped `DetectorOutput`" (gated with the race).
+
+### Agent-loop arm (`g2b_mcp_middle_live.py`, real SDK) — BLOCKED by a driver readiness gap
+
+ARM D was run live (Detector on a synthetic-CPF git repo + real semgrep). **It did NOT scan.**
+Observed (instrumented; init `SystemMessage`):
+`mcp_servers: [{'name':'semgrep-runner','status':'pending'}]`, `tools: ['Read','StructuredOutput']`
+— `scan_diff` **never registered**. The model emitted on turn 1 (`tool_use_result` = `None`,
+then the str `'Structured output provided successfully'` — the SDK structured-output ack, the
+same shared-channel value that caused Bug-2) before the server connected → `findings=[]`.
+
+**Root cause — cold-start race (observed, not inferred; three sub-causes triaged):**
+- **NOT** a FastMCP-banner-on-stdout corruption (sub-cause B): probed the server with a real
+  `initialize` — STDOUT is pure JSON-RPC, the banner is on STDERR — across `uv run`,
+  `uv run --project` (foreign cwd), AND venv-direct. **NOT** a `uv`-stdout issue (sub-cause C):
+  stdout clean via the exact agent-loop command.
+- **IS** a readiness race (sub-cause A): the server handshakes cleanly but takes **~3.5 s
+  intrinsic** (uv 3.3 s ≈ venv-direct 3.6 s → FastMCP boot + imports + rules load, NOT uv —
+  so a faster launch can't win it), and the one-shot **`query()` path has no MCP
+  readiness-wait** (readiness/recovery — `get_mcp_status` / `reconnect_mcp_server` — exist
+  ONLY on the streaming `ClaudeSDKClient`, client.py:405/474).
+
+**Real in production, not a test artifact** (read from `run.py`): `run_pipeline` issues **5
+independent one-shot `query()` calls**, one per stage, each spawning ONLY its own
+`mcp_servers` — Triager `{}` (run.py:155), Detector `{semgrep-runner}` (167), Classifier/
+Matcher `{policy-reader}` (179/197), Reporter `{reporter_tools}` (209). The Triager declares
+no servers, so semgrep-runner is first/only spawned by the **Detector's own `query()`** —
+always cold. The CI coordinator races identically. (The "warm during Triager" hypothesis is
+refuted: the Triager has `mcp_servers={}`.)
+
+**`--project` note:** the probe launches semgrep-runner via `uv run --project <ABS>` + an
+`os.chdir` into the synthetic repo. This is a **foreign-cwd robustness aid** (uv resolves the
+env from the project while the server's cwd = the scanned repo; verified) — it is **NOT** the
+race fix. The race is **OPEN / deferred**, not mitigated by `--project`.
+
+**`{"output"}` wrapper — NOT OBSERVED (gated with the race).** G0 proved the wrapper quiet on
+the **Matcher** `Finding` enum-tag schema — but `DetectorOutput` has `findings: [...]` (a
+**top-level list**, exactly the shape that historically triggers the #502/#571 wrapper).
+Because the race prevented any scan, the Detector **never produced a populated `DetectorOutput`
+in the agent-loop**, so the wrapper was NOT observed on the real list-shaped output. To verify
+when the readiness fix lets the scan run; remains a possible fail-action of the reliability PR
+— **NOT** closed by G0.
+
+### Verdict: PARTIALLY-GATED
+
+- **PASS (in scope):** the three tool-boundary contracts (verbatim above); DD-d resolved;
+  hermetic gate green (127); ruff + mypy --strict clean; Bug-2 (the `tool_use_result`
+  shared-channel non-dict crash) fixed (`a3da204`) and validated live (the run completed
+  instead of crashing). **Learning:** `tool_use_result` is a SHARED channel — it carries SDK
+  structured-output acks (`'Structured output provided successfully'`) as well as MCP tool
+  envelopes; `isinstance(dict)` is the correct discriminator (a non-dict is never an Option-B
+  envelope).
+- **BLOCKED (out of scope — exposed, deferred):** the agent-loop scan + the `{"output"}`
+  observation, by a **driver-layer (MC-A) MCP-readiness gap**. Architecturally distinct from
+  Phase-2b's prompt/hook/passthrough flesh; fixing it (move MCP-consuming stages to a
+  `ClaudeSDKClient` readiness-wait) touches the driver transport, all 5 stages, and the
+  conftest mocks — a **separate reliability PR**.
+- **Fase-3 debt — UNIFIED under ONE ADR:** "MCP connection lifecycle & resilience in the
+  driver" covers BOTH halves of one apparatus — **readiness** (wait for `'connected'` before
+  acting; this race) and **recovery** (retry `SCAN_TIMEOUT`/`SEMGREP_EXECUTION_FAILED`; the
+  DD-d retry-loop). Both need `get_mcp_status`/`reconnect` via `ClaudeSDKClient`; both are
+  driver-layer. Registered in project memory `mc-c-phase2b-deferred-debts`.
+
+---
+
 # Phase 2a — CONSOLIDATE BRIEF for the next Code session (MC-C continuation)
 
 > Written at the end of the Phase 0+1 session (context budget). Per

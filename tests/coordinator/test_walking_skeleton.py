@@ -147,9 +147,13 @@ async def test_skeleton_proceed_path_returns_report(tmp_path, monkeypatch, sdk) 
         [sdk.result(subtype="success", structured_output=_MATCHER_OUT)],
         [sdk.assistant_tool_use("mcp__reporter_tools__emit_report", reporter_payload), sdk.result()],
     ]
-    fake, state = sdk.sequential(scripts)
-    monkeypatch.setattr("coordinator.driver.query", fake)
-    monkeypatch.setattr("coordinator.run.query", fake)
+    # ADR-0014 D5: heterogeneous transport — query() fake for Triager+Reporter, mock
+    # ClaudeSDKClient for the 3 MCP stages, sharing ONE counter so `state["i"]` still counts
+    # stages. Replumb only; the contract assertions below are unchanged (rider-3).
+    query_fn, client_cls, state = sdk.transport(scripts)
+    monkeypatch.setattr("coordinator.driver.query", query_fn)
+    monkeypatch.setattr("coordinator.run.query", query_fn)
+    monkeypatch.setattr("coordinator.driver.ClaudeSDKClient", client_cls)
 
     result = await run_pipeline(_scope(), mcp_config_path=_mcp_json(tmp_path), scratchpad_root=tmp_path)
 

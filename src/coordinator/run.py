@@ -28,7 +28,7 @@ from claude_agent_sdk import (
 )
 
 from coordinator.config import McpServersConfig, load_mcp_config
-from coordinator.driver import run_branch_b_stage
+from coordinator.driver import RETRY_BUDGET, _run_mcp_stage, run_branch_b_stage
 from coordinator.errors import (
     CoordinatorStreamFailure,
     DetectorScanFailed,
@@ -306,7 +306,7 @@ async def run_pipeline(
         if triager_out.decision == "skip":
             triager_skip_reason = triager_out.skip_reason
         else:
-            detector_out = await run_branch_b_stage(
+            detector_out = await _run_mcp_stage(
                 stage="detector",
                 prompt=build_detector_prompt(scope, triager_out),
                 options=_detector_options(cfg),
@@ -314,13 +314,15 @@ async def run_pipeline(
                 scratchpad_name="02-detector.json",
                 run_path=run_path,
                 run_id=run_id,
+                target="semgrep-runner",
+                retries=RETRY_BUDGET,  # DD-A3: recovery (D2) only on the Detector (sole isRetryable hook)
                 on_tool_result=inspect_scan_diff_result,
             )
             assert isinstance(detector_out, DetectorOutput)
             candidates_count = len(detector_out.findings)
             scan_provenance = detector_out.provenance
 
-            classifier_out = await run_branch_b_stage(
+            classifier_out = await _run_mcp_stage(
                 stage="classifier",
                 prompt=build_classifier_prompt(detector_out.findings),
                 options=_classifier_options(cfg),
@@ -328,12 +330,13 @@ async def run_pipeline(
                 scratchpad_name="03-classifier.json",
                 run_path=run_path,
                 run_id=run_id,
+                target="policy-reader",  # readiness only (D1); no retry (DD-A3, no isRetryable hook)
                 verify_passthrough=verify_classifier_passthrough,
                 upstream=detector_out.findings,
             )
             assert isinstance(classifier_out, ClassifierOutput)
 
-            matcher_out = await run_branch_b_stage(
+            matcher_out = await _run_mcp_stage(
                 stage="matcher",
                 prompt=build_matcher_prompt(classifier_out),
                 options=_matcher_options(cfg),
@@ -341,6 +344,7 @@ async def run_pipeline(
                 scratchpad_name="04-matcher.json",
                 run_path=run_path,
                 run_id=run_id,
+                target="policy-reader",  # readiness only (D1); no retry (DD-A3)
             )
             assert isinstance(matcher_out, MatcherOutput)
             findings = matcher_out.findings

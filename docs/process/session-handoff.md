@@ -25,6 +25,16 @@ está **reconciliada aqui** — não transcreva o plano).
 > PR-A.** PORÉM: **NÃO abrir sessão fresca de migração até `prompt-phase3-reliability-v1.md`
 > passar pelo review do Chat** (padrão 2a/2b: Code rascunha → Chat revisa → sessão fresca
 > executa o revisado).
+>
+> **STATUS pós-PR-A (2026-06-01) — Fase 3 RELIABILITY FECHADA.** Mergeadas em `main`: **#95**
+> (`df78441`, PR-A reliability: readiness via `_run_mcp_stage` + retry in-session); **#96**
+> (`2cb0ab9`, ADR-0014 **Accepted**, Appendix sincronizado ao código mergeado); **#97**
+> (`4c4c953`, cleanup: os 4 arms do g2b re-apontados pro `_run_mcp_stage` + fixture
+> `def collect(cpf)` param). **140 testes verdes** (`tests/coordinator` + `tests/subagents`),
+> ruff + mypy-strict limpos, `test_driver.py` byte-untouched (preserved-spine). Os dois débitos
+> **G3-blocking** (g2b transporte + fixture) estão **RESOLVIDOS por #97**. **A próxima ação é o
+> capstone G3** — milestone-level, live, opt-in: entry brief completo na **§10**. (§1-§9 abaixo
+> = registro do ciclo PR-A, fechado; não re-litigar.)
 
 ## 1. Onde estamos
 - **Fases 0/1/2a/2b mergeadas** em `main`: #88 / #89 / #90 / **#92** (Phase 2b). `main` @ `75c7aac`+.
@@ -282,3 +292,79 @@ RESULTS.md "GATE D1" + notas de teste manual. PR é passo manual do usuário.
 **Fontes-de-verdade:** ADR-0014 (Decision + Appendix, já c/ DD-A1(ii)) · RESULTS.md "GATE D1" ·
 `d1_mock_fidelity_smoke.py` (shape do mock) · `driver.py`/`run.py`/`hooks.py` ·
 `.claude/rules/sdk-mcp-conventions.md`.
+
+## 10. Entry brief da sessão G3 (capstone Fase 3 — milestone-level, live)
+
+> Fase 3 reliability **FECHADA** (PR-A #95, ADR-0014 Accepted #96, cleanup #97). G3 é o
+> **capstone milestone-level**: a rodada viva, opt-in, que valida o pipeline inteiro **agora que
+> o readiness foi consertado** — e faz a **primeira observação do wrapper `{"output"}`** num
+> `DetectorOutput` lista-não-vazia. NÃO é feature nova; é o gate que prova a migração
+> ponta-a-ponta. Padrão 2a/2b: Code rascunha a forma do unwrap → Chat ratifica (com handoff §5
+> aberto) → sessão fresca executa. Abrir com este §10 + handoff §5 + ADR-0014 (Accepted) + a
+> `driver.py`/`run.py`/`g2b` mergeadas.
+
+**PRIMEIRA AÇÃO (não-impl):** `git log main --oneline -8` + `git status` — confirmar #95/#96/#97
+em `main`, **140 testes verdes**, o g2b re-apontado pro `_run_mcp_stage` + a fixture param
+(`def collect(cpf):`) presentes. Não confiar em SHAs.
+
+**MODE: plan-mode (Fase 1 DDs → gate → Fase 2).** UMA DD load-bearing a ratificar **ANTES de
+qualquer rodada viva** — é a única incerteza real da fase (transporte e fixture já são
+determinísticos):
+
+- **DD-G3-1 — fork do unwrap do wrapper `{"output"}` (DECISÃO ANTES do gate; handoff §5 aberto).**
+  O `DetectorOutput` populado no G3 é o **primeiro teste vivo** de se o SDK embrulha o
+  `structured_output` lista-shaped sob `{"output"}` (#502/#571, ainda **não observado** — G0 só
+  cobriu o schema objeto/enum-tag, que é quieto). O driver **não desembrulha** nada
+  (`_discriminate_and_capture` → `model_validate` direto); se o wrapper disparar →
+  `SubagentValidationFailed`. **gates.md: não improvisar dentro do gate** → decidir a forma do
+  unwrap PRIMEIRO. Três formas (Chat ratifica com §5 na frente):
+  - **(a)** unwrap transparente em `_discriminate_and_capture` antes do `model_validate`,
+    uniforme a todo estágio;
+  - **(b)** unwrap só no retry pós-`ValidationError` (validation-retry-loop, mais fiel ao §5:
+    `structured_output.get("output", structured_output)` + 1 retry);
+  - **(c)** escopado só aos outputs lista (`DetectorOutput`/`MatcherOutput`).
+  → Se o wrapper ficar **quieto** (provável, por G0): nenhuma mudança de código; o gate passa e
+  registra "wrapper quiet on populated list". Se **disparar**: aplica a forma ratificada, **não
+  improvisa**.
+
+**TRAVAMENTO — observe-vs-calibrate (pureza do gate, não-negociável).** O G3 **OBSERVA + REGISTRA**
+o timing real (poll-counts até `connected`, scan elapsed, retries). A calibração de **Deferral A**
+(`READINESS_ATTEMPTS`/`READINESS_POLL_S`/`RETRY_BUDGET`/`STAGE_TIMEOUT_S`) é passo **downstream
+separado**, com os números na frente — **não** um ajuste improvisado durante a rodada (mesmo
+anti-padrão "decidir dentro do gate" que o D1 evitou). A memória chama Deferral A de "calibração
+real = MC-D"; respeitar ou **promover explicitamente** — decisão do usuário, fora do gate.
+
+**O que o G3 MATERIALIZA:** uma rodada **viva, opt-in (`@pytest.mark.live`, fora do CI default)**
+do `run_pipeline` ponta-a-ponta: repo git synthetic-CPF (param `cpf` — já em `_make_cpf_repo`,
+#97) + **POL-000 bundled** → `run_pipeline(scope)` → assere `CoordinatorReport` com finding
+populado (Detector achou o param `cpf`), a cadeia Classifier→Matcher→Reporter rodando em dado
+real, POL-000 `not_applicable` floor, `counts == aggregation`, e o **wrapper `{"output"}`
+observado** (quieto ou tratado pela forma DD-G3-1). Os arms re-apontados do g2b (D/E/F/G, #97)
+são o **complemento granular** — observação por-estágio (wrapper isolado no D, hook-error no G,
+passthrough no E/F) que um relatório e2e único não dá. **G3 = `run_pipeline` e2e (composição) +
+g2b arms (granular).**
+
+**PRÉ-CONDIÇÕES (TODAS FEITAS):** readiness fix (#95); ADR Accepted (#96); g2b re-apontado +
+fixture param (#97). G3 **não está mais bloqueado** (nem pela corrida de cold-start, nem pela
+fixture de finding-vazio).
+
+**ESCOPO — G3 SÓ:** o capstone. FORA: a **PR de string** (doc-lags — `classifier.md` §4.3, DD-3.3
+`coverage_gap` acentuado, `.gitignore` do `scheduled_tasks.lock`) é housekeeping **separada**
+(antes/independente do G3, não dobra); a calibração de Deferral A é downstream.
+
+**AC → evidência (milestone-level; gates.md persiste o desfecho, não o run):** `run_pipeline` e2e
+PASS (`CoordinatorReport`, finding populado, POL-000 floor, `counts==aggregation`, wrapper
+observado); g2b D/E/F/G re-run PASS; a observação do wrapper `{"output"}` registrada em RESULTS.md
+**"GATE G3"**.
+
+**FONTES-DE-VERDADE (ler antes de codar):** handoff **§5** (o fail-action do wrapper — o §5 a abrir
+pra DD-G3-1) · `src/coordinator/driver.py` mergeado (`_run_mcp_stage` + `_discriminate_and_capture`,
+**sem unwrap**) · `src/coordinator/run.py` (`run_pipeline`) · `scripts/smoke_tests/coordinator_live/g2b_mcp_middle_live.py`
+(#97: arms no `_run_mcp_stage` + `_make_cpf_repo` param) · ADR-0014 (Accepted) · `.claude/rules/gates.md`
+(não improvisar no gate). A memória `mc-c-phase3-g3-blocking-debts` foi **deletada** — os dois
+débitos foram resolvidos por #97.
+
+**Convenções:** live `@pytest.mark.live` opt-in; evidência em RESULTS.md "GATE G3"; imports BARE;
+mock patch-where-used (qualquer teste hermético novo); `asyncio_mode="auto"`; trio (pytest + ruff +
+mypy-strict) pros testes herméticos; Windows/PS 5.1; **SEM `Co-Authored-By`**; **a DD-G3-1 (unwrap)
+passa pelo Chat com o §5 aberto ANTES da rodada viva**; PR é passo manual do usuário.

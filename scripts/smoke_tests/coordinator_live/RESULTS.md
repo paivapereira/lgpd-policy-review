@@ -297,6 +297,106 @@ exercises the full pipeline AND finally observes the non-empty-list `{"output"}`
 
 ---
 
+## GATE G3 — capstone: full `run_pipeline` composition + g2b granular arms (Phase 3, milestone-level) — PASS
+
+The **milestone-level capstone** of MC-C Phase 3, run AFTER the reliability fix shipped (PR-A
+#95 readiness + recovery, ADR-0014 Accepted #96, g2b re-point to `_run_mcp_stage` + the
+`cpf`-parameter fixture #97). Two complementary live exercises, both real SDK + real MCP,
+Windows 11 / PS 5.1, authenticated session, semgrep 1.163.0 (ADR-0010). Run 2026-06-01.
+
+- **Composition** — `tests/coordinator/test_g3_live_e2e.py` (`@pytest.mark.live`, opt-in,
+  excluded from the default run via the new `addopts = "-m 'not live'"`): the FULL
+  Triager→Detector→Classifier→Matcher→Reporter `run_pipeline` on a synthetic-CPF git repo
+  (`def collect(cpf)` — the syntactic `br-cpf` parameter match, #97 fixture) + POL-000 bundled.
+  Config injection (DD-G3-2 α): a temp `.mcp.json` (absolute path) whose BOTH servers use
+  `uv run --project <repo-root>`, because `run_pipeline` runs every stage under the one synthetic
+  cwd; `policy-reader` resolves `policy/` via `Path(__file__).parents[3]` (loader.py:62,
+  cwd-independent — verified by reading, not inference), so the chdir does not break POL-000.
+- **Granular** — `g2b_mcp_middle_live.py` arms D/E/F/G (now driving the production
+  `_run_mcp_stage`, #97): per-stage observation a single e2e report cannot give.
+
+### Headline — the `{"output"}` wrapper, FIRST observation on a populated list-shaped output
+
+The #502/#571 risk was **gated since 2b** (the G2b race blocked any scan; D1 only ever saw the
+**empty-list** case — semgrep matched nothing on the old value-fixture). **G3 is the first
+populated-list observation.** The Detector emitted `DetectorOutput` with `findings=[1 item]` and
+it **validated clean — NO `{"output"}` wrapper.** Raw ground truth (ARM D `_observe`,
+`tool_use_result`): the `scan_diff` result is `{...,"findings":[{"rule_id":"…rules.br-cpf",…}],…}`
+(list-shaped), and `DetectorOutput findings=1` deserialized directly. The driver does **NO unwrap**
+(`driver.py:110-116`); the ratified **DD-G3-1 form (b)** (validation-retry-loop unwrap,
+`structured_output.get("output", …)` + 1 re-validate, in the shared `_discriminate_and_capture`
+tail) therefore stays a **contingency — NOT applied**. Recorded outcome: **"wrapper quiet on
+populated list."** (Had it fired, the Detector would have raised `SubagentValidationFailed` and
+the pipeline would have halted before the Classifier — it did not; it ran to `run.done`.) **This is n=1** — quiet here is not quiet-always (the
+#502/#571 wrapper can be SDK-version- or payload-shape-dependent), so the §5/G0 armed
+fail-action (DD-G3-1 form (b)) **remains the standing contingency and must not be retired as
+dead code** on the strength of this one observation.
+
+### Composition arm — `run_pipeline` e2e — PASS
+
+**Empirical question:** does the full real chain return a `CoordinatorReport` with a populated
+finding, the POL-000 `not_applicable` floor, and `counts == aggregation`, now that readiness is fixed?
+
+| Observable | Value |
+|---|---|
+| return type | `CoordinatorReport` |
+| `findings` (through the full chain) | **1** (Detector found the `cpf` parameter) |
+| `{"output"}` wrapper on populated `DetectorOutput` | **quiet** (validated clean; pipeline advanced past the Detector to `run.done`) |
+| POL-000 `not_applicable` floor | **present** (only POL-000 definitional bundled → check-all `not_applicable`, tools.py:300) |
+| `run_outcome` | `success_all_not_applicable` |
+| `counts == aggregation` (`summary.total == len(findings) == sum(counts)`) | **True** |
+| all 5 stages | Triager(`proceed`)→Detector→Classifier→Matcher→Reporter→`run.done` |
+
+**Timing OBSERVATION (Deferral A calibration is downstream — NOT tuned here):** wall **155.2 s**;
+`scan_elapsed` **10.2 s**; `files_scanned=1`. **retries=0** (clean scan — the `DetectorScanFailed` retry branch never
+executed). **Readiness:** the target was already `connected` in the init snapshot (ARM D
+`_observe`), so wait-for-connected returned on the first poll (**poll≈0**); the e2e does not
+instrument the poll counter — the init snapshot is the observable. For MC-D / Deferral A this is
+a *lower bound* (readiness effectively instantaneous, no recovery fired), **not** a
+stress/contention measurement.
+
+### Granular arms — `g2b_mcp_middle_live.py` D/E/F/G — PASS
+
+ARM D init `SystemMessage` (production `_run_mcp_stage` path): `mcp_servers:[{name:'semgrep-runner',
+status:'connected'}]`, model `tools:['Read','StructuredOutput','mcp__semgrep-runner__scan_diff']` —
+readiness re-presents `scan_diff` (the D1 result, now echoed through the shipped driver, not the gate probe).
+
+| Arm | Observable | Result |
+|---|---|---|
+| D — Detector live (synthetic-CPF + real semgrep) | populated `DetectorOutput` (`findings=1`, `br-cpf`) + **no `{"output"}` wrapper**; hook does not false-positive on the clean (errorCode-free) scan | **PASS** |
+| E — Classifier live (reads `policy://vocabularies`) | `ClassifierOutput classified=1`, `structured_context` populated; `verify_classifier_passthrough` passes (no raise) | **PASS** |
+| F — Matcher live (check-all on real policy-reader) | `MatcherOutput findings=1 verdicts=['not_applicable']`; cardinality floor (≥ candidates) + POL-000 `not_applicable` present + no wrapper | **PASS** |
+| G — Detector hook (bad `base_ref`) | `DetectorScanFailed errorCode='GIT_REF_NOT_FOUND' isRetryable=False` escalates through the driver (Option-B `errorCode` in `structuredContent`) | **PASS** |
+
+### Verdict: PASS
+
+- **Composition:** the full `run_pipeline` composes live end-to-end on real data; the readiness fix
+  (ADR-0014 D1) lets the Detector actually scan; the `{"output"}` wrapper is **quiet** on the
+  populated list-shaped `DetectorOutput` (DD-G3-1 form (b) not needed); the POL-000 floor and the
+  `counts == aggregation` invariant hold; `run_outcome=success_all_not_applicable`.
+- **Granular:** the four arms confirm per-stage what the single report cannot — wrapper-quiet +
+  hook-no-false-positive (D), passthrough verify (E), Matcher floor + POL-000 (F), retryable-error
+  escalation (G).
+- **Boundary — what G3 does NOT establish (immutable rule #1, no fabricated certainty):** with
+  only POL-000 (definitional) bundled, *every* candidate is `not_applicable` **by construction** —
+  so the POL-000 floor and `success_all_not_applicable` pass **trivially**, NOT distinguishing
+  "Matcher evaluated → `not_applicable`" from "Matcher produced nothing substantive." G3 proves
+  **composition + plumbing** (real data through all 5 stages, shapes validate, counts aggregate,
+  wrapper quiet n=1) — it does **NOT** prove **substantive matching** (a clause matching real
+  handling → `violation_candidate`/`compliant`). The positive-detection path underwriting
+  "automated LGPD compliance review" stays **unexercised live**; GATE G3 PASS ≠ "the pipeline
+  detects violations." (Requires a substantive clause pack, not the MVP's POL-000-only bundle.)
+- **Observe-vs-calibrate honored (non-negotiable):** timing was **OBSERVED + recorded** (wall 155.2 s,
+  scan 10.2 s, 0 retries); the Deferral A budgets (`READINESS_ATTEMPTS`/`READINESS_POLL_S`/
+  `RETRY_BUDGET`/`STAGE_TIMEOUT_S`) are **untouched** — calibration is a separate downstream step
+  (Deferral A / MC-D), not a within-gate adjustment.
+- **Scope:** the doc-lag PR (classifier.md §4.3, DD-3.3 `coverage_gap` accents, the stale "140"
+  count, `.gitignore` for `scheduled_tasks.lock`) and Deferral A calibration are **OUT** (separate).
+  The opt-in harness is committed (`tests/coordinator/test_g3_live_e2e.py` + the `live` marker);
+  per `gates.md`, this section is the persisted evidence, not the run.
+
+---
+
 # Phase 2a — CONSOLIDATE BRIEF for the next Code session (MC-C continuation)
 
 > Written at the end of the Phase 0+1 session (context budget). Per

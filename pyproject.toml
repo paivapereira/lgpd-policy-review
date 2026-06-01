@@ -30,6 +30,10 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "live: opt-in end-to-end test driving the real Claude Agent SDK + real MCP servers (needs an authenticated session + semgrep on PATH); excluded from the default run via addopts, run explicitly with `-m live`.",
+]
+addopts = "-m 'not live'"
 
 [tool.mypy]
 # Recognizer pack fixtures são deliberadamente type-incorrect pelo padrão

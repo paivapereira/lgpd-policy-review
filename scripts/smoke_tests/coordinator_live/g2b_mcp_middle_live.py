@@ -24,15 +24,14 @@ Four ISOLATED arms (isolated at the driver, NOT run_pipeline):
   G. Detector hook (error) — scan_diff on a bad base_ref -> the wired hook raises
      DetectorScanFailed through the driver (errorCode in structuredContent, Option B).
 
-STATUS (2026-06-01) — ARM D is currently BLOCKED by a driver-layer MCP-readiness gap, NOT a
-bug in this probe. The one-shot `query()` path does not wait for the semgrep-runner's ~3.5 s
-cold-start (servers re-spawn per stage; readiness/recovery live only on the streaming
-`ClaudeSDKClient`), so `scan_diff` is not registered when the Detector acts (`status:
-'pending'` at init) → `findings=[]`. Deferred to the "MCP connection lifecycle & resilience
-in the driver" reliability ADR (Fase 3). See RESULTS.md "GATE G2b ... PARTIALLY-GATED". The
-`uv run --project` launch here is a foreign-cwd robustness aid, NOT the race fix. Re-run after
-the readiness fix to complete D/E/F/G + the `{"output"}` wrapper observation on the real
-list-shaped DetectorOutput.
+STATUS — the MCP-readiness gap that originally blocked ARM D is FIXED (PR-A #95, ADR-0014
+Accepted): these four arms now drive the production `_run_mcp_stage` (D/G → semgrep-runner,
+E/F → policy-reader) with its readiness wait + in-session retry, NOT the one-shot `query()`.
+The causal readiness question is already settled (RESULTS.md "GATE D1" PASS). What remains is
+the milestone-level LIVE run at G3: re-run to complete D/E/F/G end-to-end and make the FIRST
+observation of the `{"output"}` wrapper on a populated, list-shaped `DetectorOutput` (the
+fixture now adds a `cpf` PARAMETER so `scan_diff` yields a real finding). The `uv run
+--project` launch here is a foreign-cwd robustness aid, NOT the race fix.
 
 Pre-reqs: semgrep==1.163.0 (ADR-0010) on PATH; real policy-reader + semgrep-runner via
 .mcp.json; authenticated Claude Code session. Run (PowerShell, no WSL):
@@ -50,7 +49,7 @@ from pathlib import Path
 from claude_agent_sdk import SystemMessage, UserMessage
 
 from coordinator.config import McpServersConfig, load_mcp_config
-from coordinator.driver import run_branch_b_stage
+from coordinator.driver import RETRY_BUDGET, _run_mcp_stage
 from coordinator.prompts import (
     build_classifier_prompt,
     build_detector_prompt,
@@ -66,7 +65,10 @@ from subagents.triager.models import TriagerDecision, TriagerInput
 
 _CFG = ".mcp.json"
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]  # scripts/smoke_tests/coordinator_live/<file>
-# Synthetic CPF (valid checksum, NOT real PII) — triggers the br_cpf recognizer.
+# Synthetic CPF (valid checksum, NOT real PII). NOTE: the br-cpf rule is SYNTACTIC — it
+# matches a parameter named `cpf` (`def $FN(..., cpf, ...)`), NOT this value. The value is
+# realistic decoration for snippets/context; value/dict-key/attribute detection is a
+# documented post-MVP gap (br_cpf.yaml).
 _SYNTHETIC_CPF = "529.982.247-25"
 
 
@@ -109,7 +111,10 @@ def _git(repo: Path, *args: str) -> None:
 
 
 def _make_cpf_repo() -> tuple[Path, str, str]:
-    """A temp git repo: base commit clean, head commit adds a synthetic-CPF literal.
+    """A temp git repo: base commit clean; head commit adds a function with a `cpf`
+    PARAMETER (`def collect(cpf): ...`) — what the SYNTACTIC br-cpf rule matches (NOT a CPF
+    value literal; value/dict-key/attribute detection is a documented post-MVP gap). So
+    `scan_diff` diff-mode flags the added `def` line -> a real br-cpf finding.
     Returns (repo, base_ref, head_ref)."""
     repo = Path(tempfile.mkdtemp(prefix="g2b-cpf-repo-"))
     _git(repo, "init", "-q")
@@ -123,7 +128,9 @@ def _make_cpf_repo() -> tuple[Path, str, str]:
         ["git", "-C", str(repo), "rev-parse", "HEAD"], check=True, capture_output=True, text=True
     ).stdout.strip()
     (repo / "src" / "reg.py").write_text(
-        f"def register(user):\n    cpf = '{_SYNTHETIC_CPF}'  # sintetico\n    return cpf\n",
+        "def register(user):\n    return user\n\n\n"
+        "def collect(cpf):  # 'cpf' parameter -> matched by the syntactic br-cpf rule\n"
+        "    return cpf\n",
         encoding="utf-8",
     )
     _git(repo, "add", "-A")
@@ -151,7 +158,7 @@ async def _arm_d_detector_live() -> tuple[bool, bool]:
     cwd = os.getcwd()
     os.chdir(repo)  # the spawned semgrep-runner inherits cwd -> scan_diff scans this repo
     try:
-        out = await run_branch_b_stage(
+        out = await _run_mcp_stage(
             stage="detector",
             prompt=build_detector_prompt(_scope(base, head), TriagerDecision(decision="proceed", relevance_summary="cpf")),
             options=opts,
@@ -159,6 +166,8 @@ async def _arm_d_detector_live() -> tuple[bool, bool]:
             scratchpad_name="02-detector.json",
             run_path=run_path,
             run_id="g2b-det",
+            target="semgrep-runner",
+            retries=RETRY_BUDGET,
             on_tool_result=_observe,
         )
     finally:
@@ -173,11 +182,11 @@ async def _arm_d_detector_live() -> tuple[bool, bool]:
 async def _arm_e_classifier_live() -> bool:
     cfg = load_mcp_config(_CFG)
     findings = [
-        DetectorFinding(file="src/reg.py", line=2, rule_id="br-cpf", snippet=f"cpf = '{_SYNTHETIC_CPF}'",
-                        surrounding_context="def register(user):\n    cpf = '...'  # coleta de CPF"),
+        DetectorFinding(file="src/reg.py", line=5, rule_id="br-cpf", snippet="def collect(cpf):",
+                        surrounding_context=f"def collect(cpf):  # coleta de CPF (sintetico: {_SYNTHETIC_CPF})\n    return cpf"),
     ]
     run_path = Path(tempfile.mkdtemp(prefix="g2b-cls-run-"))
-    out = await run_branch_b_stage(
+    out = await _run_mcp_stage(
         stage="classifier",
         prompt=build_classifier_prompt(findings),
         options=_classifier_options(cfg),
@@ -185,6 +194,7 @@ async def _arm_e_classifier_live() -> bool:
         scratchpad_name="03-classifier.json",
         run_path=run_path,
         run_id="g2b-cls",
+        target="policy-reader",
         verify_passthrough=verify_classifier_passthrough,
         upstream=findings,
     )
@@ -199,8 +209,8 @@ async def _arm_f_matcher_live() -> tuple[bool, bool]:
         {
             "classified": [
                 {
-                    "file": "src/reg.py", "line": 2, "rule_id": "br-cpf",
-                    "snippet": f"cpf = '{_SYNTHETIC_CPF}'", "surrounding_context": "coleta de CPF",
+                    "file": "src/reg.py", "line": 5, "rule_id": "br-cpf",
+                    "snippet": "def collect(cpf):", "surrounding_context": "def collect(cpf): coleta de CPF",
                     "structured_context": {
                         "operation_type": "collection",
                         "declared_legal_basis": "consent",
@@ -212,7 +222,7 @@ async def _arm_f_matcher_live() -> tuple[bool, bool]:
         }
     )
     run_path = Path(tempfile.mkdtemp(prefix="g2b-mat-run-"))
-    out = await run_branch_b_stage(
+    out = await _run_mcp_stage(
         stage="matcher",
         prompt=build_matcher_prompt(classifier_out),
         options=_matcher_options(cfg),
@@ -220,6 +230,7 @@ async def _arm_f_matcher_live() -> tuple[bool, bool]:
         scratchpad_name="04-matcher.json",
         run_path=run_path,
         run_id="g2b-mat",
+        target="policy-reader",
         # verify_passthrough OMITTED (G6 deferred)
     )
     assert isinstance(out, MatcherOutput)
@@ -235,7 +246,7 @@ async def _arm_g_detector_hook_error() -> bool:
     cfg = load_mcp_config(_CFG)
     run_path = Path(tempfile.mkdtemp(prefix="g2b-deterr-run-"))
     try:
-        await run_branch_b_stage(
+        await _run_mcp_stage(
             stage="detector",
             prompt=build_detector_prompt(_scope("nonexistent-ref-aaaa", "HEAD"), TriagerDecision(decision="proceed", relevance_summary="x")),
             options=_detector_options(cfg),
@@ -243,6 +254,8 @@ async def _arm_g_detector_hook_error() -> bool:
             scratchpad_name="02-detector.json",
             run_path=run_path,
             run_id="g2b-deterr",
+            target="semgrep-runner",
+            retries=RETRY_BUDGET,
             on_tool_result=inspect_scan_diff_result,
         )
     except DetectorScanFailed as exc:

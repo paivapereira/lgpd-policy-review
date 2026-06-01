@@ -736,6 +736,16 @@ implementado, não um desalinhamento doc↔impl):**
   Phase 3: envolver `_atomic_write_json` em try/except e emitir envelope DD-2 com
   errorCode system-class em vez de exceção crua.
 
+**Débito de lint pré-existente (NÃO-MC-C; cleanup trivial em chore PR dedicado):**
+
+- **F401 `json` não-usado em `scripts/smoke_tests/check_applicability_48b/probe.py:21`.**
+  Presente em `main` ANTES da Phase 2a (confirmado por stash de todo o trabalho
+  da 2a — o erro sobrevive), logo fora do escopo do PR da feature. `ruff check .`
+  (repo inteiro) acusa; `ruff check src tests` (escopo da feature) está limpo.
+  Fix trivial: `ruff check --fix` ou remover a linha. Atenção de sequência: se o
+  CI roda `ruff check .`, o primeiro run do PR da feature fica vermelho por este
+  motivo fora de escopo — resolver por fora ou num chore PR dedicado antes do merge.
+
 ---
 
 ## Pós-Milestone B aberto

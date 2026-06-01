@@ -1,8 +1,8 @@
 # ADR-0014 — MCP connection lifecycle and resilience in the coordinator driver
 
-**Status.** Proposed (DRAFT for review — surfaced by the MC-C Phase 2b G2b agent-loop gate, PR #92; evidence in `scripts/smoke_tests/coordinator_live/RESULTS.md` "GATE G2b"). **Acceptance is conditional on the D1 verification gate** (see Decision). Session # to be filled on acceptance.
+**Status.** Accepted — the D1 verification gate **PASSED** (evidence in `scripts/smoke_tests/coordinator_live/RESULTS.md` "GATE D1": the model receives `scan_diff` in the init snapshot and calls it, so readiness-wait re-presents the tool; ADR D1 confirmed *as written*, no redirect). Accepted via the merge of **PR-A #95** (`df78441`, 2026-06-01) — readiness + recovery shipped green. The gap was originally surfaced by the MC-C Phase 2b G2b agent-loop gate (PR #92, "GATE G2b"). Session #52.
 **Date.** 2026-06-01
-**Aprovação.** Pending — draft submitted for Chat review; not yet registered via a PR.
+**Aprovação.** Approved via the merge of **PR-A #95** (`df78441`, 2026-06-01) — the D1 verification gate cleared the acceptance condition (RESULTS.md "GATE D1"), and the readiness + recovery implementation merged green.
 **Supersedes.** Nothing.
 **Superseded by.** Nothing.
 **Related.** ADR-0002 (MCP conventions; Option B error envelope, Decision 3 + 2026-05-17 amendment — the `{errorCode, message, isRetryable, details}` contract this ADR consumes from the stream). ADR-0010 (Semgrep installation — `SEMGREP_BINARY_UNAVAILABLE` as the canonical system/transient failure). ADR-0012 (subagent tool governance — capability vs availability; Deferral B assigns the coordinator-owned gate to Milestone C). ADR-0008 (task decomposition + two-scope verification gate). ADR-0011 (Windows-stdio subprocess transport — the *subprocess*-layer analogue, distinct layer). DD-d (`detector.md` §6.2 / `coordinator.md` §5). `.claude/rules/sdk-mcp-conventions.md` (layer-aware discriminator: read `errorCode` from `tool_use_result.structuredContent`, ignore `isError` under Option B).
@@ -48,7 +48,9 @@ The three stages that spawn a subprocess MCP server — **Detector, Classifier, 
 
 The driver spine `run_branch_b_stage` keeps its capture/discrimination logic **verbatim** — `ResultMessage` capture without `break`, `stop_reason=="refusal"` precedence, the `subtype` match table, the `on_tool_result` hook (Detector), `verify_passthrough` (Classifier), Pydantic validation, scratchpad write, and the `except DetectorScanFailed: raise` carve-out. Only the **transport prologue** (open client → wait-for-connected → `query` → switch the iterator to `receive_response()`) and the connection-failure arm of the existing `try/except` change. The per-stage `_*_options()` (the quintupla canonica + `output_format`) pass to `ClaudeSDKClient(options=...)` unchanged.
 
-### D1 verification gate — readiness must actually re-present the tool to the model (UNVERIFIED; observe before committing the design)
+### D1 verification gate — readiness must actually re-present the tool to the model
+
+**Resolved 2026-06-01 — the gate PASSED (RESULTS.md "GATE D1").** The model received `scan_diff` in the init snapshot and **called** it (semgrep ran); the **Pass → D1 as written** branch was the outcome — no redirect (DD-3.2 = PASS). The analysis below is preserved as the rationale: the causal assumption the gate tested, and the design fork it resolved empirically rather than by assumption.
 
 D1 rests on a **causal assumption that is inference, not observation**: that polling `get_mcp_status()` to `"connected"` *before* `client.query(prompt)` makes `scan_diff` available **to the model** when it acts. What G2b actually observed is `tools: ['Read','StructuredOutput']` in the **init** `SystemMessage` — the tool set the model saw at session start. It is **not** verified whether `ClaudeSDKClient` re-presents an updated tool set to the model after a server connects late, or whether the model acts on that init snapshot. The server handshake advertises `tools: {listChanged: true}` (the MCP protocol *supports* dynamic tool-list updates), but **protocol support ≠ the SDK relay re-presenting the updated list to the model before it acts** — precisely the relay-behavior class that cost four round-trips in the Phase-2b saga when assumed instead of observed.
 
@@ -56,7 +58,7 @@ D1 rests on a **causal assumption that is inference, not observation**: that pol
 - **Pass** → D1 is the fix as written.
 - **Fail** (the model acts on the init snapshot) → D1 needs a different shape: guarantee `"connected"` **before** the initial stream that fixes the tool snapshot, or **re-prompt after `connected`** so the model re-derives its tool set. This is a design fork D1 resolves *empirically*, not by assumption.
 
-This is **distinct from** the mock-fidelity risk below (which verifies the API *shape*); this gate verifies the **causal assumption** that readiness-wait resolves the race. Until it passes, D1 is a proposal, not a solution (see Status + "Proposes to close").
+This is **distinct from** the mock-fidelity risk below (which verifies the API *shape*); this gate verified the **causal assumption** that readiness-wait resolves the race. Until it passed, D1 was a proposal, not a solution; that condition is now cleared — D1 is the shipped fix (see Status + "Closes", below).
 
 ### D2 — Recovery: retry retryable `scan_diff` errors *within the live session*, driven by `isRetryable`
 
@@ -112,46 +114,64 @@ The MCP-consuming stages get a **mock `ClaudeSDKClient`** — an async context m
 - Task-level (red-first): readiness-timeout (status stuck `pending`) → `CoordinatorStreamFailure`; a scripted `SCAN_TIMEOUT`-then-success → exactly one `reconnect_mcp_server` call + green; the preserved-spine regression (the existing `test_driver.py` discrimination anchors stay green through the transport swap).
 - Milestone-level: re-run `scripts/smoke_tests/coordinator_live/g2b_mcp_middle_live.py` — ARM D scans (populated `DetectorOutput`, `{"output"}` wrapper observed/handled), ARMs E/F/G green.
 
-**Proposes to close (conditional on the D1 verification gate).** This ADR *proposes* to close the MC-C Phase 2b G2b deferred debt — both the readiness race and the DD-d recovery loop — under one decision. It is a **draft**: it closes nothing until accepted **and** the D1 verification gate passes (a proposed ADR proposes; it does not close). Ships as a **separate reliability PR** (`.claude/rules/git-conventions.md`, no PR-mista), architecturally distinct from the Phase-2b prompt/hook/passthrough flesh.
+**Closes (D1 verification gate PASSED + PR-A merged).** This ADR **closes** the MC-C Phase 2b G2b deferred debt — both the readiness race and the DD-d recovery loop — under one decision. Both conditions are satisfied: the D1 verification gate passed (RESULTS.md "GATE D1") and the implementation shipped via the **separate reliability PR-A #95** (`.claude/rules/git-conventions.md`, no PR-mista), architecturally distinct from the Phase-2b prompt/hook/passthrough flesh.
 
 ---
 
 ## Appendix — implementation sketch (faithful to the read API)
 
 ```python
-# inside / around run_branch_b_stage, for MCP-consuming stages only (D1+D2+D3)
-async def _run_mcp_stage(options, *, target, prompt, budget, stage, ...):
-    async with ClaudeSDKClient(options) as client:        # D1: ONE session per stage (NOT per attempt)
+# coordinator/driver.py, for MCP-consuming stages only (Detector/Classifier/Matcher; D1+D2).
+# `retries` is the retry COUNT (Detector=RETRY_BUDGET; Classifier/Matcher=0). The loop runs
+# `retries + 1` attempts, guard `attempt < retries` — NOT `attempt + 1 < budget` with
+# budget=retry-count, which would be range(1) -> zero reconnect (the R1 off-by-one trap).
+async def _run_mcp_stage(*, stage, prompt, options, target, retries=0, on_tool_result=None, ...):
+    async with ClaudeSDKClient(options) as client:        # D1/D2: ONE session per stage (NOT per attempt)
         await _wait_for_connected(client, target, stage)  # D1 (b) readiness gate, once
-        for attempt in range(budget):                     # D2: retry WITHIN the live session
-            try:                                          # the try MUST wrap the CONSUMPTION loop,
-                await client.query(prompt)                # not just _discriminate_and_capture: the
-                last_result = None                        # on_tool_result hook raises DetectorScanFailed
-                async for message in client.receive_response():   # DURING consumption (hooks.py:51),
-                    if on_tool_result is not None:        # not in the discrimination tail. If the try
-                        on_tool_result(message)           # wrapped only the tail, a retryable scan-error
-                    if isinstance(message, ResultMessage):  # would escape the retry loop unhandled.
-                        last_result = message
-                return _discriminate_and_capture(last_result, ...)   # refusal/subtype/validate/verify/scratchpad — all preserved
+        last_result = None
+        for attempt in range(retries + 1):                # D2: retry WITHIN the live session
+            last_result = None
+            try:                                          # the try wraps the CONSUMPTION loop: the
+                await client.query(prompt)                # on_tool_result hook raises DetectorScanFailed
+                async with asyncio.timeout(STAGE_TIMEOUT_S):   # DURING consumption (hooks.py:51).
+                    async for message in client.receive_response():   # receive_response() hangs w/o a
+                        if on_tool_result is not None:    # ResultMessage (client.py:579) -> stage timeout.
+                            on_tool_result(message)
+                        if isinstance(message, ResultMessage):
+                            last_result = message
             except DetectorScanFailed as exc:             # D2: retry-vs-escalate by isRetryable
-                if exc.is_retryable and attempt + 1 < budget:
-                    await client.reconnect_mcp_server(target)        # RECONNECT in-session — NO re-spawn
+                if exc.is_retryable and attempt < retries:
+                    try:
+                        await client.reconnect_mcp_server(target)    # RECONNECT in-session — NO re-spawn
+                    except Exception as rexc:             # a failed reconnect = dead transport ->
+                        raise CoordinatorStreamFailure(stage=stage) from rexc   # TYPED halt, not untyped
                     await _wait_for_connected(client, target, stage) # re-wait after reconnect
                     continue
                 raise                                     # non-retryable / budget exhausted
-        raise CoordinatorStreamFailure(stage=stage)       # defensive: budget exhausted without a result
+            except TimeoutError as exc:                   # hung stream -> bounded no-result failure (D4)
+                raise CoordinatorStreamFailure(stage=stage) from exc
+            except Exception as exc:                      # arm B: no result -> stream failure; otherwise
+                if last_result is None:                   # a deliberate post-result exit (last_result
+                    raise CoordinatorStreamFailure(stage=stage) from exc   # authoritative -> fall through)
+            # tail OUTSIDE the try: a STRUCTURED VERDICT (refusal/subtype/validate/verify) propagates
+            # WITHOUT triggering retry — reconnect recovers an unstable transport, never a verdict.
+            return _discriminate_and_capture(last_result, stage=stage, ...)
+    raise CoordinatorStreamFailure(stage=stage)           # defensive: retries exhausted without a result
 
 
 async def _wait_for_connected(client, target, stage):     # D1 (b) readiness gate; D4 on timeout
     for _ in range(READINESS_ATTEMPTS):
-        status = await client.get_mcp_status()            # McpStatusResponse (streaming-only)
-        srv = next((s for s in status["mcpServers"] if s["name"] == target), None)
-        if srv and srv["status"] == "connected":
+        servers = (await client.get_mcp_status())["mcpServers"]   # McpStatusResponse (streaming-only)
+        srv = next((s for s in servers if s["name"] == target), None)
+        if srv is not None and srv["status"] == "connected":
             return
-        if srv and srv["status"] == "failed":
-            await client.reconnect_mcp_server(target)
-        await anyio.sleep(READINESS_POLL_S)
+        if srv is not None and srv["status"] == "failed":
+            try:
+                await client.reconnect_mcp_server(target)
+            except Exception as exc:                      # failed reconnect -> TYPED halt
+                raise CoordinatorStreamFailure(stage=stage) from exc
+        await asyncio.sleep(READINESS_POLL_S)
     raise CoordinatorStreamFailure(stage=stage)           # D4: never reached 'connected'
 ```
 
-*Notes:* the `async with` opens **one session per stage** and **wraps** the retry loop — D2 recovery reconnects **in-session** (`reconnect_mcp_server`, `client.py:402`), **never re-spawns** (the cold-start is paid once). **The retry `try/except` wraps the consumption loop, not only `_discriminate_and_capture`**: the Detector's `on_tool_result` hook (`inspect_scan_diff_result`) raises `DetectorScanFailed` *during* message consumption (`subagents/detector/hooks.py:51`), not in the discrimination tail — so a `try` around the tail alone would let a retryable scan-error escape the retry unhandled. (Verified against the real hook, not inferred from the driver comment.) `get_mcp_status()`/`reconnect_mcp_server()` are streaming-only (`client.py:473`/`402`; control requests require streaming mode, `_internal/query.py:510-511`); `receive_response()` self-terminates on `ResultMessage` (`client.py:605-606`) but can hang otherwise → impose a stage timeout. **The whole sketch is contingent on the D1 verification gate** (that readiness-wait actually re-presents `scan_diff` to the model); `READINESS_*` / `budget` are Deferral A; cross-stage session sharing is Deferral B.
+*Notes:* this sketch mirrors the **merged** `coordinator/driver.py` (PR-A #95). The `async with` opens **one session per stage** and **wraps** the retry loop — D2 recovery reconnects **in-session** (`reconnect_mcp_server`, `client.py:402`), **never re-spawns** (the cold-start is paid once). The retry `try/except` wraps the **consumption loop**, not only `_discriminate_and_capture`: the Detector's `on_tool_result` hook (`inspect_scan_diff_result`) raises `DetectorScanFailed` *during* consumption (`subagents/detector/hooks.py:51`). **`_discriminate_and_capture` sits OUTSIDE the `try` by design** — a structured verdict (refusal/subtype/validation/passthrough) propagates without triggering a reconnect; reconnect recovers an unstable transport, not a verdict. **Four readiness/recovery paths raise the typed `CoordinatorStreamFailure(stage)` (D4):** (1) **readiness exhausted** — the target never reaches `"connected"` within `READINESS_ATTEMPTS` (stuck `pending`; the loop's terminal `raise`); (2) a **hung stream** — `receive_response()` exceeds `STAGE_TIMEOUT_S` (`except TimeoutError`); (3) a **failing reconnect at the readiness site** — a `"failed"` status whose `reconnect_mcp_server` itself raises; (4) a **failing reconnect at the retry site** — the D2 recovery reconnect raises. (These are beyond the spine's pre-existing no-result `CoordinatorStreamFailure` — arm B, when the stream raises before any `ResultMessage`.) So the recovery action of the recovery feature is itself loud-and-typed, never a silent/untyped degrade to a generic `CoordinatorError`. `get_mcp_status()`/`reconnect_mcp_server()` are streaming-only (`client.py:473`/`402`; control requests require streaming mode, `_internal/query.py:510-511`); `receive_response()` self-terminates on `ResultMessage` (`client.py:605-606`) but can hang otherwise → the stage timeout. The readiness loop sleeps with `asyncio.sleep` (no `anyio` dependency introduced). `READINESS_POLL_S` / `READINESS_ATTEMPTS` / `RETRY_BUDGET` / `STAGE_TIMEOUT_S` are provisional budgets (Deferral A); cross-stage session sharing is Deferral B.

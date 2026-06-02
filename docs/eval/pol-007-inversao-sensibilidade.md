@@ -142,9 +142,12 @@ resultante:
 | **sensível** | `consent` (comum) | **`violation_candidate`** (insuficiente) |
 | **sensível** | `explicit_consent` (qualificado) | **`compliant`** |
 
-A implementação tocaria três pontos: (a) `_verdict_for_control` passa a ler a flag
-`special_category` da categoria avaliada; (b) o vocabulário `lawful_basis` ganha o
-token `explicit_consent`; (c) a decisão ramifica conforme a sensibilidade. Aplicada,
+A implementação tocaria dois pontos (o token sensível já existe): (a)
+`_verdict_for_control` passa a ler a flag `special_category` da categoria avaliada;
+(b) quando a categoria é sensível, o token canônico aceito passa a ser
+`explicit_consent` — que **já está** no vocabulário `lawful_basis` (Art. 11, I,
+`category: sensitive_data`); falta apenas o motor consumi-lo, não adicioná-lo. A
+decisão ramifica conforme a sensibilidade. Aplicada,
 a correção inverte os dois Reports B-SENS de volta ao juridicamente correto:
 B-SENS-OK passa a `violation_candidate`, B-SENS-INV passa a `compliant`.
 

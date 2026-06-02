@@ -266,6 +266,16 @@ Trinca de provenance (`policy_schema_version`, `policy_version`, `legal_framewor
 
 ### §3.5 Etapa 5 — Reporter
 
+> **Proveniência top-level do estado consolidado.** A trinca `policy_schema_version`/
+> `policy_version`/`legal_framework` do nível superior do Report é **derivada dos
+> `findings`** (o header da Política echoado verbatim por cada veredito do Matcher via
+> `check_applicability`, policy-reader AS-6), **não** de um parâmetro com default —
+> mantendo-a igual à trinca per-finding por construção (intra-handler cross-check #2 do
+> `emit_report`, reporter.md §3.3). `run_pipeline` usa os parâmetros `policy_*` apenas como
+> **fallback** nos caminhos sem findings (`skipped_by_triager` / `success_no_candidates`),
+> onde não há finding de onde derivar e o cross-check #2 é vácuo. Impl: `_effective_provenance`
+> (`run.py`); regressão em `tests/coordinator/test_provenance_derivation.py`.
+
 ```python
 final_result: ResultMessage | None = None
 emit_report_seen = False

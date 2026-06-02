@@ -110,6 +110,32 @@ def aggregate_summary(findings: list[Finding]) -> SummaryModel:
     return SummaryModel(counts=counts, total=len(findings))
 
 
+def _effective_provenance(
+    findings: list[Finding],
+    *,
+    fallback_schema: str,
+    fallback_version: str,
+    fallback_framework: str,
+) -> tuple[str, str, str]:
+    """Top-level provenance trinca for the Report (reporter.md §3.3 source table:
+    top-level == Policy header). The coordinator cannot read the header directly (it
+    lives behind the policy-reader MCP boundary), so it derives the trinca from the
+    findings, each of which echoes the header verbatim via `check_applicability`
+    (policy-reader AS-6 "Provenance idêntica ao header"). All findings of one run come
+    from the same loaded Policy, so the first is authoritative — and deriving from it
+    keeps the top-level trinca EQUAL to every per-finding trinca by construction, so the
+    reporter intra-handler cross-check #2 (top == per-finding) holds.
+
+    With NO findings (skip / no-candidates) there is nothing to derive from and nothing
+    for cross-check #2 to compare against, so the caller-supplied fallback is used. Known
+    limitation: that label may be stale relative to the loaded Policy (docs/tasks.md
+    §Companion); harmless because cross-check #2 is vacuous with zero findings."""
+    if findings:
+        head = findings[0]
+        return head.policy_schema_version, head.policy_version, head.legal_framework
+    return fallback_schema, fallback_version, fallback_framework
+
+
 def _build_consolidated_state(
     *,
     run_outcome: RunOutcome,
@@ -274,6 +300,9 @@ async def run_pipeline(
     *,
     mcp_config_path: Path = Path(".mcp.json"),
     scratchpad_root: Path = Path(".scratchpad"),
+    # Fallback provenance trinca — used ONLY on the no-findings paths (skip /
+    # no-candidates). On findings-bearing runs the top-level trinca is derived from the
+    # findings (the Policy header echoed by the Matcher); see _effective_provenance.
     policy_schema_version: str = "0.1.0",
     policy_version: str = "0.1.0",
     legal_framework: str = "LGPD",
@@ -351,13 +380,22 @@ async def run_pipeline(
 
         run_outcome = derive_run_outcome(triager_skip_reason, candidates_count, findings)
         summary = aggregate_summary(findings)
+        # Top-level provenance is derived from the findings (the header echoed through the
+        # Matcher), NOT the policy_* params — those are fallbacks for the no-findings paths
+        # (reporter.md §3.3). Keeps top == per-finding so the reporter cross-check #2 holds.
+        eff_schema, eff_version, eff_framework = _effective_provenance(
+            findings,
+            fallback_schema=policy_schema_version,
+            fallback_version=policy_version,
+            fallback_framework=legal_framework,
+        )
         consolidated = _build_consolidated_state(
             run_outcome=run_outcome,
             triager_skip_reason=triager_skip_reason,
             report_id=run_id,
-            policy_schema_version=policy_schema_version,
-            policy_version=policy_version,
-            legal_framework=legal_framework,
+            policy_schema_version=eff_schema,
+            policy_version=eff_version,
+            legal_framework=eff_framework,
             scope=scope,
             summary=summary,
             findings=findings,

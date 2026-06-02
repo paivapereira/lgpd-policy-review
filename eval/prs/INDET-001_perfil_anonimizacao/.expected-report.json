@@ -1,5 +1,5 @@
 {
-  "report_id": "64ac3c68-ac0e-4ac3-acaa-7c1903235c3d",
+  "report_id": "2402fcc2-0dd1-4a93-b1d7-7831c46753bb",
   "report_schema_version": "0.1.0",
   "policy_schema_version": "0.1.0",
   "policy_version": "0.2.0",
@@ -7,28 +7,28 @@
   "run_outcome": "success_with_findings",
   "triager_skip_reason": null,
   "scope": {
-    "pr_number": 2,
+    "pr_number": 4,
     "base_ref": "main",
-    "head_ref": "eval/VIOL-001",
+    "head_ref": "eval/INDET-001",
     "repo_url": "https://example.invalid/lgpd-eval-synthetic"
   },
   "summary": {
     "counts": {
       "compliant": 0,
-      "violation_candidate": 1,
-      "indeterminate": 0,
+      "violation_candidate": 0,
+      "indeterminate": 1,
       "not_applicable": 3
     },
     "total": 4
   },
   "findings": [
     {
-      "file": "eval/prs/VIOL-001_identificacao_sem_base/<synthetic>.py",
+      "file": "eval/prs/INDET-001_perfil_anonimizacao/<synthetic>.py",
       "line": 1,
-      "snippet": "# synthetic eval candidate (VIOL-001)",
+      "snippet": "# synthetic eval candidate (INDET-001)",
       "rule_id": "br-cpf",
       "data_categories": [
-        "dados_de_identificacao"
+        "dados_de_perfil_comportamental"
       ],
       "operation_type": "collection",
       "verdict": "not_applicable",
@@ -43,36 +43,16 @@
       "reason": "Cláusula POL-000 é definitional — não prescreve control. Aplicabilidade não definida para este tipo de cláusula."
     },
     {
-      "file": "eval/prs/VIOL-001_identificacao_sem_base/<synthetic>.py",
+      "file": "eval/prs/INDET-001_perfil_anonimizacao/<synthetic>.py",
       "line": 1,
-      "snippet": "# synthetic eval candidate (VIOL-001)",
+      "snippet": "# synthetic eval candidate (INDET-001)",
       "rule_id": "br-cpf",
       "data_categories": [
-        "dados_de_identificacao"
-      ],
-      "operation_type": "collection",
-      "verdict": "violation_candidate",
-      "policy_clause_ref": "POL-005",
-      "policy_schema_version": "0.1.0",
-      "policy_version": "0.2.0",
-      "legal_framework": "LGPD",
-      "requires_human_review": null,
-      "evidence": "Cláusula POL-005 (LGPD Art. 7º, I) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context omite o campo legal_basis.",
-      "contradicted_requirement": "R1",
-      "verification_scope": null,
-      "reason": null
-    },
-    {
-      "file": "eval/prs/VIOL-001_identificacao_sem_base/<synthetic>.py",
-      "line": 1,
-      "snippet": "# synthetic eval candidate (VIOL-001)",
-      "rule_id": "br-cpf",
-      "data_categories": [
-        "dados_de_identificacao"
+        "dados_de_perfil_comportamental"
       ],
       "operation_type": "collection",
       "verdict": "not_applicable",
-      "policy_clause_ref": "POL-006",
+      "policy_clause_ref": "POL-005",
       "policy_schema_version": "0.1.0",
       "policy_version": "0.2.0",
       "legal_framework": "LGPD",
@@ -80,15 +60,39 @@
       "evidence": null,
       "contradicted_requirement": null,
       "verification_scope": null,
-      "reason": "Cláusula POL-006 governa categorias [dados_de_perfil_comportamental] e operações [collection]; context declara categorias [dados_de_identificacao] e operação 'collection'. Sem intersecção em pelo menos uma dimensão."
+      "reason": "Cláusula POL-005 governa categorias [dados_de_identificacao] e operações [collection]; context declara categorias [dados_de_perfil_comportamental] e operação 'collection'. Sem intersecção em pelo menos uma dimensão."
     },
     {
-      "file": "eval/prs/VIOL-001_identificacao_sem_base/<synthetic>.py",
+      "file": "eval/prs/INDET-001_perfil_anonimizacao/<synthetic>.py",
       "line": 1,
-      "snippet": "# synthetic eval candidate (VIOL-001)",
+      "snippet": "# synthetic eval candidate (INDET-001)",
       "rule_id": "br-cpf",
       "data_categories": [
-        "dados_de_identificacao"
+        "dados_de_perfil_comportamental"
+      ],
+      "operation_type": "collection",
+      "verdict": "indeterminate",
+      "policy_clause_ref": "POL-006",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD",
+      "requires_human_review": null,
+      "evidence": null,
+      "contradicted_requirement": null,
+      "verification_scope": {
+        "dimension": "upstream_state",
+        "prescribed_treatment": "anonymization_required",
+        "verification_target": "Verificar manualmente se o tratamento que coleta as categorias governadas por POL-006 (LGPD Art. 12, §2º) aplica anonimização efetiva upstream antes da coleta. Análise estática local de PR não decide esta dimensão."
+      },
+      "reason": null
+    },
+    {
+      "file": "eval/prs/INDET-001_perfil_anonimizacao/<synthetic>.py",
+      "line": 1,
+      "snippet": "# synthetic eval candidate (INDET-001)",
+      "rule_id": "br-cpf",
+      "data_categories": [
+        "dados_de_perfil_comportamental"
       ],
       "operation_type": "collection",
       "verdict": "not_applicable",
@@ -100,7 +104,7 @@
       "evidence": null,
       "contradicted_requirement": null,
       "verification_scope": null,
-      "reason": "Cláusula POL-007 governa categorias [dados_de_saude] e operações [collection]; context declara categorias [dados_de_identificacao] e operação 'collection'. Sem intersecção em pelo menos uma dimensão."
+      "reason": "Cláusula POL-007 governa categorias [dados_de_saude] e operações [collection]; context declara categorias [dados_de_perfil_comportamental] e operação 'collection'. Sem intersecção em pelo menos uma dimensão."
     }
   ],
   "scan_provenance": null

@@ -235,11 +235,17 @@ veredito vive em código** (`_verdict_for_control`). Logo `lawful_basis_required
 
 ### 5.6 Avaliador (`eval/`)
 - **+** `cases.yaml` (catálogo máquina-legível; roots `eval-lgpd`/`eval-gdpr`),
-  `harness/run_engine_cases.py` (harness determinístico), `harness/README.md`,
-  `harness/gate_run.json` (evidência do gate).
+  `harness/run_engine_cases.py` (harness determinístico de **duas camadas**:
+  veredito + Reports consolidados), `harness/README.md`, `harness/gate_run.json`
+  (evidência do gate de veredito).
+- **+** `harness/reports/<CASE>.report.json` — Reports consolidados VÁLIDOS
+  (validados contra `ReportPayload`), montados reusando as derivações do
+  coordinator (`derive_run_outcome`/`aggregate_summary`/`_build_consolidated_state`)
+  sobre os findings do motor, **sem LLM** (ver §6).
 - **+** `prs/{COMP-001,VIOL-001,INDET-001,SWAP-001,PROBE-UNGOV-001,SKIP-001}/` —
   código sintético (Django, SQLAlchemy, Pydantic, FastAPI, payloads) com gatilhos
-  BR reais; `VIOL-001/.expected-report.json` como âncora de formato.
+  BR reais; o `.expected-report.json` de cada PR é um Report **válido** gerado
+  pelo harness (não mais o formato `findings_assert` inventado).
 
 ### 5.7 Documentação
 - **+** este arquivo (`docs/eval/test-cases-proposal.md`).
@@ -267,6 +273,32 @@ PROBE-UNGOV coverage_gap · SWAP-LGPD compliant · SWAP-GDPR violation_candidate
 PROBE-UNGOV-001 detalhe (sweep): POL-000/005/006/007 **todas** `not_applicable`
 → `coverage_gap`. Nenhum `policy_clause_ref` órfão (cada finding referencia a
 cláusula avaliada; POL-000 é o backstop sempre presente).
+
+### 6.1 Reports consolidados (camada 2 — sem LLM)
+
+O mesmo harness monta **Reports consolidados reais** sem o modelo, reusando as
+funções do coordinator (importadas, nunca reimplementadas — fonte de verdade
+única): para cada candidato LGPD, varre as cláusulas active, monta um `Finding`
+por par, e chama `derive_run_outcome` + `aggregate_summary` +
+`_build_consolidated_state` (`src/coordinator/run.py`), validando contra
+`ReportPayload` (o inputSchema de `emit_report`). **10/10 Reports válidos**,
+emitidos em `eval/harness/reports/<CASE>.report.json` (e no `.expected-report.json`
+de cada PR sintético).
+
+- **run_outcomes cobertos sem modelo:** `success_with_findings`,
+  `success_all_not_applicable`. **Pipeline-only:** `skipped_by_triager` (precisa
+  do Triager) e `success_no_candidates` (precisa o Detector achar zero).
+- **GDPR não emite Report no MVP:** `Finding`/`ReportPayload` fixam
+  `legal_framework: Literal["LGPD"]` — o Report consolidado é LGPD-locked; o
+  *veredito* GDPR (SWAP-001-GDPR) continua coberto pelo gate. Achado a registrar
+  (mesma família de minor-bump do ADR-0007).
+- **Baseline da inversão POL-007:** os Reports `B-SENS-OK` (compliant) e
+  `B-SENS-INV` (violation_candidate) documentam empiricamente a sub-modelagem do
+  Art. 11 ANTES da correção (ADR-0015) — é o baseline contra o qual o laudo
+  pós-correção será comparado.
+- `report_id` (uuid4) é o único campo não-determinístico; comparações de baseline
+  devem ignorá-lo. Locus do finding (file/line/snippet/rule_id) é sintético no
+  harness engine-level; a camada de veredito é real.
 
 ---
 

@@ -20,6 +20,15 @@
 #                        indeterminate|not_applicable|coverage_gap)
 #   pr                 - caminho do código sintético (quando há)
 #   engine_runnable    - true (harness executa) | false (pipeline-only: precisa do modelo)
+#
+# Reports consolidados (camada 2 do harness, run_engine_cases.py): emitidos para
+# cada caso engine_runnable + policy_root eval-lgpd + id NÃO em
+# {NA-MISMATCH-001, NA-DEF-001} (estes são probes de cláusula única, não
+# candidatos). GDPR NÃO emite Report no MVP — Finding/ReportPayload fixam
+# legal_framework Literal["LGPD"] (o veredito GDPR ainda é coberto pelo gate).
+# run_outcomes alcançáveis sem modelo: success_with_findings,
+# success_all_not_applicable. skipped_by_triager e success_no_candidates são
+# pipeline-only. Ver eval/harness/README.md.
 
 cases:
   # ---------------------------------------------------------------- compliant

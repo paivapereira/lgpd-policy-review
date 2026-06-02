@@ -37,10 +37,48 @@ uv run python eval/harness/run_engine_cases.py --json     # machine output
 The last gate run is persisted in `eval/harness/gate_run.json` (evidence; the
 gate's existence and outcome, per `.claude/rules/gates.md`).
 
-**What the engine harness does NOT cover** (by construction): the Triager skip
-decision, the Detector's Semgrep scan, the Classifier's extraction of
-`structured_context`, the Matcher's enumeration/ordering, and the Reporter's
-Report assembly. Those are the LLM/MCP layers below.
+**What layer 1 does NOT cover** (by construction): the Triager skip decision, the
+Detector's Semgrep scan, the Classifier's extraction of `structured_context`, the
+Matcher's LLM enumeration/ordering, and the Reporter's live `emit_report`. Those
+are the LLM/MCP layers. The Reporter's deterministic *derivations*, however, ARE
+covered — see layer 2.
+
+## 1b. Consolidated Reports (layer 2, deterministic) — RUNS TODAY
+
+The same run also assembles real consolidated Reports without the LLM, by reusing
+the coordinator's own derivations (imported, never reimplemented — single source
+of truth):
+
+- For each candidate-bearing LGPD case, sweep all active clauses (Matcher
+  check-all, DD-M1) → one Matcher `Finding` per (candidate × clause) built from
+  the engine verdict → `derive_run_outcome` + `aggregate_summary` +
+  `_build_consolidated_state` (all `src/coordinator/run.py`) → validate against
+  `ReportPayload` (the `emit_report` inputSchema).
+- Written to `eval/harness/reports/<CASE>.report.json`; for a case with a
+  synthetic PR, also to `<pr_dir>/.expected-report.json` (that PR's expected
+  baseline, valid against the real contract).
+- Which cases emit a Report: `engine_runnable` + `policy_root: eval-lgpd` +
+  not a single-clause contract probe (`NA-MISMATCH-001`/`NA-DEF-001`).
+- **run_outcome coverage (no model):** `success_with_findings` and
+  `success_all_not_applicable`. `skipped_by_triager` (needs the Triager) and
+  `success_no_candidates` (needs the Detector to find zero) are **pipeline-only**.
+- **GDPR Reports are NOT emittable in the MVP:** `Finding`/`ReportPayload` pin
+  `legal_framework: Literal["LGPD"]` (`src/subagents/{matcher,reporter}/models.py`).
+  The GDPR swap *verdict* is still covered by layer 1; only the consolidated
+  Report is LGPD-locked until a minor bump.
+- **Locus is synthetic:** `file`/`line`/`snippet`/`rule_id` of each finding are
+  synthetic in the engine harness (the Detector/Classifier supply real loci in
+  the pipeline). The *verdict* layer (verdict, `policy_clause_ref`, evidence,
+  provenance, summary, run_outcome) is real and deterministic.
+- **`report_id` is the only non-deterministic field** (uuid4, required by the
+  model pattern). Every other field is reproducible; baseline diffs of the
+  committed Reports should ignore `report_id`.
+- `requires_human_review` is left unset (it is Matcher-layer logic, not engine).
+
+The highest-value baseline is the POL-007 inversion: `B-SENS-OK` (saúde + bare
+`consent`) → `compliant`, vs `B-SENS-INV` (saúde + correct `explicit_consent`) →
+`violation_candidate`. Those two Reports document the Art.11 sub-modelagem
+empirically, before the ADR-0015 fix.
 
 ## 2. Full pipeline (live model + MCP servers) — DOCUMENTED, not run here
 

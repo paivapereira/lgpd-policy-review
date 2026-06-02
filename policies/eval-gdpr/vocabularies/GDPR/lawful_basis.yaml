@@ -1,0 +1,48 @@
+# policies/eval-gdpr/vocabularies/GDPR/lawful_basis.yaml
+# Vocabulário `lawful_basis` da instância GDPR de avaliação.
+#
+# DIFERENÇA LOAD-BEARING vs LGPD: o token de consentimento aqui é `consent_gdpr`
+# (Art. 6(1)(a)), NÃO `consent`. Essa diferença de vocabulário é o que faz o
+# caso de swap MUDAR de veredito: o motor compara legal_basis por igualdade
+# contra o literal "consent" (tools.py:383), então sob este vocabulário a
+# coleta de identificação com consentimento normaliza para `consent_gdpr` e
+# resulta em `violation_candidate` — enquanto sob LGPD (`consent`) resulta em
+# `compliant`. (Convenção herdada do fixture synthetic_gdpr, que já usa
+# `consent_gdpr` "to make the framework distinction operative rather than
+# cosmetic".)
+
+schema_version: "0.1.0"
+framework: GDPR
+values:
+  - name: consent_gdpr
+    category: personal_data
+    statutory_reference: GDPR Art. 6(1)(a)
+    description: consent of the data subject
+  - name: contract_performance_gdpr
+    category: personal_data
+    statutory_reference: GDPR Art. 6(1)(b)
+    description: performance of a contract
+  - name: legal_obligation_gdpr
+    category: personal_data
+    statutory_reference: GDPR Art. 6(1)(c)
+    description: compliance with a legal obligation
+  - name: vital_interests_gdpr
+    category: personal_data
+    statutory_reference: GDPR Art. 6(1)(d)
+    description: protection of vital interests
+  - name: public_task_gdpr
+    category: personal_data
+    statutory_reference: GDPR Art. 6(1)(e)
+    description: performance of a task in the public interest
+  - name: legitimate_interests_gdpr
+    category: personal_data
+    statutory_reference: GDPR Art. 6(1)(f)
+    description: legitimate interests of the controller
+  - name: explicit_consent_gdpr
+    category: sensitive_data
+    statutory_reference: GDPR Art. 9(2)(a)
+    description: explicit consent for special-category data
+  - name: health_care_gdpr
+    category: sensitive_data
+    statutory_reference: GDPR Art. 9(2)(h)
+    description: medical diagnosis / provision of health care

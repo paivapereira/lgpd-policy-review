@@ -1,0 +1,13 @@
+# policies/eval-gdpr/vocabularies/GDPR/out_of_scope.yaml
+# Vocabulário `reason` (out_of_scope) da instância GDPR. Conjunto mínimo suficiente;
+# POL-000 deste gêmeo declara out_of_scope: [], então estes valores não são
+# exercitados no MVP, mas o arquivo é obrigatório (loader exige os 4 vocabulários).
+schema_version: "0.1.0"
+framework: GDPR
+values:
+  - name: not_personal_data_per_definition
+    description: outside GDPR scope by definition (not personal data).
+  - name: out_of_geographic_scope
+    description: outside the geographic scope of the MVP.
+  - name: anonymous_data
+    description: outside GDPR scope while effectively anonymous (Recital 26).

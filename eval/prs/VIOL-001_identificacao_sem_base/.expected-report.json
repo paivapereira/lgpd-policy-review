@@ -1,0 +1,30 @@
+{
+  "_comment": "Expected Report (shape per reporter.md §3.1) for VIOL-001 under the LGPD eval Policy. ENGINE-level expectation: the POL-005 finding is violation_candidate. The full Report also carries the POL-000/POL-006/POL-007 not_applicable findings from the Matcher check-all sweep (omitted here for brevity; only the load-bearing finding is asserted). Provenance reflects policy/policy.yaml after the eval bump (policy_version 0.2.0).",
+  "report_schema_version": "0.1.0",
+  "policy_schema_version": "0.1.0",
+  "policy_version": "0.2.0",
+  "legal_framework": "LGPD",
+  "run_outcome": "success_with_findings",
+  "summary": {
+    "counts": {
+      "compliant": 0,
+      "violation_candidate": 1,
+      "indeterminate": 0,
+      "not_applicable": 3
+    }
+  },
+  "findings_assert": [
+    {
+      "rule_id": "br-cpf",
+      "data_categories": ["dados_de_identificacao"],
+      "operation_type": "collection",
+      "verdict": "violation_candidate",
+      "policy_clause_ref": "POL-005",
+      "contradicted_requirement": "R1",
+      "requires_human_review": true,
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  ]
+}

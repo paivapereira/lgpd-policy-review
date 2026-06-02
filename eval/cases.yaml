@@ -1,0 +1,273 @@
+# eval/cases.yaml
+# Catálogo MÁQUINA-LEGÍVEL dos casos de avaliação, consumido por
+# eval/harness/run_engine_cases.py. A tabela humana (com os quatro campos do
+# Classifier, cláusula governante, regra, construtibilidade) está em
+# docs/eval/test-cases-proposal.md — este arquivo é a destilação executável.
+#
+# Campos por caso:
+#   id                 - identificador do caso
+#   desc               - descrição de uma linha
+#   policy_root        - eval-lgpd | eval-gdpr   (qual raiz sob policies/ carregar)
+#   mode               - single | sweep              (single check_applicability OU sweep de todas active)
+#   clause_id          - cláusula avaliada (mode: single)
+#   structured_context - INPUT da tool check_applicability (nomes da tool:
+#                        data_categories, operation, legal_basis, destination)
+#   classifier_fields  - os QUATRO campos do Classifier (nomes do Classifier:
+#                        operation_type, data_categories, declared_legal_basis,
+#                        declared_transformations) — doc/realismo; o harness usa
+#                        structured_context (projeção rename já aplicada).
+#   expected_verdict   - desfecho esperado (compliant|violation_candidate|
+#                        indeterminate|not_applicable|coverage_gap)
+#   pr                 - caminho do código sintético (quando há)
+#   engine_runnable    - true (harness executa) | false (pipeline-only: precisa do modelo)
+
+cases:
+  # ---------------------------------------------------------------- compliant
+  - id: COMP-001
+    desc: "Coleta de identificacao com consentimento declarado -> compliant."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-005
+    structured_context:
+      data_categories: [dados_de_identificacao]
+      operation: collection
+      legal_basis: consent
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_identificacao]
+      declared_legal_basis: consent
+      declared_transformations: []
+    expected_verdict: compliant
+    pr: prs/COMP-001_identificacao_consent
+    engine_runnable: true
+
+  # -------------------------------------------------------- violation_candidate
+  - id: VIOL-001
+    desc: "Coleta de identificacao SEM base legal -> violation_candidate (omissao). Vitrine E2E."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-005
+    structured_context:
+      data_categories: [dados_de_identificacao]
+      operation: collection
+      # legal_basis ausente de proposito
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_identificacao]
+      declared_legal_basis: null
+      declared_transformations: []
+    expected_verdict: violation_candidate
+    pr: prs/VIOL-001_identificacao_sem_base
+    engine_runnable: true
+
+  - id: VIOL-002
+    desc: "Coleta de identificacao com base != consent (legitimate_interests) -> violation_candidate (valor nao-canonico)."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-005
+    structured_context:
+      data_categories: [dados_de_identificacao]
+      operation: collection
+      legal_basis: legitimate_interests
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_identificacao]
+      declared_legal_basis: legitimate_interests
+      declared_transformations: []
+    expected_verdict: violation_candidate
+    pr: null
+    engine_runnable: true
+
+  # ------------------------------------------------------------- indeterminate
+  - id: INDET-001
+    desc: "Coleta de perfil comportamental (control anonymization_required) -> indeterminate genuino."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-006
+    structured_context:
+      data_categories: [dados_de_perfil_comportamental]
+      operation: collection
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_perfil_comportamental]
+      declared_legal_basis: null
+      declared_transformations: []
+    expected_verdict: indeterminate
+    pr: prs/INDET-001_perfil_anonimizacao
+    engine_runnable: true
+
+  # ------------------------------------------------------------- not_applicable
+  - id: NA-MVP-001
+    desc: "Operacao != collection (storage) -> not_applicable (sub-caso i, escopo MVP / ADR-0007)."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-005
+    structured_context:
+      data_categories: [dados_de_identificacao]
+      operation: storage
+    classifier_fields:
+      operation_type: storage
+      data_categories: [dados_de_identificacao]
+      declared_legal_basis: consent
+      declared_transformations: []
+    expected_verdict: not_applicable
+    pr: null
+    engine_runnable: true
+
+  - id: NA-MISMATCH-001
+    desc: "Categoria fora do applies_to da clausula (contato vs identificacao) -> not_applicable (sub-caso ii)."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-005
+    structured_context:
+      data_categories: [dados_de_contato]
+      operation: collection
+      legal_basis: consent
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_contato]
+      declared_legal_basis: consent
+      declared_transformations: []
+    expected_verdict: not_applicable
+    pr: null
+    engine_runnable: true
+
+  - id: NA-DEF-001
+    desc: "Avaliar POL-000 (definitional) -> not_applicable (sub-caso iii). Piso de cardinalidade do sweep."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-000
+    structured_context:
+      data_categories: [dados_de_identificacao]
+      operation: collection
+      legal_basis: consent
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_identificacao]
+      declared_legal_basis: consent
+      declared_transformations: []
+    expected_verdict: not_applicable
+    pr: null
+    engine_runnable: true
+
+  # ------------------------------------------------ sondas de fronteira (edge)
+  - id: B-FALSEPOS-001
+    desc: "Coleta de identificacao com base VALIDA nao-consent (contract_performance) -> violation_candidate (FALSO POSITIVO do consent_required estrito). Motiva ADR-0015."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-005
+    structured_context:
+      data_categories: [dados_de_identificacao]
+      operation: collection
+      legal_basis: contract_performance
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_identificacao]
+      declared_legal_basis: contract_performance
+      declared_transformations: []
+    expected_verdict: violation_candidate
+    pr: null
+    engine_runnable: true
+
+  - id: B-SENS-OK-001
+    desc: "Coleta de saude (SENSIVEL) com base comum 'consent' -> compliant no motor (gate de sensibilidade AUSENTE; juridicamente fragil)."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-007
+    structured_context:
+      data_categories: [dados_de_saude]
+      operation: collection
+      legal_basis: consent
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_saude]
+      declared_legal_basis: consent
+      declared_transformations: []
+    expected_verdict: compliant
+    pr: null
+    engine_runnable: true
+
+  - id: B-SENS-INV-001
+    desc: "Coleta de saude com base sensivel CORRETA 'explicit_consent' (Art 11 I) -> violation_candidate no motor (INVERSAO: a base correta e punida)."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-007
+    structured_context:
+      data_categories: [dados_de_saude]
+      operation: collection
+      legal_basis: explicit_consent
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_saude]
+      declared_legal_basis: explicit_consent
+      declared_transformations: []
+    expected_verdict: violation_candidate
+    pr: null
+    engine_runnable: true
+
+  # ---------------------------------- sonda: categoria nao-governada (orfa)
+  - id: PROBE-UNGOV-001
+    desc: "Coleta de dados_de_localizacao (NENHUMA clausula governa) varrida sobre todas as active -> tudo not_applicable -> coverage_gap. Sonda mantida de proposito."
+    policy_root: eval-lgpd
+    mode: sweep
+    structured_context:
+      data_categories: [dados_de_localizacao]
+      operation: collection
+      legal_basis: consent
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_localizacao]
+      declared_legal_basis: consent
+      declared_transformations: []
+    expected_verdict: coverage_gap
+    pr: prs/PROBE-UNGOV-001_localizacao
+    engine_runnable: true
+
+  # ------------------------------------------------------------- swap GDPR
+  - id: SWAP-001-LGPD
+    desc: "SWAP lado LGPD: identificacao + consentimento -> token 'consent' -> compliant."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: POL-005
+    structured_context:
+      data_categories: [dados_de_identificacao]
+      operation: collection
+      legal_basis: consent
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_identificacao]
+      declared_legal_basis: consent
+      declared_transformations: []
+    expected_verdict: compliant
+    pr: prs/SWAP-001_identificacao_consent
+    engine_runnable: true
+
+  - id: SWAP-001-GDPR
+    desc: "SWAP lado GDPR: MESMO codigo; vocab GDPR nomeia consentimento 'consent_gdpr' -> motor (== 'consent') rejeita -> violation_candidate. Flip por vocabulario de base legal."
+    policy_root: eval-gdpr
+    mode: single
+    clause_id: POL-005
+    structured_context:
+      data_categories: [dados_de_identificacao]
+      operation: collection
+      legal_basis: consent_gdpr
+    classifier_fields:
+      operation_type: collection
+      data_categories: [dados_de_identificacao]
+      declared_legal_basis: consent_gdpr
+      declared_transformations: []
+    expected_verdict: violation_candidate
+    pr: prs/SWAP-001_identificacao_consent
+    engine_runnable: true
+
+  # --------------------------------------------------- skip do Triager (etapa 0)
+  - id: SKIP-001
+    desc: "PR so de documentacao -> Triager decide skip (etapa 0, NAO e veredito). Pipeline-only (precisa do modelo)."
+    policy_root: eval-lgpd
+    mode: single
+    clause_id: null
+    structured_context: null
+    classifier_fields: null
+    expected_verdict: triager_skip
+    pr: prs/SKIP-001_docs_only
+    engine_runnable: false

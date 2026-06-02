@@ -1,0 +1,21 @@
+# policy/vocabularies/LGPD/out_of_scope.yaml
+# Canonical do vocabulário `reason` (out_of_scope) para framework LGPD.
+# Referência humana: policy/SCHEMA.md §9.4.
+
+schema_version: "0.1.0"
+framework: LGPD
+values:
+  - name: unmodeled_special_category
+    description: falha o critério de reconhecibilidade técnica (sensíveis difusos do Art. 5º II).
+  - name: absorbed_into_existing_class
+    description: espécie absorvida por classe já modelada.
+  - name: regime_attribute_not_class
+    description: categoria é regime de tratamento, não classe.
+  - name: treatment_attribute_not_class
+    description: categoria é atributo de operação, não classe.
+  - name: not_personal_data_per_definition
+    description: fora do escopo da LGPD por definição.
+  - name: out_of_lgpd_scope_when_truly_anonymous
+    description: fora do escopo enquanto efetivamente anonimizado.
+  - name: out_of_geographic_scope
+    description: fora do escopo geográfico do MVP.

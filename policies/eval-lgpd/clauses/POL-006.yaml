@@ -1,0 +1,43 @@
+# policies/eval-lgpd/clauses/POL-006.yaml
+# Cláusula POL-006 — Coleta de dados de perfil comportamental exige anonimização.
+# Cláusula substantive REAL de avaliação. Rationale em policies/eval-lgpd/rationale/POL-006.md.
+# Veredito-alvo no motor MVP: indeterminate (control anonymization_required;
+# a anonimização efetiva upstream não é observável por análise estática local).
+
+clause_id: POL-006
+title: "Coleta de dados de perfil comportamental exige anonimização prévia"
+clause_type: substantive
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: LGPD
+    artigo: 12
+    paragrafo: 2
+
+applies_to:
+  personal_data_categories:
+    - dados_de_perfil_comportamental
+  operation:
+    - collection
+
+control: anonymization_required
+
+requirements:
+  - id: R1
+    text: >
+      A coleta de dados de perfil comportamental (POL-000 §2.9 — histórico de
+      navegação, eventos de uso, inferências comportamentais, identificadores
+      de rastreamento) para formação de perfil deve ser precedida de anonimização
+      efetiva, na forma do Art. 12, §2º da LGPD. A verificação de que a
+      anonimização foi de fato aplicada upstream excede a análise estática local
+      de um pull request — é dimensão que um revisor humano deve confirmar.
+
+exceptions:
+  - id: E1
+    text: >
+      Não incide sobre dados de perfil já efetivamente anonimizados na origem
+      (Art. 5º, III; Art. 12), hipótese em que o dado deixa de ser pessoal
+      enquanto a anonimização for irreversível. Como a efetividade da
+      anonimização não é decidível na estática, o motor emite `indeterminate`
+      com `verification_scope`, e não `compliant`/`violation_candidate`.

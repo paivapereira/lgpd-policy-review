@@ -1,0 +1,46 @@
+# policies/eval-gdpr/clauses/POL-005.yaml
+# POL-005 da instância GDPR — mesma forma da POL-005 LGPD (consent_required sobre
+# dados_de_identificacao × collection), re-ancorada em GDPR Art. 6(1)(a).
+#
+# É o eixo do caso de SWAP. O motor avalia consent_required por igualdade contra
+# o token literal `consent` (hardcode em tools.py). O vocabulário lawful_basis
+# deste gêmeo nomeia o consentimento como `consent_gdpr` (não `consent`) — ver
+# vocabularies/GDPR/lawful_basis.yaml. Logo o MESMO código que, sob LGPD,
+# normaliza para `consent` (-> compliant), sob GDPR normaliza para `consent_gdpr`
+# (-> violation_candidate, pois `consent_gdpr` != "consent"). O veredito muda por
+# diferença de vocabulário de base legal, não de código. Ver
+# docs/eval/test-cases-proposal.md (caso SWAP-001) e a tensão "acoplamento do
+# token consent ao LGPD no motor".
+
+clause_id: POL-005
+title: "Collection of identification data requires consent (GDPR twin)"
+clause_type: substantive
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: GDPR
+    artigo: 6
+    paragrafo: 1
+    alinea: "a"
+
+applies_to:
+  personal_data_categories:
+    - dados_de_identificacao
+  operation:
+    - collection
+
+control: consent_required
+
+requirements:
+  - id: R1
+    text: >
+      Collection of identification data requires the data subject's consent as
+      lawful basis (GDPR Art. 6(1)(a)). The canonical lawful_basis token in this
+      jurisdiction is `consent_gdpr` (see vocabularies/GDPR/lawful_basis.yaml).
+      NOTE: the MVP engine compares legal_basis by exact equality against the
+      literal token `consent`; since the GDPR consent token is `consent_gdpr`,
+      this clause never yields `compliant` under the current engine — exposing
+      the LGPD-token coupling documented in the proposal.
+
+exceptions: []

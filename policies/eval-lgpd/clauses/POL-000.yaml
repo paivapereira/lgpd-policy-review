@@ -1,0 +1,357 @@
+# policy/clauses/POL-000.yaml
+# Cláusula POL-000 — Vocabulário de classes de dados pessoais
+# Última revisão: 2026-05-10 (sessão #10)
+
+clause_id: POL-000
+title: "Vocabulário de classes de dados pessoais"
+clause_type: definitional
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: LGPD
+    artigo: 5
+
+defines:
+  vocabulary_kind: personal_data_categories
+
+  entries:
+    - name: dados_de_identificacao
+      definition: >
+        Atributos que nomeiam ou rotulam diretamente a pessoa natural enquanto
+        entidade, sem incluir documentos oficiais emitidos pelo Estado nem
+        credenciais de acesso.
+      canonical_examples:
+        - nome
+        - nome_completo
+        - sobrenome
+        - nome_social
+        - username
+        - apelido
+        - data_de_nascimento
+        - genero
+        - sexo
+        - nacionalidade
+        - foto_perfil
+        - user_id
+      statutory_reference:
+        - lei: LGPD
+          artigo: 5
+          inciso: 1
+      special_category: false
+
+    - name: dados_de_documentos_oficiais
+      definition: >
+        Identificadores numéricos ou alfanuméricos emitidos por autoridade
+        pública brasileira que individualizam univocamente o titular perante
+        o Estado e permitem correlação entre bases distintas.
+      canonical_examples:
+        - cpf
+        - cnpj
+        - rg
+        - cnh
+        - numero_cnh
+        - pis
+        - nis
+        - pasep
+        - titulo_eleitor
+        - cns
+        - ctps
+        - passaporte
+        - cartao_nacional_saude
+      statutory_reference:
+        - lei: LGPD
+          artigo: 5
+          inciso: 1
+        - lei: LGPD
+          artigo: 7
+        - lei: LGPD
+          artigo: 11
+      special_category: false
+
+    - name: dados_de_contato
+      definition: >
+        Endereços e canais pelos quais o titular pode ser alcançado por
+        comunicação eletrônica, postal ou telefônica. Distintos de
+        dados_de_localizacao — contato indica onde enviar mensagens, não
+        onde o titular está fisicamente.
+      canonical_examples:
+        - email
+        - email_secundario
+        - telefone
+        - celular
+        - whatsapp
+        - endereco
+        - logradouro
+        - numero
+        - complemento
+        - bairro
+        - cidade
+        - cep
+        - uf
+        - pais
+      statutory_reference:
+        - lei: LGPD
+          artigo: 5
+          inciso: 1
+      special_category: false
+
+    - name: dados_de_localizacao
+      definition: >
+        Atributos que descrevem a posição geográfica do titular em momento
+        determinado ou em série temporal — coordenadas, áreas, trajetos,
+        geolocalização inferida de IP.
+      canonical_examples:
+        - latitude
+        - longitude
+        - coordenadas
+        - geo_point
+        - localizacao_atual
+        - ultima_localizacao
+        - ip_address
+        - geo_ip
+        - trajeto
+        - checkin
+        - place_id
+      statutory_reference:
+        - lei: LGPD
+          artigo: 5
+          inciso: 1
+        - lei: LGPD
+          artigo: 12
+          paragrafo: 2
+      special_category: false
+
+    - name: dados_de_autenticacao
+      definition: >
+        Segredos, credenciais e fatores de autenticação que provam a identidade
+        do titular em sistema computacional. Têm regime de proteção próprio
+        em razão do impacto de incidente.
+      canonical_examples:
+        - senha
+        - password
+        - password_hash
+        - token
+        - refresh_token
+        - api_key
+        - mfa_secret
+        - totp_seed
+        - recovery_code
+        - session_id
+        - cookie_auth
+        - pergunta_secreta
+        - resposta_secreta
+      statutory_reference:
+        - lei: LGPD
+          artigo: 5
+          inciso: 1
+        - lei: LGPD
+          artigo: 6
+          inciso: 7
+        - lei: LGPD
+          artigo: 46
+      special_category: false
+
+    - name: dados_financeiros
+      definition: >
+        Atributos que descrevem posição patrimonial, capacidade de pagamento,
+        instrumentos de pagamento ou histórico financeiro do titular. Quando
+        o atributo for credencial de pagamento, dados_de_autenticacao também
+        incide.
+      canonical_examples:
+        - numero_cartao
+        - card_number
+        - cvv
+        - validade_cartao
+        - conta_bancaria
+        - agencia
+        - banco
+        - chave_pix
+        - pix_key
+        - salario
+        - renda
+        - score_credito
+        - limite_credito
+        - historico_transacoes
+        - iban
+      statutory_reference:
+        - lei: LGPD
+          artigo: 5
+          inciso: 1
+        - lei: LGPD
+          artigo: 7
+          inciso: 5
+      special_category: false
+
+    - name: dados_de_saude
+      definition: >
+        Informação sobre estado físico, mental, condição clínica, diagnóstico,
+        tratamento, medicação, dieta clínica, deficiência, exames laboratoriais
+        ou de imagem, e quaisquer atributos que revelem condição de saúde
+        do titular.
+      canonical_examples:
+        - prontuario
+        - diagnostico
+        - cid
+        - cid10
+        - cid11
+        - medicamento_em_uso
+        - alergia
+        - tipo_sanguineo
+        - historico_clinico
+        - exame_laboratorial
+        - resultado_exame
+        - peso
+        - altura
+        - gestante
+        - comorbidade
+        - plano_saude
+        - numero_plano_saude
+      statutory_reference:
+        - lei: LGPD
+          artigo: 5
+          inciso: 2
+        - lei: LGPD
+          artigo: 11
+      special_category: true
+
+    - name: dados_biometricos
+      definition: >
+        Informação derivada de características físicas, fisiológicas ou
+        comportamentais únicas do titular, processada com a finalidade —
+        atual ou potencial — de identificá-lo univocamente. Inclui dado bruto
+        e dado derivado (embeddings, templates).
+      canonical_examples:
+        - impressao_digital
+        - fingerprint
+        - face_embedding
+        - face_template
+        - voz_embedding
+        - iris_scan
+        - assinatura_digital_biometrica
+        - face_id
+        - biometric_template
+        - liveness_check_data
+      statutory_reference:
+        - lei: LGPD
+          artigo: 5
+          inciso: 2
+        - lei: LGPD
+          artigo: 11
+      special_category: true
+
+    - name: dados_de_perfil_comportamental
+      definition: >
+        Atributos que descrevem padrões de uso, preferências, escolhas,
+        interações e inferências comportamentais derivadas da observação
+        do titular em sistema computacional.
+      canonical_examples:
+        - historico_navegacao
+        - historico_compras
+        - cliques
+        - eventos_uso
+        - preferencias
+        - interesses
+        - segmento_marketing
+        - perfil_consumo
+        - recomendacoes
+        - score_engajamento
+        - tracking_id
+        - cookie_id
+      statutory_reference:
+        - lei: LGPD
+          artigo: 5
+          inciso: 1
+        - lei: LGPD
+          artigo: 12
+          paragrafo: 2
+        - lei: LGPD
+          artigo: 20
+      special_category: false
+
+out_of_scope:
+  - topic: origem_racial_ou_etnica
+    statutory_reference:
+      - lei: LGPD
+        artigo: 5
+        inciso: 2
+    reason: unmodeled_special_category
+    fallback: unmodeled_special_category_fallback
+
+  - topic: conviccao_religiosa
+    statutory_reference:
+      - lei: LGPD
+        artigo: 5
+        inciso: 2
+    reason: unmodeled_special_category
+    fallback: unmodeled_special_category_fallback
+
+  - topic: opiniao_politica
+    statutory_reference:
+      - lei: LGPD
+        artigo: 5
+        inciso: 2
+    reason: unmodeled_special_category
+    fallback: unmodeled_special_category_fallback
+
+  - topic: filiacao_sindical_religiosa_filosofica_politica
+    statutory_reference:
+      - lei: LGPD
+        artigo: 5
+        inciso: 2
+    reason: unmodeled_special_category
+    fallback: unmodeled_special_category_fallback
+
+  - topic: vida_sexual
+    statutory_reference:
+      - lei: LGPD
+        artigo: 5
+        inciso: 2
+    reason: unmodeled_special_category
+    fallback: unmodeled_special_category_fallback
+
+  - topic: dado_genetico
+    statutory_reference:
+      - lei: LGPD
+        artigo: 5
+        inciso: 2
+    reason: absorbed_into_existing_class
+    fallback: dados_de_saude
+
+  - topic: dados_de_criancas_e_adolescentes
+    statutory_reference:
+      - lei: LGPD
+        artigo: 14
+    reason: regime_attribute_not_class
+    fallback: null
+
+  - topic: identificadores_estrangeiros
+    statutory_reference: []
+    reason: out_of_geographic_scope
+    fallback: null
+
+  - topic: dados_de_pessoa_juridica
+    statutory_reference:
+      - lei: LGPD
+        artigo: 5
+        inciso: 5
+    reason: not_personal_data_per_definition
+    fallback: null
+
+  - topic: dados_anonimizados
+    statutory_reference:
+      - lei: LGPD
+        artigo: 5
+        inciso: 3
+      - lei: LGPD
+        artigo: 12
+    reason: out_of_lgpd_scope_when_truly_anonymous
+    fallback: null
+
+  - topic: dados_pseudonimizados
+    statutory_reference:
+      - lei: LGPD
+        artigo: 13
+        paragrafo: 4
+    reason: treatment_attribute_not_class
+    fallback: null

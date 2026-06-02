@@ -1,0 +1,45 @@
+# policies/eval-lgpd/clauses/POL-005.yaml
+# Cláusula POL-005 — Coleta de dados de identificação exige consentimento.
+# Cláusula substantive REAL de avaliação (não fixture). Rationale jurídico
+# canônico em policies/eval-lgpd/rationale/POL-005.md (paridade SCHEMA §8).
+# Autoria: branch eval/test-cases-exploratory (frente de avaliação empírica).
+
+clause_id: POL-005
+title: "Coleta de dados de identificação exige consentimento do titular"
+clause_type: substantive
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: LGPD
+    artigo: 7
+    inciso: 1
+
+applies_to:
+  personal_data_categories:
+    - dados_de_identificacao
+  operation:
+    - collection
+
+control: consent_required
+
+requirements:
+  - id: R1
+    text: >
+      A coleta de dados de identificação (POL-000 §2.1 — nome, nome social,
+      username, data de nascimento e equivalentes) com finalidade não amparada
+      por outra hipótese do Art. 7º exige declaração de consentimento do titular
+      como base legal — valor canônico `consent` do vocabulário `lawful_basis`
+      da Política (LGPD Art. 7º, I). Coleta com `legal_basis` ausente, ou com
+      valor diferente do token canônico `consent`, configura tratamento sem a
+      base legal que esta cláusula prescreve.
+
+exceptions:
+  - id: E1
+    text: >
+      Não incide quando a mesma coleta estiver amparada por outra hipótese
+      legal do Art. 7º (p.ex. execução de contrato do qual o titular é parte,
+      Art. 7º, V) declarada explicitamente. O motor MVP avalia esta cláusula
+      isoladamente e por token único `consent`; o reconhecimento de bases
+      alternativas como conformes depende da evolução de `control` discutida
+      em ADR-0015 (lawful_basis_required) e em docs/eval/test-cases-proposal.md.

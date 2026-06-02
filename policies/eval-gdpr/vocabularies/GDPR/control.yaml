@@ -1,0 +1,17 @@
+# policies/eval-gdpr/vocabularies/GDPR/control.yaml
+# Vocabulário `control` da instância GDPR de avaliação — mesmo conjunto que o
+# seed LGPD (os controles são avaliados por código framework-agnóstico no motor;
+# o que muda entre frameworks é o vocabulário de base legal e as âncoras
+# estatutárias, não o controle).
+#
+# `lawful_basis_required` (PROPOSTA, ADR-0015) NÃO aparece aqui: nenhum control
+# não-implementado pelo motor entra em vocabulário CARREGADO (evita o foot-gun de
+# crashar o sweep). O token vive só em eval/proposed/POL-008.yaml + ADR-0015 +
+# docs/eval/test-cases-proposal.md até a mudança de motor.
+schema_version: "0.1.0"
+framework: GDPR
+values:
+  - name: consent_required
+    description: Policy requires consent as lawful basis.
+  - name: anonymization_required
+    description: Policy requires anonymization before use/persistence.

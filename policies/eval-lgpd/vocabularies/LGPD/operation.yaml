@@ -1,0 +1,73 @@
+# policy/vocabularies/LGPD/operation.yaml
+# Canonical do vocabulário `operation` para framework LGPD.
+# Referência humana: policy/SCHEMA.md §9.2.
+
+schema_version: "0.1.0"
+framework: LGPD
+values:
+  - name: collection
+    description: coleta
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X
+  - name: recording
+    description: produção; recepção
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X
+  - name: organisation
+    description: classificação
+    statutory_anchor: GDPR Art. 4(2)
+  - name: structuring
+    description: estruturação
+    statutory_anchor: GDPR Art. 4(2)
+  - name: storage
+    description: armazenamento; arquivamento
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X
+  - name: adaptation
+    description: adaptação
+    statutory_anchor: GDPR Art. 4(2)
+  - name: alteration
+    description: modificação
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X
+  - name: retrieval
+    description: acesso; extração
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X
+  - name: consultation
+    description: acesso (consulta)
+    statutory_anchor: GDPR Art. 4(2)
+  - name: use
+    description: utilização
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X
+  - name: disclosure_by_transmission
+    description: transmissão; comunicação
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X
+  - name: dissemination
+    description: difusão; distribuição
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X
+  - name: making_available
+    description: disponibilização
+    statutory_anchor: GDPR Art. 4(2)
+  - name: alignment
+    description: combinação por chave
+    statutory_anchor: GDPR Art. 4(2)
+  - name: combination
+    description: combinação genérica
+    statutory_anchor: GDPR Art. 4(2)
+  - name: restriction
+    description: bloqueio
+    statutory_anchor: GDPR Art. 4(2)/(3); LGPD Art. 5º XIII
+  - name: erasure
+    description: eliminação (lógica)
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X e XIV
+  - name: destruction
+    description: eliminação (física)
+    statutory_anchor: GDPR Art. 4(2); LGPD Art. 5º X
+  - name: evaluation
+    description: avaliação; controle
+    statutory_anchor: LGPD Art. 5º X
+  - name: international_transfer
+    description: transferência internacional
+    statutory_anchor: LGPD Art. 33; GDPR Cap. V
+  - name: sharing
+    description: uso compartilhado
+    statutory_anchor: LGPD Art. 7º §5º
+  - name: other
+    description: (fallback exemplificativo)
+    statutory_anchor: null

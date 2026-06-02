@@ -1,0 +1,61 @@
+# eval/proposed/POL-008.yaml
+# Cláusula PROPOSTA POL-008 — Coleta de documentos oficiais exige base legal.
+#
+# ESTÁ AQUI, FORA DE QUALQUER RAIZ DE POLÍTICA CARREGADA (policies/eval-lgpd/,
+# policies/eval-gdpr/, ou o seed policy/), DE PROPÓSITO. Usa control:
+# lawful_basis_required, que o motor MVP NÃO implementa
+# (src/mcp_servers/policy_reader/tools.py `_verdict_for_control` levanta
+# AssertionError para controls fora de {consent_required, anonymization_required}).
+# Colocá-la em policies/eval-lgpd/clauses/ faria o sweep check-all do Matcher
+# CRASHAR sobre TODO candidato (a cláusula seria active e entraria na varredura).
+# Mantida em staging até a mudança de motor descrita em ADR-0015.
+#
+# Construtibilidade: NÃO construível contra o motor atual. POL-008 está FORA do
+# catálogo de avaliação (eval/cases.yaml) — o harness não a carrega. Se algum dia
+# um control não-implementado entrar numa raiz CARREGADA, o motor quebra
+# RUIDOSAMENTE (sinal desejado), não silenciosamente — é o limite que ADR-0015
+# documenta e resolve.
+
+clause_id: POL-008
+title: "Coleta de documentos oficiais exige base legal válida"
+clause_type: substantive
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: LGPD
+    artigo: 7
+
+applies_to:
+  personal_data_categories:
+    - dados_de_documentos_oficiais
+  operation:
+    - collection
+
+control: lawful_basis_required
+
+requirements:
+  - id: R1
+    text: >
+      A coleta de documentos oficiais brasileiros (POL-000 §2.2 — CPF, CNPJ de
+      pessoa física/MEI, RG, CNH, NIS/PIS, título de eleitor, CNS) exige a
+      declaração de ALGUMA base legal válida do Art. 7º da LGPD — não
+      necessariamente consentimento. Hipóteses típicas para documentos:
+      cumprimento de obrigação legal/regulatória (Art. 7º, II — KYC, fiscal),
+      execução de contrato (Art. 7º, V) ou exercício regular de direitos
+      (Art. 7º, VI). A ausência de qualquer base configura tratamento sem
+      fundamento legal.
+
+  - id: R2
+    text: >
+      Quando a categoria coletada for sensível (`special_category: true` em
+      POL-000), a base declarada deve pertencer à família sensível do Art. 11
+      (vocabulário `lawful_basis` com `category: sensitive_data`). Documentos
+      oficiais comuns (CPF, RG) não disparam R2; o gate sensível incide quando a
+      mesma cláusula for reusada para classes sensíveis.
+
+exceptions:
+  - id: E1
+    text: >
+      Não incide sobre identificadores estrangeiros (POL-000 out_of_scope
+      `identificadores_estrangeiros`, fora do escopo geográfico do MVP).

@@ -1,0 +1,50 @@
+# policies/eval-lgpd/clauses/POL-007.yaml
+# Cláusula POL-007 — Coleta de dados de saúde (categoria especial) exige
+# consentimento específico e destacado. Cláusula substantive REAL de avaliação.
+# Rationale em policies/eval-lgpd/rationale/POL-007.md.
+#
+# AVISO DE SUB-MODELAGEM (documentado, não escondido): o motor MVP avalia
+# `consent_required` por igualdade contra o token `consent`, SEM consumir o
+# campo `category` de lawful_basis. Logo, para esta cláusula sobre dado SENSÍVEL,
+# o motor aceita o token comum `consent` como conforme e REJEITA o token
+# sensível correto `explicit_consent` (Art. 11, I) — inversão do resultado
+# juridicamente esperado. É o gate de sensibilidade discutido em
+# docs/eval/test-cases-proposal.md (tensão em aberto) e em matcher.md §8.3.
+
+clause_id: POL-007
+title: "Coleta de dados de saúde exige consentimento específico e destacado"
+clause_type: substantive
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: LGPD
+    artigo: 11
+    inciso: 1
+
+applies_to:
+  personal_data_categories:
+    - dados_de_saude
+  operation:
+    - collection
+
+control: consent_required
+
+requirements:
+  - id: R1
+    text: >
+      A coleta de dados de saúde (POL-000 §2.7 — dado pessoal sensível,
+      `special_category: true`) exige consentimento específico e destacado do
+      titular, na forma do Art. 11, I da LGPD. O regime do Art. 11 é mais
+      estrito que o do Art. 7º: o consentimento deve ser específico para a
+      finalidade de saúde e destacado das demais cláusulas contratuais.
+
+exceptions:
+  - id: E1
+    text: >
+      Não incide quando a coleta estiver amparada por outra hipótese do Art. 11,
+      II (p.ex. tutela da saúde por profissionais de saúde, Art. 11, II, "f"),
+      declarada explicitamente. O motor MVP não distingue base comum de base
+      sensível (não consome `category` de lawful_basis); o reconhecimento de
+      `explicit_consent` e demais bases do Art. 11 como conformes para esta
+      cláusula depende do gate de sensibilidade descrito em ADR-0015.

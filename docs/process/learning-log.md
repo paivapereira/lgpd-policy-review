@@ -7126,3 +7126,100 @@ Abrir sessão ADR pelo **Passo 1**: expor `data_categories` no `get_vocabularies
 experimento discriminante (cpf nu vs cpf rico). Resultado decide se item 7 entra nas
 2 semanas. Antes: corrigir §6(b) do doc POL-007 e limpar corpo do PR #99, depois
 mergear.
+
+# Learning log — entrada de 2026-06-02 (Passo 1 concluido)
+
+> Formato topicos, append-only. Entrada do Passo 1 (expor data_categories +
+> experimento discriminante), fechado com o merge do PR #100. Acrescentar ao
+> `docs/learning-log.md`; nao sobrescrever entradas anteriores.
+
+## 2026-06-02 — Passo 1: expor data_categories ao Classifier + discriminante (PR #100 mergeado)
+
+### Conceitos da prova exercitados
+
+- **D2 — Tool Design & MCP**: composicao de resource no *boundary* vs no *estado*.
+  A 5a chave `data_categories` e composta em `get_vocabularies` (boundary), nao
+  guardada em `state.vocabularies` (que fica com os 4 vocabs jurisdicionais
+  intactos). Mantem o estado fiel as fontes e concentra a logica de apresentacao
+  no ponto de saida — torna a mudanca reversivel e o braco C2 gateavel sem tocar
+  o estado. Resource derivado (categorias, computadas de POL-000) vs servido de
+  arquivo (os 4 jurisdicionais, lidos de vocabularies/<framework>/).
+- **D4 — Prompt Engineering / Structured Output**: restricao (lista de tokens
+  validos / enum) vs demonstracao (few-shot codigo->token). O experimento mediu
+  que a restricao basta sem a demonstracao para categorias semanticamente
+  transparentes — caso-livro de zero-shot bastar quando o modelo ja tem
+  conhecimento de mundo; few-shot so seria necessario para mapeamento
+  idiossincratico. Barra de sucesso = classificacao correta, nao saida nao-vazia.
+- **D4/D5 — desenho de avaliacao**: separar condicao de controle (C1 names-only)
+  do tratamento (C2 names+examples) sem contaminar o controle (exemplos atras de
+  env var, ausentes no default, confirmado em processo antes de qualquer chamada).
+  Regra de leitura pre-registrada antes de medir — e o que licencia a inferencia.
+  Efeito-teto: controle perfeito (5/5) so permite concluir "tratamento nao foi
+  necessario aqui", nunca "nao adiciona nada em geral".
+- **D5 — Reliability / honest measurement**: erro de transporte
+  (CoordinatorStreamFailure, 1/42) registrado como erro de execucao, nao
+  re-executado, nao mascarado. Inconsistencia entre runs tratada como dado, nao
+  como bug a re-rodar. `isError` do envelope reservado a falha de protocolo;
+  sucesso vs erro de dominio discriminado por `errorCode` no structured_content.
+
+### Decisoes
+
+- Opcao B ratificada (compor no boundary, framework omitido como marcador
+  estrutural, names-only default, chave `data_categories` casando com o campo de
+  saida do Classifier, sorted() para idempotencia).
+- Sem edit de prompt do Classifier — "o modelo acha a chave sozinho" tratado como
+  hipotese que o experimento falsificaria; nao falsificou (L1 emitiu token sob C1).
+- R5: emenda a ADR-0005 (categorias estruturais num resource que a ADR descreve
+  como jurisdicional) **adiada**, nota de debito em docs/tasks.md, para consolidar
+  com a futura decisao de policy://examples + a imprecisao do
+  architecture-overview.md §5.4. Nao redigir ADR a frio.
+- R6: ground truth do `cpf` aceita ambos (`identificacao` E `documentos_oficiais`)
+  — ambiguidade legitima; especifico do cpf, N1/N2 mantem GT unico estrito.
+- **policy://examples (item 7) ADIADO do escopo das 2 semanas** — por suficiencia
+  medida nos casos testados, NAO refutado em geral (residuo: categorias sensiveis,
+  tokens idiossincraticos, Politicas futuras menos transparentes).
+
+### Artefatos
+
+- PR #100 (`feat/expose-data-categories-vocab` -> main, 4 commits): exposicao
+  (51516e6), experimento + dados crus (5237ed2), nota de debito (a44e830),
+  documento de avaliacao.
+- `eval/experiments/category_exposure_discriminant.py` + 5 fixtures de
+  preocupacao-unica + README + `output/discriminant_raw.json` (dado cru; conclusao
+  interpretada deliberadamente fora do commit do experimento — vive no doc de
+  avaliacao, decisao consciente de adiciona-lo ao repo).
+- `docs/eval/cpf-exposicao-categorias-suficiencia.md` — achado positivo
+  documentado (par com o pol-007).
+- Specs editadas no mesmo PR (R4): canonical.md §3.3, classifier.md §3.3.
+- Testes: AS-4/AS-5 -> 5 chaves; 2 anchors novos (contrato estrutural + env-gate).
+
+### Resultado do experimento (cru)
+
+42 chamadas, root policies/eval-lgpd. L1/L2 correto 3/3 (C1 e C2); N1/N2 correto
+5/5 (C1 e C2); TN correto 5/5 (C1), 4 correto + 1 erro de transporte (C2). Casos
+nao-literais (N1/N2) — o teste decisivo — acertaram sob C1 (so a lista). C2 nao
+melhorou (teto). cpf sempre emitiu documentos_oficiais (mapeamento literal: cpf e
+canonical_example dessa categoria; diverge do GT canonico identificacao, pontua
+correto por R6).
+
+### Erro de metodo registrado (recorrente)
+
+Quarta ocorrencia na sessao do mesmo padrao: Chat produz prosa que escorrega de
+"o que o dado mostra" para "o que significa", e o Code, lendo arquivos, ancora de
+volta. Casos: (1) §6(b) POL-007; (2) fix do rule_id (regras ja tinham id); (3)
+blast radius da unificacao (3 estimado, 6 real); (4) doc de avaliacao do cpf —
+generalizei "lista basta sempre" do medido "lista basta nos 5 casos", sobre-li a
+escolha do cpf como juizo ponderado (era mapeamento literal), e omiti a divulgacao
+do controle curado (cpf removido de N1/N2). Code pegou os quatro. Licao reforcada:
+no Chat, separar no proprio texto "resultado" de "leitura do resultado"; marcar
+"nao li, e hipotese" ao afirmar estrutura ou ao generalizar alem da amostra.
+
+### Proximo passo
+
+Passo 2 — harness live sobre eval-lgpd: rodar o pipeline real (nao o motor
+deterministico) sobre os PRs sinteticos, capturar Reports de pipeline real (coracao
+do capitulo de avaliacao) e medir acerto do Classifier sobre PRs reais. Tres
+decisoes de desenho a fechar antes do prompt: K execucoes por PR (nao-determinacao
++ ~1/42 falha de transporte observada), enriquecimento de campo dos PRs (campos
+nomeados vs params nus), e se dobrar as correcoes juridicas do item 8 (POL-006
+re-ancorar Art.12§2->Art.6III; POL-005 estreitar) caso va tocar as clausulas.

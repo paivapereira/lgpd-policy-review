@@ -157,16 +157,20 @@ async def test_as4_vocabularies_aggregates_four_keys_lgpd(
     valid_policy_root: Path, reset_server_state: None,
 ) -> None:
     """AS-4. Against the real LGPD Policy, the resource exposes the four
-    keys, each carrying `{schema_version, framework: "LGPD", values[...]}`
-    populated from `policy/vocabularies/LGPD/`."""
+    jurisdictional keys (each `{schema_version, framework: "LGPD", values[...]}`
+    populated from `policy/vocabularies/LGPD/`) plus the structural
+    `data_categories` key (Option B; `framework` omitted — its full structural
+    contract is pinned by
+    `test_vocabularies_data_categories_structural_contract`)."""
     server._bootstrap(valid_policy_root)
 
     payload = await _read_vocabularies()
 
     assert set(payload.keys()) == {
-        "operation", "lawful_basis", "control", "out_of_scope",
+        "operation", "lawful_basis", "control", "out_of_scope", "data_categories",
     }
-    for key, vocab in payload.items():
+    for key in ("operation", "lawful_basis", "control", "out_of_scope"):
+        vocab = payload[key]
         assert vocab["framework"] == "LGPD", key
         assert vocab["schema_version"] == "0.1.0", key
         assert isinstance(vocab["values"], list) and vocab["values"], key
@@ -189,7 +193,7 @@ async def test_as5_vocabularies_framework_agnostic_against_gdpr(
     payload = await _read_vocabularies()
 
     assert set(payload.keys()) == {
-        "operation", "lawful_basis", "control", "out_of_scope",
+        "operation", "lawful_basis", "control", "out_of_scope", "data_categories",
     }
 
     assert payload["operation"]["framework"] == "GDPR"
@@ -212,6 +216,13 @@ async def test_as5_vocabularies_framework_agnostic_against_gdpr(
         {v["name"] for v in payload["out_of_scope"]["values"]}
         == {"out_of_geographic_scope"}
     )
+
+    # The structural `data_categories` vocab is framework-agnostic too: it is
+    # derived from the fixture's POL-000 (single entry `identification_data`),
+    # and — being structural, not jurisdictional — carries NO `framework` field.
+    dc = payload["data_categories"]
+    assert "framework" not in dc
+    assert [v["name"] for v in dc["values"]] == ["identification_data"]
 
 
 # ---------------------------------------------------------------------------
@@ -321,3 +332,84 @@ def test_get_catalog_sorts_explicitly_not_relying_on_dict_order() -> None:
     assert [item["clause_id"] for item in result] == [
         "POL-000", "POL-001", "POL-002", "POL-003", "POL-004",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Anchor 3 — structural `data_categories` key: nine POL-000 tokens, sorted,
+#            names-only, `framework` omitted (Option B)
+# ---------------------------------------------------------------------------
+
+# The nine canonical data-category tokens defined by the real POL-000
+# (`policy/clauses/POL-000.yaml` `defines.entries[].name`). The structural
+# `data_categories` vocabulary on `policy://vocabularies` is derived from these.
+_POL000_CATEGORY_TOKENS = {
+    "dados_de_identificacao",
+    "dados_de_documentos_oficiais",
+    "dados_de_contato",
+    "dados_de_localizacao",
+    "dados_de_autenticacao",
+    "dados_financeiros",
+    "dados_de_saude",
+    "dados_biometricos",
+    "dados_de_perfil_comportamental",
+}
+
+
+async def test_vocabularies_data_categories_structural_contract(
+    valid_policy_root: Path,
+    reset_server_state: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Anchor — the structural `data_categories` key (Option B) is composed at
+    the resource boundary from POL-000, NOT stored as a jurisdictional vocab.
+
+    Pins, by code, the three invariants the spec (`canonical.md` §3.3) declares:
+    (1) the nine POL-000 tokens appear in `sorted()` order — load-bearing for
+    the byte-idempotency contract (AS-6) across server restarts, where `set`
+    iteration order is not stable; (2) `framework` is OMITTED — the absence is
+    what distinguishes the structural layer from the four jurisdictional vocabs
+    in the payload itself; (3) the production default is names-only (each value
+    is `{name}` exactly), so the experiment-only `canonical_examples`
+    enrichment does NOT leak when its env var is unset.
+    """
+    monkeypatch.delenv("POLICY_READER_EXPOSE_CATEGORY_EXAMPLES", raising=False)
+    server._bootstrap(valid_policy_root)
+
+    payload = await _read_vocabularies()
+    dc = payload["data_categories"]
+
+    assert "framework" not in dc  # structural-layer marker
+    assert dc["schema_version"] == "0.1.0"
+    assert [v["name"] for v in dc["values"]] == sorted(_POL000_CATEGORY_TOKENS)
+    assert all(set(v.keys()) == {"name"} for v in dc["values"])  # names-only
+
+
+async def test_data_categories_examples_appended_only_when_env_set(
+    valid_policy_root: Path,
+    reset_server_state: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Anchor — the C2 enrichment (`canonical_examples`) is gated behind the
+    experiment-only env var, default OFF.
+
+    With `POLICY_READER_EXPOSE_CATEGORY_EXAMPLES` set, each category entry gains
+    a `canonical_examples` list (still `framework`-less, still sorted). This
+    pins the env gate so a refactor cannot silently (a) leak examples into the
+    production names-only default, or (b) break the experiment's C2 arm. The
+    default-off direction is covered by
+    `test_vocabularies_data_categories_structural_contract`.
+    """
+    monkeypatch.setenv("POLICY_READER_EXPOSE_CATEGORY_EXAMPLES", "1")
+    server._bootstrap(valid_policy_root)
+
+    payload = await _read_vocabularies()
+    dc = payload["data_categories"]
+
+    assert "framework" not in dc
+    assert [v["name"] for v in dc["values"]] == sorted(_POL000_CATEGORY_TOKENS)
+    by_name = {v["name"]: v for v in dc["values"]}
+    assert "canonical_examples" in by_name["dados_de_identificacao"]
+    assert "nome" in by_name["dados_de_identificacao"]["canonical_examples"]
+    # `cpf` is a canonical_example of dados_de_documentos_oficiais in POL-000 —
+    # the source form of the R6 category ambiguity the experiment accounts for.
+    assert "cpf" in by_name["dados_de_documentos_oficiais"]["canonical_examples"]

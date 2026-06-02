@@ -228,6 +228,34 @@ def _load_data_categories_vocabulary(state: LoadedPolicy) -> set[str]:
     return names
 
 
+def _load_data_category_examples(state: LoadedPolicy) -> dict[str, list[str]]:
+    """Mapeia cada categoria de POL-000 aos seus `canonical_examples`.
+
+    Irmã de `_load_data_categories_vocabulary` (que devolve só os nomes — o
+    conjunto de membership que o motor confia em `check_applicability`). Esta
+    devolve o enriquecimento `name -> canonical_examples`, consumido
+    EXCLUSIVAMENTE pela exposição experimental (arm C2 do discriminante de
+    exposição de categorias) em `get_vocabularies`; NÃO faz parte do default
+    names-only de produção. Mesma invariante de tipagem de POL-000
+    (`DefinitionalClause`) que a irmã.
+    """
+    pol_000 = state.clauses.get("POL-000")
+    assert pol_000 is not None, "POL-000 obrigatória em T01 invariant"
+    assert isinstance(pol_000, DefinitionalClause), (
+        f"POL-000 deve ser DefinitionalClause, mas é {type(pol_000).__name__}"
+    )
+    entries: Any = pol_000.defines.get("entries", [])
+    examples: dict[str, list[str]] = {}
+    for entry in entries:
+        name = entry.get("name")
+        assert name is not None, (
+            f"POL-000 entry sem campo 'name': {entry!r} "
+            "(SCHEMA §5.3 invariant)"
+        )
+        examples[name] = list(entry.get("canonical_examples", []))
+    return examples
+
+
 def _load_operation_vocabulary(state: LoadedPolicy) -> set[str]:
     """Extrai o conjunto de operações do vocabulário `operation`.
 

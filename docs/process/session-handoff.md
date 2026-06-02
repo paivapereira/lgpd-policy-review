@@ -1,221 +1,237 @@
-# Session handoff — fim do exploratório, abertura da sessão ADR
+# Session handoff — fim do exploratório, abertura da sessão de implementação
 
-**Data**: 2026-06-02
-**Branch fechada**: `eval/test-cases-exploratory` (PR #99 → `main`).
+**Data**: 2026-06-02 (revisado após review do plano pelo Code)
+**Branch fechada**: `eval/test-cases-exploratory` → mergeada em `main` (squash `cac06be`, ex-PR #99). Branch deletada local + remoto.
 **Próxima sessão**: implementação (frente Policy + motor), partindo de `main`.
-**Restrição dominante**: ~2 semanas até a entrega. É o filtro de toda priorização abaixo.
+**Restrição dominante**: ~2 semanas até a entrega. É o filtro de toda priorização.
 
 ---
 
 ## 1. Onde paramos
 
-A sessão exploratória produziu e validou o corpo de trabalho de avaliação, agora em
-PR #99 (3 commits, `src/` intacto, seed `policy/` preservado, gate 13/13, suíte 274,
-G3 live passou). Conteúdo entregue:
+PR #99 mergeado em `main`. `src/` intacto, seed `policy/` preservado, gate determinístico
+13/13, suíte 274, G3 live passou. Conteúdo entregue:
 
-- Instâncias de avaliação (topologia B): `policies/eval-lgpd/` (POL-005/006/007 +
-  rationale) e `policies/eval-gdpr/` (gêmeo GDPR).
-- Evaluator `eval/`: `cases.yaml`, `harness/run_engine_cases.py` (gate de veredito
-  13/13 + Reports consolidados 10/10 válidos), PRs sintéticos, POL-008 staged fora
-  do catálogo.
-- Docs: `test-cases-proposal.md`, `pol-007-inversao-sensibilidade.md`, ADR-0015
-  (Proposed, não implementado).
+- Instâncias de avaliação (topologia B, **mantida** para o prazo): `policies/eval-lgpd/`
+  (POL-005/006/007 + rationale) e `policies/eval-gdpr/` (gêmeo GDPR).
+- Evaluator `eval/`: `cases.yaml`, `harness/run_engine_cases.py` (gate 13/13 + Reports
+  consolidados 10/10 válidos), PRs sintéticos, POL-008 staged fora do catálogo.
+- Docs: `test-cases-proposal.md`, `pol-007-inversao-sensibilidade.md`, ADR-0015 (Proposed).
 
-Pendência de merge do PR #99 (ações tuas, antes de mergear):
-- Remover a linha `🤖 Generated with Claude Code` do corpo do PR.
-- Corrigir §6(b) do `pol-007-inversao-sensibilidade.md`: o token `explicit_consent`
-  **já existe** em `lawful_basis.yaml`; a correção projetada precisa do motor
-  *consumir* o token + o gate de sensibilidade, não *adicionar* o token. (Inferência
-  minha não-verificada; o Code leu o arquivo e desmentiu.)
+**Nenhuma ação pré-merge pendente** — a correção da §6(b) do doc POL-007 já entrou
+(commit `a2ff560`, dentro do squash); o footer robô era do corpo do PR, sumiu no squash.
+(Itens que constavam como pendentes no rascunho anterior do handoff estavam stale.)
+
+Pendentes de commit direto em `main` (teus artefatos de sessão): este handoff e a
+entrada de learning-log de 2026-06-02.
 
 ---
 
-## 2. Decisões tomadas nesta sessão (não reabrir)
+## 2. Decisoes tomadas (nao reabrir)
 
-- **Junção `policy/` única**: eliminar a pasta `policies/` irmã. Estrutura-alvo:
-  `policy/_seed/` (fallback POL-000-only), `policy/eval-lgpd/`, `policy/eval-gdpr/`
-  (instâncias irmãs). `policy/` singular = a Camada 1; nada privilegiado exceto o
-  default `_seed`. Implica mudar o fallback hardcoded do loader (`<repo>/policy` →
-  `<repo>/policy/_seed`). Substitui a topologia B do PR #99.
-- **ADR-0015 será implementado** (não adiado), incluindo GDPR (`legal_framework`).
-- **Inversão POL-007 fica DOCUMENTADA, não corrigida** — é exemplo de erro na
-  avaliação, com causa-raiz e correção projetada (documento já escrito). Sai do
-  caminho crítico de *código*; é trabalho de *redação*, já feito.
-- **CI mínima**, não robusta: rodar o pipeline num PR e postar o Report. O resto da
-  CI é trabalho futuro documentado.
-- **Classifier `[]` tem causa estrutural** (não bug do modelo): `get_vocabularies`
-  omite `data_categories` e `policy://examples` não existe. O Classifier foi
-  instruído a classificar com um vocabulário que não lhe é exposto.
+- **Unificacao `policy/` unica** (`_seed` + instancias irmas) esta **decidida**, mas
+  **fora do caminho critico das 2 semanas** — ver secao 4 e 5. Plano de execucao completo
+  ja escrito e auditado (blast radius de 6 loci funcionais mapeado); fica na gaveta para
+  pos-entregaveis.
+- ADR-0015 sera implementado (inclui GDPR / `legal_framework`) — pos caminho critico.
+- Inversao POL-007 fica **documentada, nao corrigida** (documento pronto). Trabalho de
+  redacao, ja feito.
+- CI minima (pipeline num PR posta Report), nao robusta.
+- Classifier `[]` tem causa **estrutural**: `get_vocabularies` omite `data_categories` e
+  `policy://examples` nao existe. Nao e bug do modelo.
+- `policy://examples` (item 7) e **condicional** ao resultado do discriminante do Passo 1
+  (measure-before-tune).
 
 ---
 
-## 3. Lista completa de pendências (priorizada)
+## 3. Lista completa de pendencias (priorizada)
 
-P0 = bloqueia tudo; P1 = necessário para o relatório; P2 = melhora o relatório;
-P3 = pós-TCC. Itens marcados **[no plano]** entram no caminho crítico das 2 semanas;
-os demais são "se sobrar tempo" ou pós-TCC.
+P0 = bloqueia tudo; P1 = necessario p/ relatorio; P2 = melhora; P3 = pos-TCC.
+**[critico]** = no caminho das 2 semanas.
 
-| # | Pendência | Serve | Prio | No plano? |
+| # | Pendencia | Serve | Prio | Caminho critico? |
 |---|---|---|---|---|
-| 1 | Expor `data_categories` no `get_vocabularies` + rodar discriminante (cpf nu vs rico) | Funcionar | P0 | **sim — passo 1** |
-| 2 | Reestruturar `policy/` única (`_seed`+instâncias) + fallback loader | Funcionar/CI | P1 | **sim — passo 2** |
-| — | Harness live sobre `eval-lgpd` (produz Reports de pipeline real p/ o capítulo) | Avaliação | P1 | **sim — passo 3** |
-| 6 | `rule_id` poluído com caminho absoluto (dar `id:` às regras `br_*.yaml`) | Avaliação | P1 | **sim — passo 4** |
-| — | CI mínima (pipeline num PR, posta Report) | CI | P2 | **sim — passo 5** |
-| 3 | Inversão POL-007 | Avaliação | P1 (redação) | feito (documento) |
-| 7 | `policy://examples` completo (PR autônomo + amendment ADR-0005 Decisão 9 + seed ≥2 LGPD + SCHEMA §2) | Funcionar | P1 condicional | só se passo 1 mostrar que a lista não basta |
-| 8 | Correções jurídicas: POL-006 (Art. 12§2º→6ºIII), POL-005 (estreitar p/ marketing) | Avaliação | P2 | se tocar as cláusulas |
-| 4 | `legal_framework: Literal["LGPD"]` → validar contra `accepted_law_identifiers` (destrava Report GDPR) | Avaliação | P2 | se sobrar tempo |
-| 5 | Token `consent` hardcoded ao LGPD no motor | — | P3 | pós-TCC (limite documentado) |
-| 9 | Mover `scripts/`→`tests/`, deletar `scripts/` do root | Higiene | P3 | pós-TCC; **depois** do passo 2 |
+| 1 | Expor `data_categories` ao Classifier + discriminante | Funcionar | P0 | **sim — Passo 1** |
+| — | Harness live sobre `eval-lgpd` (Reports de pipeline real) | Avaliacao | P1 | **sim — Passo 2** |
+| 6 | `rule_id` poluido (normalizar `check_id` no mapper do semgrep-runner) | Avaliacao | P1 | **sim — Passo 3** |
+| — | CI minima (pipeline num PR, posta Report) | CI | P2 | **sim — Passo 4** |
+| 3 | Inversao POL-007 | Avaliacao | P1 (redacao) | feito (documento) |
+| 7 | `policy://examples` completo (PR autonomo + amendment ADR-0005 D9 + seed >=2 LGPD + SCHEMA secao 2) | Funcionar | P1 condicional | so se Passo 1 desfecho (c) |
+| 2 | Unificar `policy/` unica (`_seed`+instancias) + fallback loader | Funcionar/clareza | P2 | **NAO — pos-entregaveis** (plano pronto) |
+| 8 | Correcoes juridicas: POL-006 (Art.12 par.2 -> Art.6 III), POL-005 (marketing) | Avaliacao | P2 | se tocar as clausulas (ver nota Passo 2) |
+| 4 | `legal_framework: Literal["LGPD"]` -> validar contra `accepted_law_identifiers` | Avaliacao | P2 | se sobrar tempo |
+| 5 | Token `consent` hardcoded ao LGPD no motor | — | P3 | pos-TCC (limite documentado) |
+| 9 | Mover `scripts/`->`tests/`, deletar `scripts/` | Higiene | P3 | pos-TCC |
+
+**Mudancas vs rascunho anterior** (pos-review do Code, verificadas em arquivo):
+- **Passo 6 reescopado**: o `rule_id` poluido NAO e falta de `id:` nas regras
+  (`br_cpf.yaml:2` ja tem `id: br-cpf`). E o Semgrep prefixar o namespace pelo caminho do
+  config apesar do `id`. Fix real = normalizar `check_id` no mapper de saida do
+  `semgrep-runner` (`_semgrep_output.py`; ex. `rule_id = check_id.rsplit(".",1)[-1]`), nao
+  nas regras YAML.
+- **Item 2 (unificacao) saiu do caminho critico**: blast radius maior que o estimado
+  (6 loci funcionais, incl. 3 fixtures `conftest.py` que `copytree(REAL_POLICY)`),
+  zero payload funcional para os entregaveis (harness live e CI so apontam
+  `POLICY_READER_ROOT`, nao ligam se e `policies/` ou `policy/`). Alto risco de regressao
+  + zero payload no caminho critico contraria o filtro de prazo. Adiada, plano pronto.
 
 ---
 
-## 4. Plano de ação — 1 → 2 → harness live → 6 → CI mínima
+## 4. Plano de acao (caminho critico) — 1 -> harness live -> rule_id -> CI minima
 
-Cada passo abaixo é uma tarefa de Code separada (prep no Chat → prompt ratificado →
-GATE 1 plan-mode → execução → review de diff → merge). Ordem é por dependência: cada
-passo destrava o seguinte.
+Tudo roda sobre `policies/eval-lgpd/` (topologia B atual). Cada passo e uma tarefa de
+Code separada (prep Chat -> prompt ratificado -> GATE 1 plan-mode -> execucao -> review de
+diff -> merge). PR e teu; Code nao abre PR.
 
-### Passo 1 — Expor `data_categories` ao Classifier + medir
+### Passo 1 — Expor `data_categories` ao Classifier + medir (P0, gargalo)
 
-**O quê**: hoje `get_vocabularies` (no `policy-reader`) retorna operation/lawful_basis/
-control/out_of_scope mas **omite** `data_categories`, que fica server-side, usado só
-dentro de `check_applicability`. O Classifier é instruído a classificar usando o
-vocabulário de categorias — que nunca lhe é exposto. Resultado: devolve `[]`, e o
-pipeline inteiro cai em `not_applicable`/POL-000 (provado no run G3).
+**O que**: `get_vocabularies` (policy-reader, ~`tools.py:117`/`server.py:96`) retorna so os
+4 vocabularios jurisdicionais e **omite `data_categories`** (que existe via
+`_load_data_categories_vocabulary(state)`, derivado do POL-000). O Classifier e instruido
+a classificar com o vocabulario de categorias que nunca lhe e exposto -> devolve `[]` ->
+pipeline cai em `not_applicable`/POL-000 (provado no G3).
 
-**Por que primeiro**: é o gargalo de todos os três objetivos. Sem categoria, nenhum
-caso produz veredito substantivo no pipeline real — não há o que avaliar nem o que
-mostrar na CI. É também o mais barato: expor um vocabulário que já existe.
+**Por que primeiro**: gargalo dos tres objetivos. Sem categoria, nenhum caso produz
+veredito substantivo no pipeline real — nada para avaliar nem mostrar na CI. Mais barato:
+expor vocabulario que ja existe.
 
-**Como**: acrescentar `data_categories` ao retorno de `get_vocabularies` (consertar o
-código contra o que a própria spec já espera — Gate G12 da `classifier.md`). Toca
-`src/mcp_servers/policy_reader` (tools/server). É additive.
+**Como**: adicionar `data_categories` ao retorno de `get_vocabularies`. **Nuance de camada
+a levantar (nao decidir sozinho)**: categorias sao ESTRUTURAIS (POL-000, framework-neutral,
+ADR-0005 D3), diferentes dos 4 vocabs jurisdicionais; expo-las em `policy://vocabularies`
+mistura levemente as camadas. Propor onde expor (mesmo dict / chave separada / resource
+proprio) com trade-off, para ratificacao. Confirmar tambem se o prompt do Classifier
+aponta para o URI certo — se ele tenta ler `policy://examples` (inexistente), o ajuste do
+prompt entra no escopo.
 
-**A medição (parte essencial, não opcional)**: com a categoria exposta, rodar o
-**experimento discriminante** — o Classifier sobre `def collect(cpf)` (input pobre,
-o do G3) e sobre um campo rico (`cpf: str` num model Pydantic, como em
-`eval/prs/COMP-001/users.py`). Três desfechos possíveis: (a) classifica os dois → a
-lista bastava; (b) classifica o rico, abstém no pobre → o input pobre era a causa, o
-sistema está são (resultado positivo); (c) abstém nos dois → ainda falta algo
-(provavelmente `policy://examples`, item 7). **Medir antes de decidir o item 7** —
-ele é caro (PR autônomo + amendment de ADR) e pode ser desnecessário.
+**Discriminante (versao forte — nao a ingenua)**: medir se expor a LISTA basta ou se falta
+DEMONSTRACAO (few-shot). Exigencias:
+- Barra de sucesso = classificacao **CORRETA**, nao so nao-vazia. Distinguir 4 desfechos:
+  correto / abstem `[]` / **errado (categoria alucinada)** / inconsistente entre runs.
+- **NAO testar so com `cpf`** — e o caso facil (o nome do campo E o token canonico
+  POL-000 secao 2.2). Incluir >=1 caso de **inferencia nao-literal** (ex. campo de
+  rastreamento->`perfil_comportamental`, campo clinico cujo nome nao seja "saude"->`saude`).
+  Esse e o caso que de fato discrimina "lista basta" de "precisa de examples".
+- Matriz minima: (1) cpf nu (baseline pobre do G3); (2) cpf em model rico; (3) >=1 inferencia
+  nao-literal. Cada um com ground truth.
+- Veiculo: nao ha harness de Classifier live isolado (os 3 `tests/.../classifier/*` sao
+  unit estruturais). Propor veiculo: invocacao live one-off OU piggyback no pipeline (~2
+  min/run).
+- Nao-determinacao: rodar os casos de fronteira mais de uma vez, reportar consistencia.
 
-**Saída esperada**: Classifier classificando categoria; veredito de se o item 7 é
-necessário.
+**Desfechos e o que cada um decide**:
+- (a) classifica os dois literais E o nao-literal -> lista basta; item 7 dispensado.
+- (b) classifica rico, abstem no pobre -> input pobre era a causa; sistema sao (positivo).
+- (c) abstem/erra no nao-literal mesmo com a lista -> falta demonstracao -> item 7 entra.
 
-### Passo 2 — Reestruturar a Camada 1 sob `policy/` única
+**Contingencia (c)**: se item 7 (`policy://examples` completo) for grande demais p/ 2
+semanas, stopgap = few-shot minimo de mapeamento de categoria no prompt do Classifier
+(aceita quebrar independencia de camada **temporariamente**, documentado como divida) — p/
+um (c) nao afundar o prazo.
 
-**O quê**: fundir `policy/` (seed) + `policies/` (instâncias, do PR #99) numa só pasta
-`policy/`, com o seed em `policy/_seed/` e as instâncias como irmãs
-(`policy/eval-lgpd/`, `policy/eval-gdpr/`). Eliminar `policies/`.
+**Saida**: Classifier classificando; veredito sobre item 7.
 
-**Por que aqui**: é pré-requisito de paths do harness live (passo 3) e da CI (passo 5)
-— ambos apontam para a raiz da policy. Fazer antes evita que os paths mudem no meio.
-Vem depois do passo 1 porque o passo 1 mexe no `policy-reader` e não quer colidir com
-mudança de estrutura de pasta na mesma janela.
+### Passo 2 — Harness live sobre `eval-lgpd` (P1, coracao da avaliacao)
 
-**Como**: mover as instâncias para dentro de `policy/`; mudar o fallback default do
-loader de `<repo>/policy` para `<repo>/policy/_seed`. Toca `loader.py` + ajustar
-`test_bootstrap` (valida o fallback) e o `monkeypatch.delenv` do `test_g3` (que limpa
-`POLICY_READER_ROOT` contando com o fallback ser o seed POL-000-only — segue válido,
-só muda o path). Mudança de motor pequena, mas revalidar a suíte.
+**O que**: adaptar o padrao do `test_g3_live_e2e.py` (que ja roda o pipeline real
+ponta-a-ponta) p/ rodar sobre os PRs sinteticos, apontando
+`POLICY_READER_ROOT=policies/eval-lgpd` (oposto do G3, que limpa a env var p/ usar o seed).
+Capturar os Reports reais.
 
-**Cuidado**: nenhuma instância pode ser privilegiada estruturalmente; o `_seed` é
-default por config do loader, não por natureza. O underscore sinaliza "meta, não
-cliente" e ordena no topo.
+**Por que e o coracao**: os 10 Reports atuais sao do harness DETERMINISTICO (so motor,
+categorias injetadas a mao). O capitulo de avaliacao de um sistema multi-agente precisa de
+Reports onde Triager/Detector/Classifier **rodaram de fato**. Este passo produz isso — e
+mede a taxa de acerto real do Classifier.
 
-**Saída esperada**: `policy/` única, loader caindo em `_seed` por default, suíte verde.
+**Depende de**: Passo 1 (senao Classifier devolve `[]`). Ambiente ja confirmado pronto
+(G3 passou). Insumo pronto: `_make_cpf_repo` do G3 mostra como virar arquivos soltos em
+commits git que `scan_diff` consome; os `eval/prs/*` precisam desse tratamento e possivel
+enriquecimento (campos nomeados, nao params nus) conforme o discriminante do Passo 1.
 
-### Passo 3 — Harness live sobre `eval-lgpd`
+**Nota (decisao da sessao)**: se for tocar as clausulas eval-lgpd aqui, considerar dobrar
+as correcoes juridicas do item 8 (POL-006 re-ancorar Art.12 par.2 -> Art.6 III; POL-005
+estreitar p/ marketing) — barato e evita um passe extra. POL-006 tem erro juridico
+afirmativo que um avaliador de Direito pega.
 
-**O quê**: adaptar o padrão do `test_g3_live_e2e.py` (que já roda o pipeline real
-ponta-a-ponta) para rodar sobre os PRs sintéticos de avaliação, apontando
-`POLICY_READER_ROOT=policy/eval-lgpd` (oposto do G3, que limpa a env var para usar o
-seed). Capturar os Reports reais emitidos.
+**Nao-determinacao dos Reports live**: Classifier/Matcher sao LLMs; o mesmo PR pode variar
+entre runs. Planejar execucoes multiplas/representativas e DECLARAR a nao-determinacao no
+capitulo. Os 10 deterministicos ficam como baseline do motor; os live mostram a realidade
+multi-agente.
 
-**Por que é o coração da avaliação**: os 10 Reports que temos hoje são do harness
-**determinístico** — exercitam só o motor (Matcher), com categorias injetadas à mão.
-O capítulo de avaliação de um sistema multi-agente precisa de Reports onde Triager,
-Detector e Classifier **de fato rodaram**. Este passo produz isso: Reports de
-pipeline real, com as tuas cláusulas, e — de quebra — mede a taxa de acerto real do
-Classifier (quantos PRs ele classifica certo).
+**Saida**: Reports de pipeline real sobre eval-lgpd — material empirico do capitulo.
 
-**Depende de**: passo 1 (senão o Classifier devolve `[]` e tudo vira `not_applicable`)
-e passo 2 (paths). O ambiente já está confirmado pronto (G3 passou: semgrep 1.163.0,
-`.mcp.json`, sessão autenticada).
+### Passo 3 — Normalizar `rule_id` (P1, estetico mas vaza path)
 
-**Insumo pronto**: o `_make_cpf_repo` do G3 mostra como transformar arquivos soltos
-em commits git que o `scan_diff` consome (base_ref/head_ref). Os `eval/prs/*` precisam
-desse tratamento, e podem precisar de enriquecimento (campos nomeados, não parâmetros
-nus) conforme o resultado do discriminante do passo 1.
+**O que**: no G3 o `rule_id` veio `C.Users.joaoguilherm...rules.br-cpf` — o Semgrep
+prefixa o namespace pelo caminho do config **apesar** do `id: br-cpf` explicito na regra.
+Propaga verbatim ate o Report final (correto como passthrough, mas vaza teu path de usuario
+no laudo).
 
-**Saída esperada**: Reports de pipeline real sobre eval-lgpd — o material empírico do
-capítulo de avaliação.
+**Como (reescopado)**: NAO mexer nas regras YAML (ja tem `id`). Normalizar o `check_id` no
+mapper de saida do `semgrep-runner` (`_semgrep_output.py` parseia `check_id`; o mapper p/
+`Finding.rule_id` passa verbatim) — ex. `rule_id = check_id.rsplit(".",1)[-1]`. Locus =
+`semgrep_runner`, nao `rules/`. Pequeno.
 
-### Passo 4 — Limpar o `rule_id` poluído
+**Por que depois do harness live**: cosmetico, mas os Reports "oficiais" do relatorio nao
+podem sair com teu home dir dentro. Re-rodar o harness live depois p/ regenerar Reports
+limpos.
 
-**O quê**: no run G3, o `rule_id` veio
-`C.Users.joaoguilherm.pereira.dev...rules.br-cpf` — o Semgrep prefixou o caminho
-absoluto do arquivo de regra. Isso propaga verbatim por toda a cadeia até o Report
-final (correto como passthrough, mas feio: vaza o teu path de usuário no laudo).
+**Saida**: `rule_id` = `br-cpf` limpo nos Reports.
 
-**Por que depois do harness live**: é cosmético, mas os Reports "oficiais" do
-relatório não podem sair com o teu diretório home dentro. Fazer depois do passo 3
-significa que os Reports do relatório saem limpos; fazer antes seria prematuro (o
-passo 3 pode revelar outros campos a sanear).
+### Passo 4 — CI minima (P2, objetivo 2)
 
-**Como**: dar um `id:` explícito a cada regra `br_*.yaml` (hoje provavelmente sem
-`id`, então o Semgrep deriva do caminho). Toca
-`src/mcp_servers/semgrep_runner/rules/`. Pequeno, alto valor estético. Re-rodar o
-harness live (passo 3) depois para regenerar os Reports limpos.
+**O que**: Action que, num PR, roda o pipeline e posta o Report como comentario. Minima,
+nao robusta (sem matriz/retry/otimizacao).
 
-**Saída esperada**: `rule_id` = `br-cpf` limpo nos Reports.
+**Por que por ultimo**: depende de tudo acima (pipeline com veredito real, Reports limpos).
+Demonstravel como "integracao CI realizada" mesmo minima. CI robusta = trabalho futuro
+documentado.
 
-### Passo 5 — CI mínima (GitHub Actions)
+**Cuidado de ambiente**: precisa de sessao Claude autenticada (secret de repo) + semgrep no
+runner. `test_g3` documenta os pre-requisitos; a Action replica (auth via secret, semgrep
+via step de install).
 
-**O quê**: uma Action que, num PR, roda o pipeline e posta o Report como comentário.
-Mínima, não robusta — sem matrizes, sem otimização, sem retry sofisticado.
-
-**Por que por último**: depende de tudo acima funcionar (pipeline produzindo veredito
-real, paths estáveis, Reports limpos). É o objetivo 2 do TCC, demonstrável como
-"integração CI realizada" mesmo em forma mínima. CI robusta é trabalho futuro
-documentado — a banca não cobra robustez de CI num TCC sobre conformidade LGPD.
-
-**Cuidado de ambiente**: a CI precisa de sessão Claude autenticada (segredo de
-repositório) e semgrep instalado no runner. O `test_g3` documenta os pré-requisitos;
-a Action os replica. Auth via secret, semgrep via step de install.
-
-**Saída esperada**: um PR de demonstração com o Report postado automaticamente — a
-evidência do objetivo 2.
+**Saida**: PR de demonstracao com Report postado automaticamente — evidencia do objetivo 2.
 
 ---
 
-## 5. Notas de método (preservar entre sessões)
+## 5. Trabalho pos-entregaveis (plano pronto, fora das 2 semanas)
 
-- **Verificação antes de inferência**: o erro da §6(b) do doc POL-007 (eu afirmei que
-  faltava um token que já existia) é o caso-exemplo. Ler o arquivo antes de afirmar
-  estrutura, sempre — vale para o Chat tanto quanto para o Code.
-- **Measure-before-tune**: o item 7 (`policy://examples`) só se justifica se o
-  discriminante do passo 1 mostrar que a lista de tokens não basta. Não construir a
-  peça cara por suposição.
-- **Não misturar naturezas de tarefa**: consertar input e medir pipeline são tarefas
-  separadas (senão um Report ruim é ambíguo entre input e pipeline). Mesma lógica
-  separou o PR de avaliação (não toca `src/`) da frente de implementação (toca o
-  motor).
-- **PR é teu, Code não abre PR**: Code implementa e commita na branch; tu crias o PR.
-- **Documentar limite > corrigir mal sob prazo**: a inversão POL-007 vira seção forte
-  de avaliação (achado + causa + correção projetada), com risco zero de prazo, em vez
-  de uma correção de motor arriscada na véspera.
+- **Unificacao `policy/` unica** (item 2). Plano completo ja escrito e auditado: move seed
+  p/ `policy/_seed/`, instancias p/ `policy/eval-*/`, elimina `policies/`, muda fallback do
+  loader (`<repo>/policy`->`<repo>/policy/_seed`). Blast radius = 6 loci funcionais
+  (`loader.py:63`, `conftest.py:15` REAL_POLICY + 3 fixtures copytree,
+  `test_bootstrap.py:82`, `test_find_clauses.py:29`, `run_engine_cases.py` LGPD/GDPR_ROOT,
+  `probe.py:29`) + ~8 docs/comentarios (por-ocorrencia: seed->`_seed/`, SCHEMA fica no topo,
+  instancias->`policy/eval-*`). `SCHEMA.md` no topo (nao move); secoes 2/10 ficam stale ->
+  follow-up. Executar quando um teste vermelho nao for existencial.
+- **ADR-0015** (gate de sensibilidade que corrigiria POL-007; `legal_framework`; etc.).
+- **Itens 4, 5, 9**: P2/P3, se sobrar tempo ou pos-TCC.
 
 ---
 
-## 6. Primeiro passo concreto da próxima sessão
+## 6. Notas de metodo (preservar entre sessoes)
 
-Abrir prompt do **Passo 1**: expor `data_categories` no `get_vocabularies` +
-experimento discriminante. É P0, é barato, e o resultado dele (a lista basta? sim/não)
-decide se o item 7 entra no escopo das 2 semanas ou sai. Prep no Chat antes do prompt:
-confirmar o locus exato em `tools.py`/`server.py` onde `get_vocabularies` monta o
-retorno, e definir os dois inputs do discriminante (o pobre do G3 e um rico de
-`eval/prs/`).
+- **Verificacao antes de inferencia**: nesta sessao o Chat errou 3x por inferir estrutura
+  de arquivo sem ler — secao 6(b) do doc POL-007 (token `explicit_consent` que "faltava" ja
+  existia), o fix do `rule_id` (regras "sem `id`" ja tinham `id`), e o blast radius da
+  unificacao (3 loci estimados, 6 reais). As 3 foram pegas pelo Code lendo os arquivos.
+  Regra: no Chat, marcar explicitamente "nao li, e hipotese" ao afirmar estrutura; o Code
+  verifica antes de executar.
+- **Measure-before-tune**: item 7 so se o discriminante do Passo 1 (com caso nao-literal)
+  provar que a lista nao basta. Nao construir a peca cara por suposicao.
+- **Nao misturar naturezas de tarefa**: consertar input vs medir pipeline sao separados.
+- **PR e teu, Code nao abre PR.**
+- **Documentar limite > corrigir mal sob prazo** (POL-007).
+- **Boa decisao != fazer agora**: a unificacao `policy/` e decisao boa e plano solido, mas
+  zero payload funcional + alto blast radius = fora do caminho critico. Sequenciar onde o
+  risco e absorvivel, nao abandonar.
+
+---
+
+## 7. Primeiro passo concreto da proxima sessao
+
+Abrir o prompt do **Passo 1** (ja redigido no Chat): expor `data_categories` em
+`get_vocabularies` + experimento discriminante forte (barra = correto; incluir caso de
+inferencia nao-literal; veiculo de medicao; nao-determinacao). Plan-mode, para ratificacao.
+Resultado decide se o item 7 entra nas 2 semanas. Tudo sobre `policies/eval-lgpd/` — sem
+tocar a estrutura de pastas.

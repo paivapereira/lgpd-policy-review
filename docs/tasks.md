@@ -620,6 +620,22 @@ em sessão Code curta dedicada):**
   convenção FastMCP recomendada pode revelar débito latente. Sessão
   Code curta ~20-30min; sem bloqueio até que apareça empiricamente.
 
+**Pendência ADR-0005 (exposição estrutural de `data_categories`;
+consolidar com a futura decisão de `policy://examples`, DD-C10):**
+
+- Expor `data_categories` estrutural via `policy://vocabularies` (PR
+  `feat/expose-data-categories-vocab`) adiciona um vocab framework-neutro a
+  um resource cujo contrato ADR-0005 D4 descreve como jurisdicional; emenda à
+  ADR-0005 (distinção estrutural-vs-jurisdicional) pendente — provável
+  consolidação com a decisão futura de `policy://examples` (DD-C10), para uma
+  emenda única em vez de duas fragmentadas.
+- Companheiro `docs/architecture-overview.md` §5.4: descreve os três campos
+  governados (`operation_type`, `data_categories`, `declared_legal_basis`)
+  como restringidos aos "vocabulários jurisdicionais" — frase imprecisa para
+  `data_categories` (estrutural, derivado de POL-000). Corrigir na mesma
+  emenda consolidada, não inline (a nota de camada provisória já está em
+  `classifier.md` §3.3 apontando para `policy-reader/canonical.md` §3.3).
+
 **Follow-up MC-F (a aplicar em sessão futura que tocar a Triager spec):**
 
 - **Follow-up Triager §10.5 item 1 (pós-MC-F):** a prescrição

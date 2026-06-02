@@ -25,6 +25,7 @@ full convention rationale.
 """
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
 
@@ -41,6 +42,7 @@ from ._envelope import (
     _invalid_law_identifier,
     _invalid_operation,
     _load_data_categories_vocabulary,
+    _load_data_category_examples,
     _load_operation_vocabulary,
     _provenance_from,
 )
@@ -115,31 +117,83 @@ def get_catalog(state: LoadedPolicy) -> list[dict[str, Any]]:
 
 
 def get_vocabularies(state: LoadedPolicy) -> dict[str, dict[str, Any]]:
-    """Aggregate of the four jurisdictional vocabularies (canonical §3.3).
+    """Aggregate of the four jurisdictional vocabularies plus the structural
+    data-category vocabulary (canonical §3.3).
 
-    Returns a top-level object keyed by vocabulary name (`operation`,
-    `lawful_basis`, `control`, `out_of_scope`), each value carrying the
-    Pydantic-native dump of the corresponding `Vocabulary` model
-    (`schema_version`, `framework`, `values[]`). The four keys are
-    guaranteed by the loader (T01) — startup aborts if any of the four
-    YAML files is missing.
+    The four JURISDICTIONAL keys (`operation`, `lawful_basis`, `control`,
+    `out_of_scope`) each carry the Pydantic-native dump of the corresponding
+    `Vocabulary` model (`schema_version`, `framework`, `values[]`), sourced from
+    `policy/vocabularies/<framework>/*.yaml`. They are guaranteed by the loader
+    (T01) — startup aborts if any of the four YAML files is missing. Their
+    payload shape is governed by `Vocabulary` in `models.py` (SCHEMA §10.2);
+    `model_dump(mode="json")` is the single source of truth, no wrapper model.
 
-    Pydantic-native serialisation via `model_dump(mode="json")` is the
-    single source of truth for the payload shape — no intermediate
-    helper, no parallel Pydantic wrapper model. The shape contract is
-    governed by `Vocabulary` in `models.py` (SCHEMA §10.2).
+    A fifth, STRUCTURAL key — `data_categories` — is composed at this boundary
+    (Option B) from POL-000, NOT from `state.vocabularies`. See
+    `_data_categories_vocabulary` for the layer rationale (framework omitted),
+    the R3 key-name anchor, and the names-only-vs-experiment shape.
 
-    Framework-agnostic by construction (RF-008 at the component level):
-    the resource reads whatever is loaded into `state.vocabularies` at
-    startup, which itself is sourced from
-    `policy/vocabularies/<framework>/*.yaml` per the `legal_framework`
-    declared in the header. A GDPR Policy with `policy/vocabularies/GDPR/`
-    populated and `legal_framework: GDPR` is served identically — no
-    code change required (AS-5 of T04).
+    Framework-agnostic by construction (RF-008): the four jurisdictional vocabs
+    follow whatever `legal_framework` the header declares (AS-5 of T04); the
+    structural `data_categories` is identical across frameworks (derived from
+    POL-000, framework-neutral — ADR-0005 D3).
     """
-    return {
+    payload: dict[str, dict[str, Any]] = {
         key: vocab.model_dump(mode="json")
         for key, vocab in state.vocabularies.items()
+    }
+    payload["data_categories"] = _data_categories_vocabulary(state)
+    return payload
+
+
+# Experiment-only enrichment flag (arm C2 of the category-exposure
+# discriminant). Default OFF: production exposes the names-only shape. When the
+# env var is set, each category entry additionally carries `canonical_examples`.
+# The flag is read at the resource boundary (below), so production code carries
+# no experiment branch beyond this single guarded line; the experiment harness
+# sets it on the spawned policy-reader subprocess. See
+# `eval/experiments/category_exposure_discriminant.py`.
+_EXPOSE_CATEGORY_EXAMPLES_ENV = "POLICY_READER_EXPOSE_CATEGORY_EXAMPLES"
+
+
+def _data_categories_vocabulary(state: LoadedPolicy) -> dict[str, Any]:
+    """Compose the STRUCTURAL data-category vocabulary at the resource boundary
+    (Option B — composed here, NOT stored in `state.vocabularies`, which stays
+    the four jurisdictional vocabs only).
+
+    Layer distinction made visible in the payload: the four jurisdictional
+    vocabs carry a `framework` field; this structural vocab OMITS it, because
+    the category tokens are framework-neutral (derived from POL-000, ADR-0005
+    D3), not loaded from `policy/vocabularies/<framework>/`.
+
+    R3 ANCHOR — key is `data_categories`, byte-identical to the Classifier's
+    homonymous output field (the primary consumer). DO NOT rename to
+    `personal_data_categories` (POL-000's `vocabulary_kind` / the clause-side
+    `applies_to` key the verdict motor reads): the Classifier prompt never names
+    the payload key and relies on the literal field-name match, so a silent
+    harmonisation to the motor's key would break categorisation.
+
+    `values[]` is `sorted()` so the JSON payload is byte-idempotent across
+    server restarts (canonical §3.3; the real server spawns fresh per run, where
+    `set` iteration order is not stable). names-only is the production default;
+    the `canonical_examples` enrichment is gated behind an experiment-only env
+    var (default off) for arm C2 of the exposure discriminant.
+    """
+    names = sorted(_load_data_categories_vocabulary(state))
+    examples = (
+        _load_data_category_examples(state)
+        if os.environ.get(_EXPOSE_CATEGORY_EXAMPLES_ENV)
+        else None
+    )
+    values: list[dict[str, Any]] = []
+    for name in names:
+        entry: dict[str, Any] = {"name": name}
+        if examples is not None:
+            entry["canonical_examples"] = examples.get(name, [])
+        values.append(entry)
+    return {
+        "schema_version": state.header.policy_schema_version,
+        "values": values,
     }
 
 

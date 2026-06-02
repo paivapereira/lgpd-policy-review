@@ -109,13 +109,17 @@ Falha de qualquer uma das duas validações é fail-fast — consumidor não dev
 - `control` — vocabulário canônico de controles que a Política pode exigir (e.g., `consent_required`, `anonymization_required`).
 - `out_of_scope` — vocabulário canônico de motivos pelos quais uma categoria candidata foi excluída da classificação em cláusulas `definitional` (e.g., absorvida em classe existente, atributo de regime de tratamento, fora do escopo geográfico do MVP).
 
-Cada vocabulário é objeto com campos `schema_version`, `framework`, e `values[]`, conforme estrutura definida em `policy/SCHEMA.md` §10.
+Além dos quatro vocabulários jurisdicionais acima, o objeto agrega uma quinta chave **estrutural**, framework-neutra (ADR-0005 Decision 3):
+
+- `data_categories` — vocabulário canônico de categorias de dados pessoais, **derivado da cláusula definitional POL-000** (`defines.entries[].name`, lido em runtime via `_load_data_categories_vocabulary`), NÃO de `policy/vocabularies/<framework>/`. É idêntico entre frameworks (estrutural, não jurisdicional). A chave é `data_categories`, casando com o campo de saída homônimo do Classifier (consumidor primário), que a usa para restringir o campo `data_categories` de `structured_context`.
+
+Cada vocabulário jurisdicional é objeto com campos `schema_version`, `framework`, e `values[]`, conforme estrutura definida em `policy/SCHEMA.md` §10. O vocabulário estrutural `data_categories` carrega `schema_version` e `values[]` (cada item `{name}`, em ordem `sorted()` para idempotência byte-a-byte) e **omite** `framework` — a ausência distingue, no próprio payload, a camada estrutural da jurisdicional.
 
 **Semântica de leitura.** Idempotente. Conteúdo determinado em startup pelo valor de `legal_framework` no header da Política; imutável durante a sessão do server. Reload exige restart do server, paralelo a `policy://catalog` e `policy://schema-version`.
 
 **Consumidores autorizados.** Matcher (junto com as tools do componente) e Classifier (read-only, sem acesso às tools). Materializa o princípio Resource vs Tool registrado em ADR-0005 Decision 4: o Classifier consome o vocabulário como contexto léxico para categorização lexical de operações detectadas, sem ganhar capacidade de invocar tools de avaliação contextual (exclusivas do Matcher).
 
-**Casos de erro.** Falha de I/O ao ler qualquer dos quatro arquivos YAML sob `policy/vocabularies/<framework>/` é erro de protocolo (Nível 1 MCP) detectado no startup — server falha o boot e relata erro de configuração. Sem casos de erro de domínio em runtime: consumo do resource numa sessão estabelecida é idempotente.
+**Casos de erro.** Falha de I/O ao ler qualquer dos quatro arquivos YAML sob `policy/vocabularies/<framework>/` — ou ausência/má-formação de POL-000, fonte do vocabulário estrutural `data_categories` — é erro de protocolo (Nível 1 MCP) detectado no startup: server falha o boot e relata erro de configuração. Sem casos de erro de domínio em runtime: consumo do resource numa sessão estabelecida é idempotente.
 
 ## 4. Tools expostas
 

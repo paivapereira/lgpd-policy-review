@@ -162,7 +162,7 @@ Pydantic 2.x gera um schema de objeto com `$defs` para os submodelos. Os dois `O
 
 ### 3.3 Vocab membership: soft via system_prompt + null-on-miss, sem `Enum` (DD-C2)
 
-Os três campos governados por vocabulário — `operation_type`, `data_categories`, `declared_legal_basis` — são restringidos aos vocabulários jurisdicionais expostos por `policy://vocabularies` (`docs/architecture-overview.md` §5.4: *"Valores em `operation_type`, `data_categories` e `declared_legal_basis` são restringidos aos vocabulários jurisdicionais"*). `declared_transformations` é **free-form** (não governado por vocabulário).
+Os três campos governados por vocabulário — `operation_type`, `data_categories`, `declared_legal_basis` — são restringidos aos vocabulários expostos por `policy://vocabularies` (`docs/architecture-overview.md` §5.4: *"Valores em `operation_type`, `data_categories` e `declared_legal_basis` são restringidos aos vocabulários jurisdicionais"*). **Nota de camada:** `operation_type` e `declared_legal_basis` mapeiam aos vocabulários *jurisdicionais* (`operation`, `lawful_basis`); `data_categories` mapeia ao vocabulário *estrutural* de categorias (chave `data_categories`, derivado de POL-000, framework-neutro — ADR-0005 D3), co-localizado no mesmo resource (`policy-reader/canonical.md` §3.3) mas de camada distinta. `declared_transformations` é **free-form** (não governado por vocabulário).
 
 A restrição é **soft** (via `system_prompt`) com **null-on-miss**, **não** validação hard via `Enum` Pydantic. Justificativa load-bearing:
 

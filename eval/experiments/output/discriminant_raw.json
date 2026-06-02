@@ -1,0 +1,253 @@
+{
+  "policy_reader_root": "C:\\Users\\joaoguilherm.pereira\\dev\\lgpd-policy-review\\policies\\eval-lgpd",
+  "conditions": {
+    "C1": "names-only (production default)",
+    "C2": "names + canonical_examples (experiment-only env var)"
+  },
+  "cases": {
+    "L1-cpf-bare": {
+      "label": "literal baseline: bare `cpf` parameter (G3 case)",
+      "k": 3,
+      "ground_truth": [
+        "dados_de_documentos_oficiais",
+        "dados_de_identificacao"
+      ],
+      "C1": {
+        "runs": [
+          [
+            "dados_de_documentos_oficiais"
+          ],
+          [
+            "dados_de_documentos_oficiais"
+          ],
+          [
+            "dados_de_documentos_oficiais"
+          ]
+        ],
+        "outcomes": [
+          "correto",
+          "correto",
+          "correto"
+        ]
+      },
+      "C2": {
+        "runs": [
+          [
+            "dados_de_documentos_oficiais"
+          ],
+          [
+            "dados_de_documentos_oficiais"
+          ],
+          [
+            "dados_de_documentos_oficiais"
+          ]
+        ],
+        "outcomes": [
+          "correto",
+          "correto",
+          "correto"
+        ]
+      }
+    },
+    "L2-cpf-rich": {
+      "label": "literal, rich model: `cpf` among identification fields",
+      "k": 3,
+      "ground_truth": [
+        "dados_de_documentos_oficiais",
+        "dados_de_identificacao"
+      ],
+      "C1": {
+        "runs": [
+          [
+            "dados_de_documentos_oficiais"
+          ],
+          [
+            "dados_de_documentos_oficiais"
+          ],
+          [
+            "dados_de_documentos_oficiais"
+          ]
+        ],
+        "outcomes": [
+          "correto",
+          "correto",
+          "correto"
+        ]
+      },
+      "C2": {
+        "runs": [
+          [
+            "dados_de_documentos_oficiais"
+          ],
+          [
+            "dados_de_documentos_oficiais"
+          ],
+          [
+            "dados_de_documentos_oficiais"
+          ]
+        ],
+        "outcomes": [
+          "correto",
+          "correto",
+          "correto"
+        ]
+      }
+    },
+    "N1-behavioral": {
+      "label": "non-literal: behavioral fields -> perfil_comportamental",
+      "k": 5,
+      "ground_truth": [
+        "dados_de_perfil_comportamental"
+      ],
+      "C1": {
+        "runs": [
+          [
+            "dados_de_perfil_comportamental"
+          ],
+          [
+            "dados_de_perfil_comportamental"
+          ],
+          [
+            "dados_de_perfil_comportamental"
+          ],
+          [
+            "dados_de_perfil_comportamental"
+          ],
+          [
+            "dados_de_perfil_comportamental"
+          ]
+        ],
+        "outcomes": [
+          "correto",
+          "correto",
+          "correto",
+          "correto",
+          "correto"
+        ]
+      },
+      "C2": {
+        "runs": [
+          [
+            "dados_de_perfil_comportamental"
+          ],
+          [
+            "dados_de_perfil_comportamental"
+          ],
+          [
+            "dados_de_perfil_comportamental"
+          ],
+          [
+            "dados_de_perfil_comportamental"
+          ],
+          [
+            "dados_de_perfil_comportamental"
+          ]
+        ],
+        "outcomes": [
+          "correto",
+          "correto",
+          "correto",
+          "correto",
+          "correto"
+        ]
+      }
+    },
+    "N2-location": {
+      "label": "non-literal: location fields -> dados_de_localizacao",
+      "k": 5,
+      "ground_truth": [
+        "dados_de_localizacao"
+      ],
+      "C1": {
+        "runs": [
+          [
+            "dados_de_localizacao"
+          ],
+          [
+            "dados_de_localizacao"
+          ],
+          [
+            "dados_de_localizacao"
+          ],
+          [
+            "dados_de_localizacao"
+          ],
+          [
+            "dados_de_localizacao"
+          ]
+        ],
+        "outcomes": [
+          "correto",
+          "correto",
+          "correto",
+          "correto",
+          "correto"
+        ]
+      },
+      "C2": {
+        "runs": [
+          [
+            "dados_de_localizacao"
+          ],
+          [
+            "dados_de_localizacao"
+          ],
+          [
+            "dados_de_localizacao"
+          ],
+          [
+            "dados_de_localizacao"
+          ],
+          [
+            "dados_de_localizacao"
+          ]
+        ],
+        "outcomes": [
+          "correto",
+          "correto",
+          "correto",
+          "correto",
+          "correto"
+        ]
+      }
+    },
+    "TN-generic": {
+      "label": "true-negative control: generic attribute -> [] (abstain)",
+      "k": 5,
+      "ground_truth": "[] (abstention)",
+      "C1": {
+        "runs": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "outcomes": [
+          "correto",
+          "correto",
+          "correto",
+          "correto",
+          "correto"
+        ]
+      },
+      "C2": {
+        "runs": [
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "outcomes": [
+          "correto",
+          "erro_execucao: CoordinatorStreamFailure: query() stream failed before any ResultMessage at stage 'classifier'",
+          "correto",
+          "correto",
+          "correto"
+        ]
+      }
+    }
+  },
+  "total_model_calls": 42
+}

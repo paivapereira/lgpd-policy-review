@@ -7043,3 +7043,86 @@ agent-loop. PR #92 (partially-gated). ADR-0014 (draft, Fase 3).
   verificação pode redirecionar o ADR.
 - Housekeeping PR (doc-lag §4.5/§6.1/§6.2/coordinator §3.1 + §4.3) — trivial, a 
   qualquer momento.
+
+  # Learning log — entrada de 2026-06-02
+
+> Formato tópicos, append-only. Esta é a entrada da sessão exploratória de
+> avaliação (test-cases + harness + achados de pipeline). Acrescentar ao
+> `docs/learning-log.md` existente; não sobrescrever entradas anteriores.
+
+## 2026-06-02 — Exploratório de avaliação (PR #99) + planejamento da frente ADR
+
+### Conceitos da prova exercitados
+
+- **D1 — Agentic Architecture**: teste de *composição* vs *teste de unidade de
+  estágio* (`test_g3_live_e2e` verifica que a cadeia compõe e invariantes valem,
+  não valores exatos; valores ficam no gate determinístico). Enforcement
+  programático vs compliance probabilística — `run_outcome`/`counts` derivados em
+  Python pelo coordinator, não pelo Reporter-LLM (lógica crítica sai do prompt e
+  vira código).
+- **D2 — Tool Design & MCP**: resource derivado (computado, ex. `policy://catalog`)
+  vs resource servido de arquivo curado (ex. `policy://examples`, Camada 1). Resource
+  ausente quebrando agente downstream (Classifier sem `data_categories` exposto).
+  Raiz de Política como unidade de configuração mutuamente exclusiva selecionada por
+  `POLICY_READER_ROOT` (motivo de `policy/` não conter `policies/`).
+- **D4 — Prompt Engineering / Structured Output**: distinção *constraint* (vocab/enum:
+  saída válida) vs *demonstration* (few-shot: saída correta) — um não substitui o
+  outro. Null-on-miss correto (Classifier devolve `[]` em vez de inventar token).
+  Few-shot herda regra de camada: disciplina agnóstica no prompt (Camada 2), exemplos
+  jurisdição-bound em resource (Camada 1). Retry inútil quando a informação não está
+  na fonte (vs erro de formato).
+- **D5 — Context Management & Reliability**: provenance mal-rastreada (assumir dois
+  artefatos idênticos quando divergiram — vocab seed vs vocab enriquecido). Error
+  propagation honesta (incerteza do Classifier propaga como `requires_human_review`,
+  não vira veredito falso). Priorização sob orçamento fixo (escalation/cutoff: o que
+  destrava + o que o artefato final precisa; resto vira trabalho futuro documentado).
+  Surface-the-gap: documentar limite > corrigir mal sob prazo.
+
+### Decisões
+
+- Topologia B mergeada (PR #99), mas **será substituída** por `policy/` única
+  (`_seed` + instâncias irmãs) na frente ADR. Motivo: instâncias e seed como irmãs
+  sob um diretório-mãe; default por config do loader, não por natureza.
+- ADR-0015 será implementado (inclui GDPR / `legal_framework`).
+- Inversão POL-007 fica **documentada** (achado + causa + correção projetada), não
+  corrigida — risco zero de prazo, seção forte de avaliação.
+- CI mínima (pipeline num PR posta Report), não robusta.
+- `policy://examples` (item 7) **condicional** ao discriminante do passo 1
+  (measure-before-tune): só entra se a lista de tokens não bastar.
+- Caminho crítico das 2 semanas: 1 (expor `data_categories` + medir) → 2 (reestrutura
+  `policy/`) → harness live eval-lgpd → 6 (`rule_id` limpo) → CI mínima.
+
+### Artefatos
+
+- PR #99 (`eval/test-cases-exploratory` → main): instâncias eval-lgpd/eval-gdpr,
+  harness 2 camadas (gate 13/13 + 10/10 Reports válidos), `cases.yaml`, PRs
+  sintéticos, ADR-0015 Proposed, `test-cases-proposal.md`.
+- `docs/eval/pol-007-inversao-sensibilidade.md` — achado documentado.
+- 10 Reports determinísticos baseline (`eval/harness/reports/`), incl. B-SENS-OK/INV
+  (o antes da correção POL-007).
+- 1 Report de pipeline live (G3): confirma ambiente pronto, expõe `data_categories: []`
+  do Classifier e `rule_id` poluído com path absoluto.
+- `session-handoff-adr.md` — estado para retomar.
+
+### Achados de pipeline (só visíveis com LLM rodando, não no harness determinístico)
+
+- Classifier devolve `data_categories: []` — causa **estrutural**: `get_vocabularies`
+  omite categorias + `policy://examples` não existe. Não é bug do modelo.
+- `rule_id` poluído com caminho absoluto da máquina (Semgrep deriva do path; regras
+  `br_*.yaml` sem `id:` explícito) — propaga até o Report final.
+- Report consolidado é LGPD-locked (`Finding`/`ReportPayload` fixam
+  `legal_framework: Literal["LGPD"]`): swap GDPR demonstrável só no veredito, não no
+  Report.
+
+### Erro de método registrado
+
+- Afirmei na §6(b) do doc POL-007 que faltava o token `explicit_consent`; o Code leu
+  `lawful_basis.yaml` e o token **já existia**. Violação de "verificação antes de
+  inferência" — inferi estrutura sem ler o arquivo. Correção pendente no doc.
+
+### Próximo passo
+
+Abrir sessão ADR pelo **Passo 1**: expor `data_categories` no `get_vocabularies` +
+experimento discriminante (cpf nu vs cpf rico). Resultado decide se item 7 entra nas
+2 semanas. Antes: corrigir §6(b) do doc POL-007 e limpar corpo do PR #99, depois
+mergear.

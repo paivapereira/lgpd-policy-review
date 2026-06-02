@@ -1,0 +1,28 @@
+# policies/eval-gdpr/vocabularies/GDPR/operation.yaml
+# Vocabulário `operation` da instância GDPR. O token `collection` é compartilhado
+# entre frameworks (o nome canônico é o mesmo); o restante é subconjunto
+# suficiente para a avaliação. MVP avalia apenas `collection` (ADR-0007).
+schema_version: "0.1.0"
+framework: GDPR
+values:
+  - name: collection
+    description: collection
+    statutory_anchor: GDPR Art. 4(2)
+  - name: storage
+    description: storage
+    statutory_anchor: GDPR Art. 4(2)
+  - name: use
+    description: use
+    statutory_anchor: GDPR Art. 4(2)
+  - name: disclosure_by_transmission
+    description: disclosure by transmission
+    statutory_anchor: GDPR Art. 4(2)
+  - name: international_transfer
+    description: international transfer
+    statutory_anchor: GDPR Chapter V
+  - name: erasure
+    description: erasure
+    statutory_anchor: GDPR Art. 4(2)
+  - name: other
+    description: (exemplificative fallback)
+    statutory_anchor: null

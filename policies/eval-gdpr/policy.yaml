@@ -1,0 +1,24 @@
+# policies/eval-gdpr/policy.yaml
+# Instância GDPR de avaliação — raiz de Política completa e independente.
+# Usada pelo caso de SWAP (RF-008): mesmo código, framework distinto, veredito
+# muda por DIFERENÇA DE VOCABULÁRIO DE BASE LEGAL (consent vs consent_gdpr),
+# não por mudança de código.
+#
+# Como apontar o servidor para esta raiz: POLICY_READER_ROOT=policies/eval-gdpr
+# (loader.py:59 — env var tem precedência sobre o autodiscovery de policy/).
+#
+# Não vive no seed policy/ porque uma Política tem UM legal_framework por
+# instância (SCHEMA §3.2; ADR-0005 D2). policy/ é o seed LGPD; esta é a instância
+# gêmea GDPR sob policies/.
+
+policy_schema_version: "0.1.0"
+policy_version: "0.2.0"
+legal_framework: "GDPR"
+
+accepted_law_identifiers:
+  - GDPR
+
+policy_owner: "DPO Office (gêmeo GDPR de avaliação)"
+
+effective_date: "2026-06-01"
+last_revision: "2026-06-01"

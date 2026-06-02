@@ -1,0 +1,11 @@
+# policy/vocabularies/LGPD/control.yaml
+# Canonical do vocabulário `control` para framework LGPD.
+# Referência humana: policy/SCHEMA.md §9.5.
+
+schema_version: "0.1.0"
+framework: LGPD
+values:
+  - name: consent_required
+    description: Política exige consentimento como base legal.
+  - name: anonymization_required
+    description: Política exige anonimização antes de uso/persistência.

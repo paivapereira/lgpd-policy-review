@@ -1,0 +1,27 @@
+# policies/eval-lgpd/policy.yaml
+# Header da INSTÂNCIA LGPD de avaliação (raiz de Política completa e
+# autossuficiente). NÃO é o seed do produto — o seed é `policy/` (POL-000-only,
+# fallback default do loader). Esta instância é a "política realista de cliente"
+# apresentada à banca, com as cláusulas substantive de avaliação.
+#
+# Como apontar o servidor para esta raiz:
+#   POLICY_READER_ROOT=policies/eval-lgpd
+# (loader.py:59 — env var tem precedência sobre o autodiscovery de policy/).
+#
+# BUMP policy_version 0.1.0 -> 0.2.0 (minor, SCHEMA §3.2): publicação das
+# cláusulas substantive ATIVAS de avaliação POL-005, POL-006, POL-007 (novas,
+# status: active). policy_schema_version permanece 0.1.0 (sem mudança estrutural
+# de schema). O seed `policy/` permanece em 0.1.0, POL-000-only — preservando a
+# invariante de bundle do produto (test_bootstrap.py).
+
+policy_schema_version: "0.1.0"
+policy_version: "0.2.0"
+legal_framework: "LGPD"
+
+accepted_law_identifiers:
+  - LGPD
+
+policy_owner: "Instância de avaliação LGPD — TCC de João Pereira (UTFPR)"
+
+effective_date: "2026-05-10"
+last_revision: "2026-06-01"

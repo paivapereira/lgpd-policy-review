@@ -1,0 +1,166 @@
+# policies/eval-gdpr/clauses/POL-000.yaml
+# POL-000 da instância GDPR. REUSA os tokens de categoria de POL-000 (LGPD) —
+# categorias são semânticas/framework-neutras (ADR-0005 D3) — re-ancorando
+# apenas a statutory_reference para o GDPR (lei: GDPR). Os tokens de `name`
+# são IDÊNTICOS aos da POL-000 LGPD para que o caso de swap isole a diferença
+# no vocabulário de base legal, não na categoria.
+
+clause_id: POL-000
+title: "Vocabulário de classes de dados pessoais (gêmeo GDPR)"
+clause_type: definitional
+status: active
+policy_schema_version: "0.1.0"
+
+statutory_reference:
+  - lei: GDPR
+    artigo: 4
+
+defines:
+  vocabulary_kind: personal_data_categories
+
+  entries:
+    - name: dados_de_identificacao
+      definition: >
+        Atributos que nomeiam ou rotulam diretamente a pessoa natural enquanto
+        entidade, sem incluir documentos oficiais nem credenciais de acesso.
+      canonical_examples:
+        - nome
+        - nome_completo
+        - sobrenome
+        - username
+        - data_de_nascimento
+        - user_id
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+      special_category: false
+
+    - name: dados_de_documentos_oficiais
+      definition: >
+        Identificadores numéricos ou alfanuméricos emitidos por autoridade
+        pública que individualizam univocamente o titular e permitem correlação
+        entre bases distintas.
+      canonical_examples:
+        - cpf
+        - cnpj
+        - rg
+        - cnh
+        - passaporte
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+      special_category: false
+
+    - name: dados_de_contato
+      definition: >
+        Endereços e canais pelos quais o titular pode ser alcançado por
+        comunicação eletrônica, postal ou telefônica.
+      canonical_examples:
+        - email
+        - telefone
+        - celular
+        - endereco
+        - cep
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+      special_category: false
+
+    - name: dados_de_localizacao
+      definition: >
+        Atributos que descrevem a posição geográfica do titular em momento
+        determinado ou em série temporal.
+      canonical_examples:
+        - latitude
+        - longitude
+        - coordenadas
+        - ip_address
+        - geo_ip
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+      special_category: false
+
+    - name: dados_de_autenticacao
+      definition: >
+        Segredos, credenciais e fatores de autenticação que provam a identidade
+        do titular em sistema computacional.
+      canonical_examples:
+        - senha
+        - password_hash
+        - token
+        - api_key
+        - session_id
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+      special_category: false
+
+    - name: dados_financeiros
+      definition: >
+        Atributos que descrevem posição patrimonial, capacidade de pagamento,
+        instrumentos de pagamento ou histórico financeiro do titular.
+      canonical_examples:
+        - numero_cartao
+        - cvv
+        - conta_bancaria
+        - iban
+        - score_credito
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+      special_category: false
+
+    - name: dados_de_saude
+      definition: >
+        Informação sobre estado físico, mental, condição clínica, diagnóstico,
+        tratamento e quaisquer atributos que revelem condição de saúde do titular
+        (GDPR Art. 4(15), categoria especial Art. 9).
+      canonical_examples:
+        - prontuario
+        - diagnostico
+        - cid10
+        - cns_saude
+        - plano_saude
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+        - lei: GDPR
+          artigo: 9
+      special_category: true
+
+    - name: dados_biometricos
+      definition: >
+        Informação derivada de características físicas, fisiológicas ou
+        comportamentais únicas, processada para identificar univocamente o
+        titular (GDPR Art. 4(14), categoria especial Art. 9).
+      canonical_examples:
+        - impressao_digital
+        - face_embedding
+        - iris_scan
+        - biometric_template
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+        - lei: GDPR
+          artigo: 9
+      special_category: true
+
+    - name: dados_de_perfil_comportamental
+      definition: >
+        Atributos que descrevem padrões de uso, preferências, escolhas e
+        inferências comportamentais derivadas da observação do titular.
+      canonical_examples:
+        - historico_navegacao
+        - eventos_uso
+        - segmento_marketing
+        - tracking_id
+        - cookie_id
+      statutory_reference:
+        - lei: GDPR
+          artigo: 4
+        - lei: GDPR
+          artigo: 22
+      special_category: false
+
+out_of_scope: []

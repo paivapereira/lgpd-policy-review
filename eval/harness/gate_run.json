@@ -1,0 +1,211 @@
+[
+  {
+    "id": "COMP-001",
+    "expected": "compliant",
+    "obtained": "compliant",
+    "match": true,
+    "detail": {
+      "verdict": "compliant",
+      "policy_clause_ref": "POL-005",
+      "evidence": "Cláusula POL-005 (LGPD Art. 7º, I) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context declara legal_basis='consent'.",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "VIOL-001",
+    "expected": "violation_candidate",
+    "obtained": "violation_candidate",
+    "match": true,
+    "detail": {
+      "verdict": "violation_candidate",
+      "policy_clause_ref": "POL-005",
+      "evidence": "Cláusula POL-005 (LGPD Art. 7º, I) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context omite o campo legal_basis.",
+      "contradicted_requirement": "R1",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "VIOL-002",
+    "expected": "violation_candidate",
+    "obtained": "violation_candidate",
+    "match": true,
+    "detail": {
+      "verdict": "violation_candidate",
+      "policy_clause_ref": "POL-005",
+      "evidence": "Cláusula POL-005 (LGPD Art. 7º, I) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context declara legal_basis='legitimate_interests', fora do vocabulário canônico.",
+      "contradicted_requirement": "R1",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "INDET-001",
+    "expected": "indeterminate",
+    "obtained": "indeterminate",
+    "match": true,
+    "detail": {
+      "verdict": "indeterminate",
+      "policy_clause_ref": "POL-006",
+      "verification_scope": {
+        "dimension": "upstream_state",
+        "prescribed_treatment": "anonymization_required",
+        "verification_target": "Verificar manualmente se o tratamento que coleta as categorias governadas por POL-006 (LGPD Art. 12, §2º) aplica anonimização efetiva upstream antes da coleta. Análise estática local de PR não decide esta dimensão."
+      },
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "NA-MVP-001",
+    "expected": "not_applicable",
+    "obtained": "not_applicable",
+    "match": true,
+    "detail": {
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-005",
+      "reason": "Operação 'storage' fora do escopo MVP v0.1.0; somente 'collection' é avaliada (ADR-0007 Decision 3).",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "NA-MISMATCH-001",
+    "expected": "not_applicable",
+    "obtained": "not_applicable",
+    "match": true,
+    "detail": {
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-005",
+      "reason": "Cláusula POL-005 governa categorias [dados_de_identificacao] e operações [collection]; context declara categorias [dados_de_contato] e operação 'collection'. Sem intersecção em pelo menos uma dimensão.",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "NA-DEF-001",
+    "expected": "not_applicable",
+    "obtained": "not_applicable",
+    "match": true,
+    "detail": {
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-000",
+      "reason": "Cláusula POL-000 é definitional — não prescreve control. Aplicabilidade não definida para este tipo de cláusula.",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "B-FALSEPOS-001",
+    "expected": "violation_candidate",
+    "obtained": "violation_candidate",
+    "match": true,
+    "detail": {
+      "verdict": "violation_candidate",
+      "policy_clause_ref": "POL-005",
+      "evidence": "Cláusula POL-005 (LGPD Art. 7º, I) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context declara legal_basis='contract_performance', fora do vocabulário canônico.",
+      "contradicted_requirement": "R1",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "B-SENS-OK-001",
+    "expected": "compliant",
+    "obtained": "compliant",
+    "match": true,
+    "detail": {
+      "verdict": "compliant",
+      "policy_clause_ref": "POL-007",
+      "evidence": "Cláusula POL-007 (LGPD Art. 11, I) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context declara legal_basis='consent'.",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "B-SENS-INV-001",
+    "expected": "violation_candidate",
+    "obtained": "violation_candidate",
+    "match": true,
+    "detail": {
+      "verdict": "violation_candidate",
+      "policy_clause_ref": "POL-007",
+      "evidence": "Cláusula POL-007 (LGPD Art. 11, I) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context declara legal_basis='explicit_consent', fora do vocabulário canônico.",
+      "contradicted_requirement": "R1",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "PROBE-UNGOV-001",
+    "expected": "coverage_gap",
+    "obtained": "coverage_gap",
+    "match": true,
+    "detail": {
+      "per_clause": [
+        {
+          "clause": "POL-000",
+          "outcome": "not_applicable"
+        },
+        {
+          "clause": "POL-005",
+          "outcome": "not_applicable"
+        },
+        {
+          "clause": "POL-006",
+          "outcome": "not_applicable"
+        },
+        {
+          "clause": "POL-007",
+          "outcome": "not_applicable"
+        }
+      ]
+    }
+  },
+  {
+    "id": "SWAP-001-LGPD",
+    "expected": "compliant",
+    "obtained": "compliant",
+    "match": true,
+    "detail": {
+      "verdict": "compliant",
+      "policy_clause_ref": "POL-005",
+      "evidence": "Cláusula POL-005 (LGPD Art. 7º, I) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context declara legal_basis='consent'.",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD"
+    }
+  },
+  {
+    "id": "SWAP-001-GDPR",
+    "expected": "violation_candidate",
+    "obtained": "violation_candidate",
+    "match": true,
+    "detail": {
+      "verdict": "violation_candidate",
+      "policy_clause_ref": "POL-005",
+      "evidence": "Cláusula POL-005 (GDPR Art. 6º, §1º, alínea a) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context declara legal_basis='consent_gdpr', fora do vocabulário canônico.",
+      "contradicted_requirement": "R1",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "GDPR"
+    }
+  },
+  {
+    "id": "SKIP-001",
+    "expected": "triager_skip",
+    "obtained": "SKIPPED (pipeline-only)",
+    "match": null
+  }
+]

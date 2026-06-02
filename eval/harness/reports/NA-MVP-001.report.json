@@ -1,0 +1,107 @@
+{
+  "report_id": "a0e70495-384a-40c3-b430-c4c758bdc12b",
+  "report_schema_version": "0.1.0",
+  "policy_schema_version": "0.1.0",
+  "policy_version": "0.2.0",
+  "legal_framework": "LGPD",
+  "run_outcome": "success_all_not_applicable",
+  "triager_skip_reason": null,
+  "scope": {
+    "pr_number": 5,
+    "base_ref": "main",
+    "head_ref": "eval/NA-MVP-001",
+    "repo_url": "https://example.invalid/lgpd-eval-synthetic"
+  },
+  "summary": {
+    "counts": {
+      "compliant": 0,
+      "violation_candidate": 0,
+      "indeterminate": 0,
+      "not_applicable": 4
+    },
+    "total": 4
+  },
+  "findings": [
+    {
+      "file": "eval/prs/NA-MVP-001/<synthetic>.py",
+      "line": 1,
+      "snippet": "# synthetic eval candidate (NA-MVP-001)",
+      "rule_id": "br-cpf",
+      "data_categories": [
+        "dados_de_identificacao"
+      ],
+      "operation_type": "storage",
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-000",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD",
+      "requires_human_review": null,
+      "evidence": null,
+      "contradicted_requirement": null,
+      "verification_scope": null,
+      "reason": "Cláusula POL-000 é definitional — não prescreve control. Aplicabilidade não definida para este tipo de cláusula."
+    },
+    {
+      "file": "eval/prs/NA-MVP-001/<synthetic>.py",
+      "line": 1,
+      "snippet": "# synthetic eval candidate (NA-MVP-001)",
+      "rule_id": "br-cpf",
+      "data_categories": [
+        "dados_de_identificacao"
+      ],
+      "operation_type": "storage",
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-005",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD",
+      "requires_human_review": null,
+      "evidence": null,
+      "contradicted_requirement": null,
+      "verification_scope": null,
+      "reason": "Operação 'storage' fora do escopo MVP v0.1.0; somente 'collection' é avaliada (ADR-0007 Decision 3)."
+    },
+    {
+      "file": "eval/prs/NA-MVP-001/<synthetic>.py",
+      "line": 1,
+      "snippet": "# synthetic eval candidate (NA-MVP-001)",
+      "rule_id": "br-cpf",
+      "data_categories": [
+        "dados_de_identificacao"
+      ],
+      "operation_type": "storage",
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-006",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD",
+      "requires_human_review": null,
+      "evidence": null,
+      "contradicted_requirement": null,
+      "verification_scope": null,
+      "reason": "Operação 'storage' fora do escopo MVP v0.1.0; somente 'collection' é avaliada (ADR-0007 Decision 3)."
+    },
+    {
+      "file": "eval/prs/NA-MVP-001/<synthetic>.py",
+      "line": 1,
+      "snippet": "# synthetic eval candidate (NA-MVP-001)",
+      "rule_id": "br-cpf",
+      "data_categories": [
+        "dados_de_identificacao"
+      ],
+      "operation_type": "storage",
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-007",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD",
+      "requires_human_review": null,
+      "evidence": null,
+      "contradicted_requirement": null,
+      "verification_scope": null,
+      "reason": "Operação 'storage' fora do escopo MVP v0.1.0; somente 'collection' é avaliada (ADR-0007 Decision 3)."
+    }
+  ],
+  "scan_provenance": null
+}

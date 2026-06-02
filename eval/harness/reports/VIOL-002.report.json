@@ -1,0 +1,107 @@
+{
+  "report_id": "afb747f4-5104-4f71-abc2-6b96aa43319f",
+  "report_schema_version": "0.1.0",
+  "policy_schema_version": "0.1.0",
+  "policy_version": "0.2.0",
+  "legal_framework": "LGPD",
+  "run_outcome": "success_with_findings",
+  "triager_skip_reason": null,
+  "scope": {
+    "pr_number": 3,
+    "base_ref": "main",
+    "head_ref": "eval/VIOL-002",
+    "repo_url": "https://example.invalid/lgpd-eval-synthetic"
+  },
+  "summary": {
+    "counts": {
+      "compliant": 0,
+      "violation_candidate": 1,
+      "indeterminate": 0,
+      "not_applicable": 3
+    },
+    "total": 4
+  },
+  "findings": [
+    {
+      "file": "eval/prs/VIOL-002/<synthetic>.py",
+      "line": 1,
+      "snippet": "# synthetic eval candidate (VIOL-002)",
+      "rule_id": "br-cpf",
+      "data_categories": [
+        "dados_de_identificacao"
+      ],
+      "operation_type": "collection",
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-000",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD",
+      "requires_human_review": null,
+      "evidence": null,
+      "contradicted_requirement": null,
+      "verification_scope": null,
+      "reason": "Cláusula POL-000 é definitional — não prescreve control. Aplicabilidade não definida para este tipo de cláusula."
+    },
+    {
+      "file": "eval/prs/VIOL-002/<synthetic>.py",
+      "line": 1,
+      "snippet": "# synthetic eval candidate (VIOL-002)",
+      "rule_id": "br-cpf",
+      "data_categories": [
+        "dados_de_identificacao"
+      ],
+      "operation_type": "collection",
+      "verdict": "violation_candidate",
+      "policy_clause_ref": "POL-005",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD",
+      "requires_human_review": null,
+      "evidence": "Cláusula POL-005 (LGPD Art. 7º, I) exige consentimento (R1: valor canônico 'consent' do vocabulário lawful_basis de POL-000); context declara legal_basis='legitimate_interests', fora do vocabulário canônico.",
+      "contradicted_requirement": "R1",
+      "verification_scope": null,
+      "reason": null
+    },
+    {
+      "file": "eval/prs/VIOL-002/<synthetic>.py",
+      "line": 1,
+      "snippet": "# synthetic eval candidate (VIOL-002)",
+      "rule_id": "br-cpf",
+      "data_categories": [
+        "dados_de_identificacao"
+      ],
+      "operation_type": "collection",
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-006",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD",
+      "requires_human_review": null,
+      "evidence": null,
+      "contradicted_requirement": null,
+      "verification_scope": null,
+      "reason": "Cláusula POL-006 governa categorias [dados_de_perfil_comportamental] e operações [collection]; context declara categorias [dados_de_identificacao] e operação 'collection'. Sem intersecção em pelo menos uma dimensão."
+    },
+    {
+      "file": "eval/prs/VIOL-002/<synthetic>.py",
+      "line": 1,
+      "snippet": "# synthetic eval candidate (VIOL-002)",
+      "rule_id": "br-cpf",
+      "data_categories": [
+        "dados_de_identificacao"
+      ],
+      "operation_type": "collection",
+      "verdict": "not_applicable",
+      "policy_clause_ref": "POL-007",
+      "policy_schema_version": "0.1.0",
+      "policy_version": "0.2.0",
+      "legal_framework": "LGPD",
+      "requires_human_review": null,
+      "evidence": null,
+      "contradicted_requirement": null,
+      "verification_scope": null,
+      "reason": "Cláusula POL-007 governa categorias [dados_de_saude] e operações [collection]; context declara categorias [dados_de_identificacao] e operação 'collection'. Sem intersecção em pelo menos uma dimensão."
+    }
+  ],
+  "scan_provenance": null
+}

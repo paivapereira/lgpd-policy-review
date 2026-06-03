@@ -61,10 +61,13 @@ import shutil
 import subprocess
 import tempfile
 from collections import Counter
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import coordinator.run as coordinator_run
+from claude_agent_sdk import ToolUseBlock, query
 from coordinator.models import CoordinatorError, CoordinatorResult
 from coordinator.run import run_pipeline
 from subagents.triager.models import TriagerInput
@@ -78,6 +81,54 @@ _OUTPUT = Path(__file__).resolve().parent / "output" / "pipeline_e2e_raw.json"
 # discriminant). It is the GT-acceptable set for the SECONDARY classifier-categories
 # axis only; the binding verdict GT for POL-005 is still `dados_de_identificacao`.
 _IDENT_PAIR = frozenset({"dados_de_identificacao", "dados_de_documentos_oficiais"})
+
+
+# ---------------------------------------------------------------------------
+# DD-1 — Reporter emit-count instrumentation (harness-side; src/ UNTOUCHED)
+# ---------------------------------------------------------------------------
+# `coordinator.run.query` (the SDK `query` bound into the module) is consumed
+# ONLY by `_run_reporter_stage` (run.py); the four upstream stages go through
+# `coordinator.driver.query` / `ClaudeSDKClient`. Wrapping this one name therefore
+# observes EXACTLY the Reporter stage (the test suite monkeypatches the same name).
+# The wrapper is a TRANSPARENT TEE: it forwards every (*args, **kwargs) verbatim,
+# re-yields each streamed message UNCHANGED, and only counts — as a pure side
+# effect — emits matched by the FULL qualified tool name (identical to the guard's
+# own filter, `coordinator.run._EMIT_REPORT_TOOL`). It must not swallow, reorder, or
+# mutate any item, or it would corrupt the Reporter behavior it is meant to observe.
+#   emits == 1 => single-shot (one valid emit).
+#   emits == 2 => wrapper-recovery (1st emit failed the handler cross-checks; the
+#                 ADR-0016 guard allowed the §9.2.a validation-retry, run.py).
+#   emits == 0 => the run halted before a successful emit; the record's error
+#                 `stage` disambiguates "before the Reporter" from "Reporter, no emit".
+_EMIT_REPORT_TOOL = "mcp__reporter_tools__emit_report"  # == coordinator.run._EMIT_REPORT_TOOL
+# The SDK `query` imported here is the SAME object `coordinator.run` binds as its
+# module-global `query` (a plain `from claude_agent_sdk import query`); reading it
+# from the SDK avoids depending on `coordinator.run` re-exporting it.
+_REAL_QUERY = query
+_emit_count: dict[str, int] = {"n": 0}
+
+
+def _counting_query(*args: Any, **kwargs: Any) -> AsyncIterator[Any]:
+    """Transparent tee over `coordinator.run.query`: forwards args and messages
+    verbatim; counts `emit_report` ToolUseBlocks as a side effect only."""
+
+    async def _tee() -> AsyncIterator[Any]:
+        async for message in _REAL_QUERY(*args, **kwargs):
+            content = getattr(message, "content", None)
+            if content:
+                for block in content:
+                    if isinstance(block, ToolUseBlock) and block.name == _EMIT_REPORT_TOOL:
+                        _emit_count["n"] += 1
+            yield message
+
+    return _tee()
+
+
+# Swap ONLY the Reporter stage's seam (`coordinator.run.query`). `setattr` (not a
+# direct attribute assignment) because `query` is imported-not-defined in
+# `coordinator.run`, so mypy --strict's no-implicit-reexport would reject the
+# dotted form. Install once; runs are strictly sequential.
+setattr(coordinator_run, "query", _counting_query)
 
 
 @dataclass(frozen=True)
@@ -252,6 +303,7 @@ def _build_record(
     result: CoordinatorResult,
     trace: dict[str, Any],
     run_id: str | None,
+    reporter_emit_count: int,
 ) -> dict[str, Any]:
     classifier_cats = _classifier_categories(trace)
 
@@ -265,6 +317,7 @@ def _build_record(
             "governing_clause_verdict": "<error>",
             "classifier_data_categories": classifier_cats,
             "classifier_categories_within_gt": None,
+            "reporter_emit_count": reporter_emit_count,
             "trace": {**trace, "report_payload": None},
             "error": {
                 "stage": result.stage,
@@ -307,6 +360,7 @@ def _build_record(
         "governing_clause_verdict": governing,
         "classifier_data_categories": classifier_cats,
         "classifier_categories_within_gt": cats_within,
+        "reporter_emit_count": reporter_emit_count,
         "trace": {**trace, "report_payload": payload},
         "error": None,
     }
@@ -336,18 +390,20 @@ async def _run_one_pipeline(case: PRCase, idx: int) -> dict[str, Any]:
             repo_url="https://example.invalid/lgpd-eval-synthetic",
         )
         os.chdir(repo)  # scan_diff scans Path.cwd()
+        _emit_count["n"] = 0  # DD-1: reset the tee counter before this run's Reporter stage
         try:
             result = await run_pipeline(
                 scope, mcp_config_path=mcp_json, scratchpad_root=scratch
             )
         finally:
             os.chdir(cwd)
+        emits = _emit_count["n"]  # captured immediately; nothing calls query() after the pipeline
 
         run_dirs = sorted(scratch.glob("run-*"))
         run_dir = run_dirs[0] if run_dirs else None
         trace = _read_stage_trace(run_dir) if run_dir is not None else dict(_EMPTY_TRACE)
         run_id = run_dir.name[len("run-"):] if run_dir is not None else None
-        return _build_record(case, result, trace, run_id)
+        return _build_record(case, result, trace, run_id, emits)
     except Exception as exc:  # honest capture: harness-level failure, never hidden
         return {
             "run_id": None,
@@ -357,6 +413,7 @@ async def _run_one_pipeline(case: PRCase, idx: int) -> dict[str, Any]:
             "governing_clause_verdict": "<harness-error>",
             "classifier_data_categories": [],
             "classifier_categories_within_gt": None,
+            "reporter_emit_count": _emit_count["n"],
             "trace": None,
             "error": {"stage": "harness", "type": type(exc).__name__, "msg": str(exc)},
         }
@@ -374,6 +431,15 @@ def _dist(tokens: list[str]) -> str:
     return body + flag
 
 
+def _emit_dist(counts: list[int]) -> str:
+    """Distribution of `reporter_emit_count` over K runs. Deliberately carries NO
+    `<<INCONSIST` flag: emit-count variance across runs (single-shot vs
+    wrapper-recovery) is EXPECTED behavior, not a convergence-token disagreement
+    (contrast `_dist`). A run that halts before a successful emit shows as `0:n`."""
+    tally = Counter(counts)
+    return " ".join(f"{k}:{v}" for k, v in sorted(tally.items()))
+
+
 def _print_table(cases: list[PRCase], raw: dict[str, Any]) -> None:
     print("\n" + "=" * 78)
     print("RESULTS — convergence distribution over K pipeline runs per PR")
@@ -384,7 +450,8 @@ def _print_table(cases: list[PRCase], raw: dict[str, Any]) -> None:
         pr = raw["prs"][case.case_id]
         gt = f"{case.clause_id}={case.expected_verdict}" if case.clause_id else case.expected_verdict
         print(f"\n{case.case_id}  (K={case.k}, mode={case.mode})  GT: {gt}")
-        print(f"    {pr['distribution']}")
+        print(f"    convergence        : {pr['distribution']}")
+        print(f"    reporter_emit_count: {pr['emit_count_distribution']}")
 
 
 def _save(raw: dict[str, Any]) -> None:
@@ -421,6 +488,7 @@ async def _main() -> int:
                 f"  [{case.case_id}] {idx + 1}/{case.k}: {rec['convergence']}  "
                 f"(run_outcome={rec['run_outcome']}, "
                 f"governing={rec['governing_clause_verdict']}, "
+                f"emits={rec['reporter_emit_count']}, "
                 f"classifier_cats={rec['classifier_data_categories']})"
             )
         raw["prs"][case.case_id] = {
@@ -433,6 +501,7 @@ async def _main() -> int:
             "k": case.k,
             "runs": runs,
             "distribution": _dist([r["convergence"] for r in runs]),
+            "emit_count_distribution": _emit_dist([r["reporter_emit_count"] for r in runs]),
         }
 
     raw["total_pipeline_runs"] = total

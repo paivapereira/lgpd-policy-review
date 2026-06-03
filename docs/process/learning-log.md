@@ -7223,3 +7223,143 @@ decisoes de desenho a fechar antes do prompt: K execucoes por PR (nao-determinac
 + ~1/42 falha de transporte observada), enriquecimento de campo dos PRs (campos
 nomeados vs params nus), e se dobrar as correcoes juridicas do item 8 (POL-006
 re-ancorar Art.12§2->Art.6III; POL-005 estreitar) caso va tocar as clausulas.
+
+# Learning log — entrada de 2026-06-03 (Reporter confiavel: desync de proveniencia + wrapper)
+
+> Formato topicos, append-only. Entrada do arco que destravou o Passo 2: o smoke
+> do harness live expos dois bugs no estagio de saida (Reporter), ambos
+> diagnosticados, corrigidos e confirmados por medicao. Acrescentar ao
+> docs/process/learning-log.md; nao sobrescrever entradas anteriores.
+
+## 2026-06-03 — Arco Reporter: desync de proveniencia (PR #101) + guarda conta sucessos (PR #102, ADR-0016)
+
+### Conceitos da prova exercitados
+
+- **D5 — Reliability / provenance & consistency**: o estado consolidado que
+  chegava ao Reporter era internamente inconsistente — top-level
+  policy_version=0.1.0 (default de parametro em run_pipeline) vs per-finding 0.2.0
+  (header da Politica eval-lgpd, echoado nos findings via check_applicability). O
+  cross-check de proveniencia do emit_report (exige top==per-finding) rejeitava a
+  emissao — corretamente: ele e o DETECTOR, nao o bug. A causa-raiz era a fonte
+  dupla (parametro-default vs header). Licao: uma guarda de integridade que
+  dispara nao e necessariamente o erro; a inconsistencia que ela pega esta a
+  montante. Verificar a fonte antes de culpar o detector.
+
+- **D5 — silent failure vs honest halt**: a correcao (c) abriu um caminho de erro
+  NOVO (1a emissao falha, modelo encerra sem retry, subtype=="success") que a
+  guarda AS-IS nunca alcancava. Sem rede de seguranca, o pipeline retornaria o
+  payload rejeitado como se fosse Report valido — sucesso silencioso. Rede de
+  seguranca pos-loop (allowed_retry sem 99-report -> ReportNotEmitted) torna a
+  falha barulhenta e precoce em vez de silenciosa e tardia. Principio: halt
+  honesto > sucesso silencioso falso. Caminho de erro nao admite frouxidao ("a
+  finalizar na impl" foi recusado; fechado ANTES de implementar).
+
+- **D4 — Structured Output / validation-retry loop**: o halt residual (2/5 pos-(a))
+  era um WRAPPER de tool-argument — o modelo chamava emit_report com
+  {"report": "<payload serializado como string>"} em vez do objeto achatado ->
+  PYDANTIC_VALIDATION na 1a -> modelo auto-corrige -> 2a VALID. E o validation-retry
+  loop funcionando: o envelope de erro ensina a forma certa, o modelo acerta na 2a.
+  A guarda de emissao-unica estrangulava o loop. (c) = guarda conta emissoes
+  BEM-SUCEDIDAS, nao tentativas — refina "uma emissao" -> "uma emissao
+  bem-sucedida", preservando a invariante real (um Report committed). Forma de
+  medir um retry loop: contar tentativas + observar recuperacao (emits=2 -> Report),
+  nao so "deu certo?".
+
+- **D1 — Agentic Architecture / enforcement programatico**: a guarda de emissao
+  vive no loop de consumo do stream do Reporter (query(), nao ClaudeSDKClient).
+  Decisao de forma: sinal de disco (99-report.json, escrito pelo handler so no
+  sucesso) vs correlacao no stream (ToolUseBlock<->ToolResultBlock.is_error). A
+  correlacao e o alvo "mais limpo" MAS depende de o query() surfacear o tool-result
+  do @tool in-process — nao-verificado (o precedente do Detector usa ClaudeSDKClient
+  + structuredContent, que o bridge do @tool dropa). Sinal de disco escolhido por
+  ser de-riscado empiricamente. Licao D2: o bridge do @tool dropa structuredContent
+  (so content + isError sobrevivem) — limita o que a guarda pode observar do
+  resultado da tool.
+
+- **D5 — composicao vs unidade (por que nenhum teste anterior pegou)**: o desync so
+  aparece em pipeline live x Politica com versao != default. G3 passou (policy/ real
+  e 0.1.0 = default); o harness de motor passa policy_version=state.header (deriva do
+  header, consistente). Tres camadas de teste mascaravam o bug, cada uma por uma
+  condicao diferente. Avaliar o pipeline completo sobre uma Politica substantiva
+  encontrou o que testes de unidade e o G3 nao podiam — por construcao. Defense
+  candidate forte: avaliacao de composicao nao e substituivel pela soma de
+  avaliacoes de estagio.
+
+### Decisoes
+
+- **(a) deriva proveniencia top-level dos FINDINGS, nao de header-read.** O
+  coordinator nao carrega a Politica (fronteira MCP); a unica fonte do header que ele
+  tem e a trinca echoada nos findings. (a) e conformidade com spec (reporter.md:377
+  ja manda top-level=header), nao redesenho. Params viram fallback (caminhos
+  sem-findings). Cross-check NAO tocado (funciona como projetado).
+- **(c) PR separado de (a), e subiu de adiavel para PRE-REQUISITO do Passo 2.** O
+  diagnostico mediu 2/5 (40%) de halt residual por wrapper — rodar os 26 do Passo 2
+  com 40% de halt encheria a tabela de ERRO_EXECUCAO por causa nao-LGPD. (c) tolera o
+  wrapper (deixa o retry passar). Separado por disciplina de PR + risco de spine, mas
+  antes do Passo 2. A reordenacao veio do DADO (40%), nao de palpite.
+- **(c) Forma 2 (sinal de disco) ratificada; Forma 1 (correlacao no stream)
+  registrada como alternativa considerada-e-preterida** (caminho de desacoplamento
+  atras de um smoke, nao obrigacao). ADR-0016.
+- **Debito single-emit silent-success: deferido**, coberto pelo ReportNotEmitted
+  (halt honesto), nao observado em 10 runs. Vira investigacao propria se aparecer no
+  Passo 2.
+- **doc do cpf ganhou secao 7** (isolado-vs-composto): o mesmo cpf que isolado deu so
+  documentos_oficiais deu as DUAS categorias sob contexto rico no pipeline completo ->
+  POL-005 casou -> compliant (convergente com GT). A tensao isolado-vs-GT da secao 4
+  dissolve sob contexto rico. Nao ha preferencia fixa do modelo; ha resposta a
+  contexto.
+
+### Artefatos
+
+- **PR #101** (fix/reporter-provenance-desync, squash 4997f21): derivar proveniencia
+  dos findings + red-first (test_provenance_derivation.py, arco raiz->sintoma) +
+  coordinator.md §3.5 nota + tasks.md debito residual sem-findings.
+- **PR #102** (fix/reporter-guard-counts-successes, squash aff74b9): guarda conta
+  sucessos + REPORT_SINK_FILENAME constante compartilhada + rede de seguranca
+  ReportNotEmitted + run_path threaded + cross-doc (coordinator §3.5/§3.6, reporter
+  §6.7/§9.2.a + tabela) + ADR-0016 esqueleto. Ancora reescrita:
+  test_reporter_second_emit_after_{success_raises,failure_allowed}.
+- **PR docs/ratify-adr-0016** (commits 70e8879 + 50b17bc + fe3180d): ADR-0016 -> Accepted
+  com o "depois" do smoke; doc do cpf §7; harness do Passo 2
+  (eval/experiments/pipeline_e2e_eval_lgpd.py, 450 linhas) versionado.
+- **ADR-0016** Accepted: guarda conta emissoes bem-sucedidas. Fundamento empirico
+  completo (antes 2/5 -> depois 0/5).
+- Dados crus (em %TEMP%, nao versionados): diagnostico pre-(c) 5 runs, smoke pos-(a),
+  diagnostico pos-(a) 5 runs, smoke de confirmacao pos-(c) 5 runs.
+
+### Validacoes empiricas
+
+- **(a)**: PROVENANCE_MISMATCH 5/5 -> 0/5 (5 capturas live COMP-001 pos-fix). Unitario
+  (red->green) + live. Os 3 Reports tem top_pv=0.2.0 consistente.
+- **(c)**: halt 2/5 -> 0/5 (5 capturas live pos-(c)). Recuperacao do wrapper OBSERVADA
+  DIRETAMENTE: runs 3 e 5 com reporter_emit_count=2 (1a falhou, 2a sucesso, guarda
+  permitiu) -> Report. Reports recuperados IDENTICOS aos normais (top_pv=0.2.0,
+  POL-005=compliant, counts {compliant:1, n/a:3}), convergentes com GT. Recuperacao
+  nao degrada o Report. Instrumentacao smoke-only (contar emits do Reporter), producao
+  intocada.
+- Os 5 Reports do smoke de confirmacao sao o primeiro lote de Reports de pipeline real
+  completo do projeto — todos convergentes com o GT do COMP-001.
+
+### Erro de metodo registrado (recorrente, e a correcao)
+
+- Chat inferiu/generalizou sem ler em varios pontos; o Code, lendo, ancorou de volta:
+  (1) (a) framing "derivar do header" -> Code corrigiu para "derivar dos findings" (o
+  coordinator nao carrega a Politica); (2) Chat tratou a Forma 1 (correlacao no stream)
+  como viavel-por-leitura -> Code achou o buraco de SDK (query() surfacear o tool-result
+  e nao-verificado); (3) Chat leu a coluna 99-report do diagnostico como "sinal extra"
+  -> Code viu que ELA E o mecanismo que torna (c) implementavel. Licao reforcada: o Chat
+  inclina, o Code verifica lendo; o Chat marca "nao li, e hipotese" ao afirmar estrutura.
+- Acerto de metodo desta vez: a EXIGENCIA do pos-loop foi fechada ANTES de implementar
+  (caminho de erro nao admite "a finalizar na impl"). O Code provou que o caminho era
+  alcancavel e nomeou o erro (ReportNotEmitted) em vez de deixar passar silencioso.
+
+### Proximo passo
+
+Passo 2 proper — rodar o harness live (eval/experiments/pipeline_e2e_eval_lgpd.py)
+sobre os 6 PRs sinteticos de eval/prs/ contra policies/eval-lgpd, produzindo a tabela
+CONVERGENTE/DIVERGENTE. Tres decisoes de desenho ja levantadas no handoff anterior (K
+execucoes por PR, enriquecimento dos PRs, dobrar correcoes juridicas do item 8) seguem
+abertas — fechar no Chat antes do prompt. Agora com o pipeline confiavel: proveniencia
+consistente ((a)), wrapper recupera em vez de halt ((c)). Sessao Chat NOVA recomendada
+(marco de fase + esta sessao acumulou todo o arco de diagnostico). Antes: mergear o PR
+docs/ratify-adr-0016.

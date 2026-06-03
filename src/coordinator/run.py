@@ -244,6 +244,7 @@ def _reporter_options(reporter_server: McpSdkServerConfig) -> ClaudeAgentOptions
 async def _run_reporter_stage(
     consolidated_state: dict[str, Any],
     reporter_server: McpSdkServerConfig,
+    run_path: Path,
 ) -> dict[str, Any]:
     final_result: ResultMessage | None = None
     emit_report_seen = False
@@ -401,7 +402,7 @@ async def run_pipeline(
             findings=findings,
             scan_provenance=scan_provenance,
         )
-        report_payload = await _run_reporter_stage(consolidated, reporter_server)
+        report_payload = await _run_reporter_stage(consolidated, reporter_server, run_path)
         log.info("run.done", extra={"run_id": run_id, "run_outcome": run_outcome})
         return CoordinatorReport(payload=report_payload)
     except Exception as exc:  # noqa: BLE001 — projected into the external error envelope

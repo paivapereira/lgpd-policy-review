@@ -54,7 +54,7 @@ from subagents.detector.models import DetectorOutput, ScanProvenance
 from subagents.detector.system_prompts import DETECTOR_SYSTEM_PROMPT
 from subagents.matcher.models import Finding, MatcherOutput
 from subagents.matcher.system_prompts import MATCHER_SYSTEM_PROMPT
-from subagents.reporter.constants import REPORT_SCHEMA_VERSION
+from subagents.reporter.constants import REPORT_SCHEMA_VERSION, REPORT_SINK_FILENAME
 from subagents.reporter.models import RunOutcome, SummaryCounts, SummaryModel
 from subagents.reporter.system_prompts import REPORTER_SYSTEM_PROMPT
 from subagents.reporter.tools import create_reporter_server
@@ -248,6 +248,7 @@ async def _run_reporter_stage(
 ) -> dict[str, Any]:
     final_result: ResultMessage | None = None
     emit_report_seen = False
+    allowed_retry = False  # ADR-0016: a 2nd+ emit was permitted because the prior one failed
     report_payload: dict[str, Any] | None = None
     try:
         async for message in query(
@@ -262,11 +263,19 @@ async def _run_reporter_stage(
                         if not hasattr(block, "input"):
                             raise MalformedToolUseBlock()
                         if emit_report_seen:
-                            raise MultipleReportEmissions(
-                                first_payload=report_payload, second_payload=block.input
-                            )
-                        emit_report_seen = True
-                        report_payload = block.input  # canonical capture (§7)
+                            # ADR-0016: count SUCCESSFUL emits, not attempts. 99-report.json is
+                            # written by the handler atomically ONLY on a valid emit. A 2nd emit
+                            # AFTER a success is genuine redundancy -> abort; after a FAILED first
+                            # (no sink yet) it is a legitimate validation-retry (reporter §9.2.a)
+                            # -> allow and re-capture the new candidate.
+                            if (run_path / REPORT_SINK_FILENAME).exists():
+                                raise MultipleReportEmissions(
+                                    first_payload=report_payload, second_payload=block.input
+                                )
+                            allowed_retry = True
+                        else:
+                            emit_report_seen = True
+                        report_payload = block.input  # capture latest candidate (§7)
     except (MultipleReportEmissions, MalformedToolUseBlock):
         raise
     except Exception as exc:  # noqa: BLE001 — re-raised as typed coordinator error
@@ -281,6 +290,11 @@ async def _run_reporter_stage(
     if final_result is not None and final_result.subtype == "error_max_turns":
         raise ReporterTurnsExhausted(num_turns=final_result.num_turns, errors=final_result.errors)
     if not emit_report_seen:
+        raise ReportNotEmitted(subtype=final_result.subtype if final_result else None)
+    if allowed_retry and not (run_path / REPORT_SINK_FILENAME).exists():
+        # ADR-0016 safety net: a retry was allowed (1st emit failed) but no emit ever committed
+        # a Report (no 99-report.json) and max_turns was not hit -> halt honestly; never return a
+        # CoordinatorReport carrying a rejected payload silently.
         raise ReportNotEmitted(subtype=final_result.subtype if final_result else None)
     assert report_payload is not None  # emit_report_seen guarantees this
     return report_payload

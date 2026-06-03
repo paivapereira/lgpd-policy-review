@@ -26,7 +26,7 @@ from claude_agent_sdk import (
 )
 from pydantic import ValidationError
 
-from subagents.reporter.constants import EMIT_REPORT_DESCRIPTION
+from subagents.reporter.constants import EMIT_REPORT_DESCRIPTION, REPORT_SINK_FILENAME
 from subagents.reporter.models import ReportPayload
 
 # Cross-check #1: policy_clause_ref shape, all four verdicts (reporter §4.8 #1).
@@ -194,7 +194,7 @@ async def emit_report_impl(
         return cross_check_error
 
     # Step 4 — atomic write-then-rename.
-    report_path = run_path / "99-report.json"
+    report_path = run_path / REPORT_SINK_FILENAME
     _atomic_write_json(report_path, payload.model_dump(mode="json"))
 
     # Step 5 — success envelope.

@@ -721,23 +721,12 @@ sessão housekeeping futura — a correção do texto é o que minor-bumpa
   impl (`tools.py:85-87`) é fiel — o débito é só de prosa. Corrigir no mesmo
   housekeeping PR de §4.5/§6.1/coordinator §3.1 — mesmo minor-bump.
 
-**Débito de contradição spec-interna MC-C Phase 2a (categoria DISTINTA do doc-lag
-acima — não é doc-atrás-de-impl, é spec que se contradiz; exige ADR, deferido a
-Phase 3 hardening):**
-
-- **`coordinator.md` §3.5 (counting de `emit_report`) contradiz `reporter.md` §6.7
-  + §9.2.a (retry).** A discriminação tri-axial de §3.5 (impl fiel em
-  `run.py:_run_reporter_stage`) flipa `emit_report_seen` em TODO `ToolUseBlock`
-  `emit_report`, cega ao sucesso do handler. Logo um caminho válido
-  inválido→retry→válido (§6.7 "Multi-turn no caminho normal" + §9.2.a "retry
-  success; coordinator captura") dispararia `MultipleReportEmissions` no 2º bloco,
-  e o payload capturado seria o 1º (rejeitado), não o corrigido. DD-2 (errorCode
-  legível no `content`) torna o retry funcional e a contradição **viva**.
-  Reconciliação (correlacionar `ToolUseBlock`↔`ToolResultBlock.is_error`;
-  contar/capturar só emissões bem-sucedidas; `MultipleReportEmissions` só no 2º
-  sucesso) = **Phase 3 hardening + ADR**, fora do escopo "close the ends" da 2a.
-  A âncora 2a `test_reporter_multiple_emissions_raises` pina a semântica AS-IS de
-  §3.5 (docstring marca a incompatibilidade); sem teste de retry-success na 2a.
+**Débito de contradição spec-interna MC-C Phase 2a — RESOLVIDO (ADR-0016 / PR (c)).** A guarda
+de emissão-única passou a contar emissões BEM-SUCEDIDAS (sinal `99-report.json`, escrito pelo
+handler só no sucesso): 2ª emissão após SUCESSO é redundância (halt); 2ª após FALHA da 1ª é
+retry de validação legítimo (reporter §6.7/§9.2.a), permitido. A âncora AS-IS virou
+`test_reporter_second_emit_after_{success_raises,failure_allowed}`; a rede de segurança pós-loop
+(`allowed_retry` sem `99-report.json` -> `ReportNotEmitted`) impede sucesso silencioso falso.
 
 **Débito de produto MC-C → Phase 3 (reliability hardening; categoria DISTINTA do
 doc-lag e da contradição acima — é um errorCode de §6.3 declarado mas não

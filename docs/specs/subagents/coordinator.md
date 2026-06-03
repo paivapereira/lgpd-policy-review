@@ -314,13 +314,20 @@ try:
             for block in msg.content:
                 if isinstance(block, ToolUseBlock) and \
                    block.name == "mcp__reporter_tools__emit_report":
+                    # ADR-0016: conta emissoes BEM-SUCEDIDAS, nao tentativas. 99-report.json
+                    # (REPORT_SINK_FILENAME) e escrito pelo handler so no sucesso. 2a apos
+                    # sucesso = redundancia (halt); 2a apos falha (sem sink) = retry valido
+                    # (reporter §9.2.a), permite e re-captura.
                     if emit_report_seen:
-                        raise MultipleReportEmissions(
-                            first_payload=report_payload,
-                            second_payload=block.input,
-                        )
-                    emit_report_seen = True
-                    report_payload = block.input  # ratificado smoke-test #38
+                        if (run_path / REPORT_SINK_FILENAME).exists():
+                            raise MultipleReportEmissions(
+                                first_payload=report_payload,
+                                second_payload=block.input,
+                            )
+                        allowed_retry = True
+                    else:
+                        emit_report_seen = True
+                    report_payload = block.input  # captura ultimo candidato (§7)
 except Exception as exc:
     # SDK may yield ResultMessage and raise (AC-5 #38b empirical).
     # If we captured final_result, fall through to discrimination;
@@ -344,6 +351,14 @@ if final_result and final_result.subtype == "error_max_turns":
     )
 
 if not emit_report_seen:
+    raise ReportNotEmitted(
+        subtype=final_result.subtype if final_result else None,
+    )
+
+# ADR-0016 safety net: retry permitido (1a emissao falhou) mas nenhuma
+# emissao committou Report (sem 99-report.json) e sem error_max_turns =
+# halt honesto, nunca um CoordinatorReport com payload rejeitado em silencio.
+if allowed_retry and not (run_path / REPORT_SINK_FILENAME).exists():
     raise ReportNotEmitted(
         subtype=final_result.subtype if final_result else None,
     )
@@ -418,7 +433,7 @@ Discrimination ordering: `if permission_denials:` (estrito, primeiro) → `subty
 - **Subagente retorna texto não-JSON** → mesmo path de Pydantic validation falha.
 - **Subagente não responde / timeout / connection error** → `SubagentUnresponsive` erro estruturado; coordinator decide retry (transient) vs halt conforme política.
 - **Subagente retorna resposta vazia** (sem text block, sem tool_use) → mesmo path de Pydantic validation falha (payload bruto = "").
-- **Múltipla invocação de `emit_report` na mesma query do Reporter** → halt com `MultipleReportEmissions` erro estruturado (DD-10.1 ratificada V3; anti-pattern sinaliza bug em system_prompt do Reporter). Implementação em §3.5 (commit 1428d1a) + entrada na tabela acima.
+- **Múltipla invocação BEM-SUCEDIDA de `emit_report` na mesma query do Reporter** (2ª emissão com `99-report.json` já presente) → halt com `MultipleReportEmissions` erro estruturado (DD-10.1 ratificada V3; anti-pattern sinaliza bug em system_prompt do Reporter). Implementação em §3.5 (commit 1428d1a) + entrada na tabela acima. **ADR-0016:** a guarda conta emissões BEM-SUCEDIDAS (sinal `99-report.json`), não tentativas; uma 2ª emissão após FALHA da 1ª é retry de validação legítimo (reporter §9.2.a), permitido — não halt.
 - **`ToolUseBlock` sem `.input` attribute** (defensivo, edge case de SDK version incompat) → `MalformedToolUseBlock` erro estruturado; sugere versão de SDK abaixo do mínimo da Provisão MC-E.
 - **Stream contém `ToolUseBlock`s intermediários não-`emit_report`** (ex: `ToolSearch` injetado pelo SDK quando tool search está ON, confirmado empiricamente smoke-test #38) → comportamento esperado, não-erro; coordinator filtra por `block.name` e ignora blocks intermediários audit-only. Stream completo permanece audit trail implícito (logs internos do `query()`).
 

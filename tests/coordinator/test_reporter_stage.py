@@ -17,6 +17,7 @@ from claude_agent_sdk import AssistantMessage, ToolUseBlock
 from coordinator.errors import (
     MalformedToolUseBlock,
     MultipleReportEmissions,
+    ReportNotEmitted,
     ReporterPermissionDenied,
     ReporterTurnsExhausted,
 )
@@ -62,7 +63,7 @@ async def test_as1_reporter_passthrough_no_recompute(tmp_path, monkeypatch, sdk)
         "coordinator.run.query",
         sdk.make_query([sdk.assistant_tool_use(_EMIT, _PAYLOAD), sdk.result()]),
     )
-    captured = await _run_reporter_stage(_PAYLOAD, _server(tmp_path))
+    captured = await _run_reporter_stage(_PAYLOAD, _server(tmp_path), tmp_path)
     assert captured == _PAYLOAD  # captured verbatim via ToolUseBlock.input, no recompute
 
 
@@ -72,34 +73,42 @@ async def test_as2_reporter_ignores_intermediate_blocks(tmp_path, monkeypatch, s
     intermediate = sdk.assistant_tool_use("mcp__some_other__probe", {"q": "x"})
     emit = sdk.assistant_tool_use(_EMIT, _PAYLOAD)
     monkeypatch.setattr("coordinator.run.query", sdk.make_query([intermediate, emit, sdk.result()]))
-    captured = await _run_reporter_stage(_PAYLOAD, _server(tmp_path))
+    captured = await _run_reporter_stage(_PAYLOAD, _server(tmp_path), tmp_path)
     assert captured == _PAYLOAD
 
 
-async def test_reporter_multiple_emissions_raises(tmp_path, monkeypatch, sdk) -> None:
-    """§9.2.c — a 2nd emit_report ToolUseBlock raises MultipleReportEmissions (§3.5).
-
-    RETRY-INCOMPATIBILITY (conscious Phase-3 debt, ADR pending — see docs/tasks.md):
-    §3.5 flips emit_report_seen on EVERY emit_report block, blind to handler success.
-    So a legitimate invalid->retry->valid path (reporter §6.7 / §9.2.a) would ALSO
-    raise here, and the captured payload would be the FIRST (rejected) attempt — not
-    the corrected one. Reconciling §3.5 with §6.7/§9.2.a (correlate
-    ToolUseBlock<->ToolResultBlock.is_error; count/capture only SUCCESSFUL emits;
-    raise only on a 2nd successful emit) is deferred to Phase 3 hardening. This anchor
-    pins the current AS-IS §3.5 semantics, not the retry-correct target.
-    """
-    monkeypatch.setattr(
-        "coordinator.run.query",
-        sdk.make_query(
-            [
-                sdk.assistant_tool_use(_EMIT, _PAYLOAD),
-                sdk.assistant_tool_use(_EMIT, _PAYLOAD),
-                sdk.result(),
-            ]
-        ),
+def _double_emit_query(sdk: object) -> object:
+    return sdk.make_query(
+        [
+            sdk.assistant_tool_use(_EMIT, _PAYLOAD),
+            sdk.assistant_tool_use(_EMIT, _PAYLOAD),
+            sdk.result(),
+        ]
     )
+
+
+async def test_reporter_second_emit_after_success_raises(tmp_path, monkeypatch, sdk) -> None:
+    """§9.2.c (ADR-0016) — a 2nd emit_report when the FIRST already SUCCEEDED is genuine
+    redundancy -> MultipleReportEmissions. The success signal is `99-report.json` (the
+    handler's sink). The mock does NOT run the handler, so the sink is pre-created to
+    simulate the first emit's success. Invariant preserved (green before and after)."""
+    (tmp_path / "99-report.json").write_text("{}\n", encoding="utf-8")  # first emit succeeded
+    monkeypatch.setattr("coordinator.run.query", _double_emit_query(sdk))
     with pytest.raises(MultipleReportEmissions):
-        await _run_reporter_stage(_PAYLOAD, _server(tmp_path))
+        await _run_reporter_stage(_PAYLOAD, _server(tmp_path), tmp_path)
+
+
+async def test_reporter_second_emit_after_failure_allowed(tmp_path, monkeypatch, sdk) -> None:
+    """§9.2.a (ADR-0016) — a 2nd emit_report when the FIRST FAILED (no `99-report.json`)
+    is a legitimate validation-retry, NOT redundancy -> must NOT raise
+    MultipleReportEmissions. Under the mock the handler does not run, so no success sink
+    is produced for the retry either; the honest outcome is `ReportNotEmitted` (no committed
+    Report — the happy 'retry succeeds -> Report' path is the live smoke). RED today: the
+    AS-IS guard raises MultipleReportEmissions on ANY 2nd emit, blind to handler success."""
+    assert not (tmp_path / "99-report.json").exists()  # first emit failed: no success sink
+    monkeypatch.setattr("coordinator.run.query", _double_emit_query(sdk))
+    with pytest.raises(ReportNotEmitted):
+        await _run_reporter_stage(_PAYLOAD, _server(tmp_path), tmp_path)
 
 
 async def test_reporter_triaxial_permission_denied(tmp_path, monkeypatch, sdk) -> None:
@@ -110,7 +119,7 @@ async def test_reporter_triaxial_permission_denied(tmp_path, monkeypatch, sdk) -
         sdk.make_query([sdk.result(subtype="success", permission_denials=[{"tool": "Bash"}])]),
     )
     with pytest.raises(ReporterPermissionDenied):
-        await _run_reporter_stage(_PAYLOAD, _server(tmp_path))
+        await _run_reporter_stage(_PAYLOAD, _server(tmp_path), tmp_path)
 
 
 async def test_reporter_turns_exhausted(tmp_path, monkeypatch, sdk) -> None:
@@ -120,7 +129,7 @@ async def test_reporter_turns_exhausted(tmp_path, monkeypatch, sdk) -> None:
         sdk.make_query([sdk.result(subtype="error_max_turns", num_turns=3)]),
     )
     with pytest.raises(ReporterTurnsExhausted):
-        await _run_reporter_stage(_PAYLOAD, _server(tmp_path))
+        await _run_reporter_stage(_PAYLOAD, _server(tmp_path), tmp_path)
 
 
 async def test_reporter_malformed_tooluseblock(tmp_path, monkeypatch, sdk) -> None:
@@ -134,4 +143,4 @@ async def test_reporter_malformed_tooluseblock(tmp_path, monkeypatch, sdk) -> No
     msg = AssistantMessage(content=[block], model="test-model")
     monkeypatch.setattr("coordinator.run.query", sdk.make_query([msg, sdk.result()]))
     with pytest.raises(MalformedToolUseBlock):
-        await _run_reporter_stage(_PAYLOAD, _server(tmp_path))
+        await _run_reporter_stage(_PAYLOAD, _server(tmp_path), tmp_path)

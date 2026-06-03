@@ -725,8 +725,8 @@ Erros levantados pelo coordinator pós-loop ao inspecionar o stream:
 |---------------------------------|------------------------------------------------------------------|----------------|
 | `ReporterPermissionDenied`      | `permission_denials` truthy (qualquer denial)                          | False          |
 | `ReporterTurnsExhausted`        | `final_result.subtype == "error_max_turns"`                      | True (com `max_turns` maior) |
-| `ReportNotEmitted`              | `subtype == "success"` E `emit_report_seen == False` E `denials == []` | False    |
-| `MultipleReportEmissions`       | Múltiplos `ToolUseBlock` com `name == "mcp__reporter_tools__emit_report"` no stream | False |
+| `ReportNotEmitted`              | `emit_report_seen == False`; OU (ADR-0016) retry permitido sem Report committed (sem `99-report.json` E sem `error_max_turns`) | False    |
+| `MultipleReportEmissions`       | (ADR-0016) 2ª `emit_report` **bem-sucedida** (`99-report.json` já presente); 2ª após FALHA da 1ª é retry válido, não halt | False |
 | `MalformedToolUseBlock`         | `ToolUseBlock` sem `.input` attribute (SDK version incompat).    | False          |
 | `CoordinatorStreamFailure`      | Exception levantada durante `async for` sem `ResultMessage` capturado. | False  |
 
@@ -738,6 +738,7 @@ Coordinator §3.5 + §5 documentam a ordem canônica de discriminação pós-loo
 1. if permission_denials:                  → ReporterPermissionDenied
 2. subtype == "error_max_turns"            → ReporterTurnsExhausted
 3. emit_report_seen == False               → ReportNotEmitted
+3b. allowed_retry AND sem 99-report.json   -> ReportNotEmitted   (ADR-0016)
 4. (else success)                           → return report_payload
 ```
 

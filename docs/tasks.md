@@ -752,6 +752,22 @@ implementado, não um desalinhamento doc↔impl):**
   Phase 3: envolver `_atomic_write_json` em try/except e emitir envelope DD-2 com
   errorCode system-class em vez de exceção crua.
 
+**Débito de conformidade de proveniência (limite conhecido ACEITO, introduzido pelo fix
+do desync top-vs-finding — PR `fix/reporter-provenance-desync`; NÃO corrigir agora):**
+
+- **Proveniência top-level nos caminhos SEM findings usa fallback (possivelmente estale).**
+  O fix faz `run_pipeline` derivar a trinca top-level dos *findings* (o header da Política
+  echoado por cada veredito do Matcher via `check_applicability`), eliminando o
+  `MultipleReportEmissions` determinístico do caminho substantivo de eval-lgpd. Mas em
+  `skipped_by_triager` / `success_no_candidates` não há finding de onde derivar, então
+  `_effective_provenance` (`run.py`) cai nos parâmetros `policy_*` (default `0.1.0`), que
+  podem divergir da Política carregada (e.g. eval-lgpd `0.2.0`). Inócuo: o cross-check #2 do
+  `emit_report` é vácuo com zero findings (nada a comparar) e não halta — só o rótulo de
+  versão no Report pode ficar estale. Conformidade total exigiria o coordinator ler o header
+  da Política (resource `policy://schema-version` / `policy://catalog`) nesses caminhos —
+  follow-up, fora do escopo do fix de halt. A entrada de (c) (contradição §3.5 emit-counting
+  vs retry) permanece intacta acima — não é resolvida aqui.
+
 **Débito de lint pré-existente (NÃO-MC-C; cleanup trivial em chore PR dedicado):**
 
 - **F401 `json` não-usado em `scripts/smoke_tests/check_applicability_48b/probe.py:21`.**

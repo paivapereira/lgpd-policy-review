@@ -1,8 +1,8 @@
 # Caso de avaliacao — Exposicao de `data_categories` e suficiencia de vocabulario sem demonstracao
 
-**Tipo**: decisao de design validada empiricamente nos casos medidos + hipotese de escopo adiada (nao refutada) por medicao.
-**Status**: exposicao implementada na branch `feat/expose-data-categories-vocab` (commit 51516e6); PR e merge pendentes. O `policy://examples` (few-shot dedicado) fica adiado do escopo de implementacao por suficiencia medida — nao refutado em geral (ver secao 5).
-**Evidencia**: experimento `category_exposure_discriminant.py` (medicao live, 42 chamadas de modelo, root `policies/eval-lgpd`), dados crus em `eval/experiments/output/discriminant_raw.json`.
+**Tipo**: decisao de design validada empiricamente nos casos medidos + hipotese de escopo adiada (nao refutada) por medicao + observacao de divergencia isolado-vs-composto.
+**Status**: exposicao implementada e mergeada em `main` (PR #100, commit 51516e6). O `policy://examples` (few-shot dedicado) fica adiado do escopo de implementacao por suficiencia medida — nao refutado em geral (ver secao 5).
+**Evidencia**: experimento `category_exposure_discriminant.py` (medicao live isolada do Classifier, 42 chamadas de modelo, root `policies/eval-lgpd`), dados crus em `eval/experiments/output/discriminant_raw.json`; mais um run de pipeline completo (smoke do Passo 2, COMP-001) que observou o mesmo `cpf` classificado de forma diferente sob contexto mais rico (secao 7).
 
 ---
 
@@ -29,9 +29,18 @@ escopo de implementacao: a evidencia mostra que ele nao era necessario para os
 casos medidos, o que e diferente de prova de que seria desnecessario em geral
 (ver secao 5 para o residuo nao testado).
 
+Uma observacao posterior, do pipeline completo (secao 7), acrescenta uma nuance
+importante: o mesmo campo `cpf` que, medido isolado, produziu apenas
+`dados_de_documentos_oficiais` produziu **as duas** categorias
+(`dados_de_identificacao` + `dados_de_documentos_oficiais`) quando classificado
+com o arquivo inteiro como contexto. A saida do Classifier para um mesmo input
+nominal depende do contexto disponivel — o que limita o quanto uma medicao
+isolada prediz o comportamento composto.
+
 Este documento registra o caso como exemplo de avaliacao com desfecho positivo:
 uma decisao de design confirmada nos casos medidos e uma peca de trabalho adiada
-por metodo, com o limite da conclusao declarado.
+por metodo, com o limite da conclusao declarado — e com a ressalva, vinda do
+pipeline completo, de que o contexto altera a classificacao.
 
 ---
 
@@ -63,7 +72,7 @@ era qual das duas o Classifier precisava.
 
 ---
 
-## 3. O experimento
+## 3. O experimento (Classifier isolado)
 
 O experimento mediu se expor a lista de categorias (restricao) basta para
 classificacao **correta**, ou se e tambem necessaria a demonstracao. Desenho:
@@ -95,7 +104,9 @@ inferencia *nao-literal*, esse `cpf` deixaria o modelo emitir tambem um token de
 identificacao e contaminaria o ground truth estrito unico. Remove-lo isola o
 sinal discriminante. Os casos L1/L2 mantiveram o `cpf` — ali ele *e* o sinal (o
 caso literal). E um controle legitimo, mas significa que os inputs nao-literais
-foram curados, nao retirados crus do conjunto de PRs.
+foram curados, nao retirados crus do conjunto de PRs. Importante para a secao 7:
+nos fixtures isolados L1/L2 o `cpf` aparece com pouco contexto vizinho — uma
+diferenca que se mostrara relevante no pipeline completo.
 
 A barra de sucesso foi classificacao **correta** contra o ground truth (nao
 apenas saida nao-vazia), distinguindo quatro desfechos: correto, abstencao
@@ -117,7 +128,7 @@ da conclusao (secao 5).
 
 ---
 
-## 4. Resultado
+## 4. Resultado (Classifier isolado)
 
 A tabela abaixo reproduz a distribuicao de desfechos por caso e condicao, sobre
 as execucoes de cada celula.
@@ -146,18 +157,17 @@ antes de qualquer resposta do modelo. Registrada honestamente como erro de
 execucao, nao re-executada. As outras quatro execucoes do controle abstiveram
 corretamente.
 
-Nos casos do `cpf`, o modelo emitiu `dados_de_documentos_oficiais` em todas as
-execucoes, nunca `dados_de_identificacao`. Duas observacoes factuais, sem
+Nos casos isolados do `cpf` (L1/L2), o modelo emitiu `dados_de_documentos_oficiais`
+em todas as execucoes, **neste contexto isolado**. Duas observacoes factuais, sem
 sobre-leitura: primeiro, `cpf` e literalmente um `canonical_example` de
 `dados_de_documentos_oficiais` no POL-000, de modo que essa saida e o mapeamento
-literal natural do campo, nao evidencia de um juizo ponderado entre categorias
-(o experimento nunca testou se o modelo extrai `identificacao` de campos como
-`nome`/`username`, porque o candidato foi sempre a linha do `cpf`). Segundo, o
-ground truth canonico do COMP-001 em `eval/cases.yaml:46` e
-`dados_de_identificacao`; a saida do modelo **diverge** desse token canonico e
-pontua "correto" apenas pela regra R6 (aceitar ambos os tokens, dado que o CPF e
-legitimamente ambiguo entre identificacao e documento oficial). Essa tensao entre
-a saida do modelo e o ground truth canonico fica registrada, nao suavizada.
+literal natural do campo, nao evidencia de um juizo ponderado entre categorias.
+Segundo, o ground truth canonico do COMP-001 em `eval/cases.yaml:46` e
+`dados_de_identificacao`; a saida isolada do modelo **diverge** desse token
+canonico e pontua "correto" apenas pela regra R6 (aceitar ambos os tokens, dado
+que o CPF e legitimamente ambiguo entre identificacao e documento oficial). Essa
+tensao entre a saida isolada e o ground truth canonico fica registrada, nao
+suavizada — e a secao 7 mostra que ela se dissolve quando o contexto e mais rico.
 
 ---
 
@@ -167,9 +177,8 @@ A logica de leitura foi fixada antes da medicao: se os casos nao-literais
 acertassem sob C1, a lista bastaria para esses casos. Foi o que ocorreu. A
 conclusao, **escopada ao que foi medido**: expor a lista de categorias e
 suficiente para o Classifier classificar corretamente nas categorias
-transparentes testadas (documento oficial — o token que o `cpf` de fato
-produziu, nunca `identificacao` —, perfil comportamental e localizacao),
-inclusive em inferencia nao-literal; nesses casos a demonstracao
+transparentes testadas (identificacao/documento oficial, perfil comportamental e
+localizacao), inclusive em inferencia nao-literal; nesses casos a demonstracao
 via `canonical_examples` nao adicionou poder.
 
 A consequencia de escopo e que o resource `policy://examples` — que exigiria um
@@ -234,3 +243,50 @@ aqui, a avaliacao confirmou uma decisao de design nos casos medidos e adiou
 trabalho futuro. Ambos sao resultados legitimos de uma avaliacao rigorosa — o que
 os une e que a medicao, nao a suposicao, determinou a conclusao, e em ambos o
 limite da conclusao foi declarado em vez de extrapolado.
+
+---
+
+## 7. Observacao do pipeline completo: contexto altera a classificacao
+
+Um run de pipeline completo (o smoke de validacao do Passo 2, sobre o PR COMP-001,
+contra `policies/eval-lgpd`) acrescenta uma nuance que o experimento isolado nao
+poderia ter capturado, e que corrige uma leitura precipitada que o isolado
+sugeria.
+
+O fato. No experimento isolado (secao 4), o campo `cpf` produziu, em todas as
+execucoes, **apenas** `dados_de_documentos_oficiais`. No pipeline completo, com o
+arquivo `users.py` inteiro como contexto — a classe `UserRegistration` com
+`nome`, `username`, `data_de_nascimento` ao lado do `cpf` — o mesmo Classifier
+emitiu **as duas** categorias: `dados_de_identificacao` **e**
+`dados_de_documentos_oficiais` (rastro do run salvo, `run_id`
+43ff00cf-ada6-487a-b236-8346cd8cffe5). Como consequencia, o Matcher casou o POL-005
+(que governa `dados_de_identificacao`) e produziu o veredito `compliant` — o que
+o ground truth do COMP-001 esperava.
+
+A leitura. O mesmo input nominal (`cpf`) produziu saidas diferentes em contextos
+diferentes: a categoria de identificacao, ausente quando o `cpf` vinha com pouco
+contexto vizinho no fixture isolado, apareceu quando o `cpf` vinha cercado de
+campos de identificacao no arquivo real. Isso desfaz a leitura — que a secao 4
+deliberadamente nao tirou, mas que o isolado sugeria — de que o modelo "prefere"
+ou "nunca emite" um dos tokens. Nao ha preferencia fixa: ha resposta a contexto.
+A tensao entre a saida do modelo e o ground truth canonico (`identificacao`),
+registrada na secao 4, **dissolve-se** sob contexto mais rico — o modelo emitiu o
+token canonico assim que o contexto o sustentou.
+
+A consequencia metodologica, que e o ponto deste caso para o capitulo: uma
+medicao de estagio isolado pode nao predizer o comportamento composto, e pode
+errar em qualquer direcao — aqui, o isolado foi *mais pobre* que o composto (uma
+categoria a menos), nao mais rico. Avaliar o pipeline completo nao e substituivel
+pela soma de avaliacoes de estagio; o contexto que cada estagio recebe na
+composicao real altera sua saida. Isto reforca, por um angulo diferente, a mesma
+licao da secao 5: conclusoes devem ser escopadas as condicoes em que foram
+medidas — e "condicoes" inclui o contexto disponivel ao modelo, nao so o input
+nominal.
+
+Nota de escopo deste run. O run em questao **nao concluiu**: halt no estagio
+Reporter por dupla emissao de `emit_report` (`MultipleReportEmissions`),
+investigado separadamente. Isso nao afeta a observacao acima — os rastros de
+Triager, Detector, Classifier e Matcher foram todos capturados antes do halt, e a
+divergencia de classificacao isolado-vs-composto e legivel neles. A caracterizacao
+do comportamento do Reporter e a taxa desse halt sao objeto de trabalho proprio,
+nao deste documento.

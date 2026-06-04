@@ -4,6 +4,55 @@
 
 Accepted (2026-05-20, session #26).
 
+## Amendment scope (2026-06-04)
+
+This block records a consequence of the version pin (Decision component 2) that
+surfaced during T-G3 (`fix/g3-rule-id`, merged as #105), where `semgrep-runner`
+began normalizing the `rule_id` it emits. The original Decision and Consequences
+are intact; the addition is a newly-discovered upgrade dependency on the pinned
+Semgrep version and the maintenance trigger it implies. Amendment landed in-place
+rather than as a successor ADR because the substantive decision (installation
+mechanism, version pin, no cloud integration) is unchanged — this block only
+extends the version-pin consequence with an empirical finding. Pattern follows the
+in-place amendments of ADR-0001 (D2, 2026-05-21) and ADR-0005 (2026-05-22).
+
+**Empirical observation (Semgrep 1.163.0).** When `scan_diff` invokes the pinned
+Semgrep with `--config <rule-set-path>`, the binary emits each finding's `check_id`
+as `<dotified-config-path>.<rule-id>`. The prefix is not stable across scan
+contexts: Semgrep dotifies the config path relative to the project root it resolves
+from the working directory when the rule set lives inside the scanned tree (yielding
+`mcp_servers.semgrep_runner.rules.<id>`), and falls back to the dotified absolute
+path when the rule set is outside the scanned repository — the live evaluation
+scenario, yielding e.g.
+`C.Users...lgpd-policy-review.mcp_servers.semgrep_runner.rules.<id>`. The Windows
+drive-letter casing (`C` vs `c`) varies with how the path is resolved. The bare rule
+`id` declared in the YAML (`br-cpf`, …) is always the last dotted segment.
+
+**Decision (mapper normalization).** The `semgrep-runner` mapper normalizes
+`rule_id` by taking the last dotted segment of `check_id` (`rsplit(".", 1)[-1]`,
+`_normalize_rule_id` in `src/mcp_servers/semgrep_runner/tools.py`). This form is
+prefix-agnostic, so it collapses every observed namespace form (relative, absolute,
+either casing) to the bare id. Two alternatives were rejected: stripping a known
+prefix (the prefix is unstable across contexts, as above) and matching the suffix
+against the loaded rule ids (which would force the loader to parse and expose the
+YAML `id:` fields — scope creep, since `LoadedRules` deliberately carries only file
+paths and the rules-root, not parsed content). Full rationale in T-G3.
+
+**Invariant the normalization depends on.** Last-segment extraction is lossless only
+while no rule `id` contains an internal dot. This invariant is locked by the anchor
+test `test_anchor_no_production_rule_id_contains_dot`
+(`tests/mcp_servers/semgrep_runner/test_scan_diff.py`), which fails loud if a future
+rule (e.g. `pii.email`) violates it — such an id would otherwise be silently
+truncated to its trailing segment.
+
+**Prospective risk tied to the pin.** The robustness of last-segment extraction is a
+property of the emission format of the *pinned* Semgrep version. A future Semgrep
+release that appends a suffix *after* the rule id (e.g. a language or index tag)
+would break the heuristic without tripping the no-dot anchor. This note is therefore
+part of the version-pin upgrade burden already recorded under Consequences
+(Negative): **re-evaluate the `rule_id` normalization at each Semgrep version bump**,
+alongside the README/CI pin synchronization.
+
 ## Context
 
 The `semgrep-runner` MCP server (specified in `docs/specs/semgrep-runner/canonical.md`, session #07) invokes Semgrep CLI as a subprocess. The component (canonical §8.6) requires Semgrep CLI to be discoverable on PATH at MCP tool invocation time. The spec sets a minimum version constraint (§2.2).

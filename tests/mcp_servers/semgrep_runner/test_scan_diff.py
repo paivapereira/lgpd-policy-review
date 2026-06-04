@@ -90,7 +90,7 @@ def test_as1_findings_emitted(
     findings = sc["findings"]
     assert len(findings) == 1
     finding = findings[0]
-    assert "test-foo-call" in finding["rule_id"]
+    assert finding["rule_id"] == "test-foo-call"
     assert finding["rule_severity"] == "warning"
     assert finding["rule_message"] == "foo() call detected by test rule"
     assert finding["location"]["path"] == "snippet.py"

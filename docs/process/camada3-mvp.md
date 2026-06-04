@@ -80,10 +80,14 @@ RAW SKIP-001: run_outcome='skipped_by_triager' total=0 counts={'compliant': 0, '
 EXIT_R2=0
 ```
 
-Observação adicional: COMP-001 tem uma **terceira** observação estrita concordante
-(o Gate #3 isolado, `uv run pytest -m live tests/harness/test_camada3_gate_live.py`,
-PASS, 2026-06-04, ~2m13s) — portanto K=3 no eixo estrito para COMP-001, K=2 para
-VIOL-001 e SKIP-001.
+Observação prévia (não numerada no K): antes da instrumentação de raw-evidence
+(commit `781c5dd`), o Gate #3 isolado
+(`uv run pytest -m live tests/harness/test_camada3_gate_live.py`) rodou COMP-001 e
+deu PASS (2026-06-04, ~2m13s) — uma observação estrita concordante, mas sob versão
+**anterior** do harness (mesmo caminho de comparação, binário diferente). Para
+manter o K sob condição uniforme, **conto K=2 para os três** (R1+R2 sob o gate
+instrumentado) e trato o Gate #3 como observação prévia concordante, não como uma
+terceira observação equivalente.
 
 ---
 
@@ -154,8 +158,9 @@ O blocker que sustentava esta etapa: o `rule_id` normalizado (`_normalize_rule_i
 pós-#105; os 28 runs do Passo 2 eram **pré-#105** (carregavam o caminho dotificado
 completo) e foram corretamente desclassificados como evidência stale. Estes runs
 são a **primeira observação do regime atual**: o `rule_id` emitiu **bare `br-cpf`**
-em todos os runs com findings (COMP-001 ×3, VIOL-001 ×2). Blocker fechado sobre
-K≥2, não K=1.
+em todos os runs com findings sob o gate instrumentado (COMP-001 ×2, VIOL-001 ×2);
+a observação prévia do Gate #3 (COMP-001, pré-instrumentação) também emitiu bare
+`br-cpf`, concordante. Blocker fechado sobre **K=2 por caso**, não K=1.
 
 ---
 
@@ -201,9 +206,11 @@ código sintaticamente são mas **nunca executado em CI**. Dois gates vivem só 
   mais divergem).
 - **Gate #2 (`--project` .mcp.json em CI).** O temp `.mcp.json` com
   `uv run --project <repo-root>` resolve os servers quando o cwd é o repo efêmero?
-  (Nota: o `mcp_servers/` na raiz é dir de DADOS de regras — sem `__init__.py`,
-  nunca importado como pacote; `src/mcp_servers/` é o pacote; rules-root resolve via
-  `__file__` sob `--project`, independente do cwd — sem shadowing.)
+  (Verificado no repo: o `mcp_servers/` na raiz é dir de DADOS de regras — sem
+  `__init__.py`, nunca importado como pacote; `src/mcp_servers/` é o pacote.
+  **Hipótese a confirmar pelo Gate #2:** sob `--project` com o cwd no repo efêmero,
+  esperamos que o rules-root resolva via `__file__` independente do cwd, sem
+  shadowing — o dispatch confirma.)
 
 **Procedimento (pós-merge deste doc + secret configurado):** disparar **um**
 `workflow_dispatch` de `lgpd-review.yml`; confirmar os 3 arms PASS no Step Summary.

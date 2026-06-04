@@ -147,7 +147,7 @@
 
 ### RNF-002 — Posicionamento operacional informativo
 
-**Descrição.** Sistema posta findings como inline review comments no PR via API do GitHub e não bloqueia merge no MVP. Bloqueio condicional é evolução pós-validação empírica de taxa de falso-positivo, formalizada em ADR futuro quando o critério de ativação for definido. Esta restrição é posicionamento honesto, não limitação envergonhada: sistemas de IA que bloqueiam ações precisam de calibração empírica de FPR que um benchmark sintético de ~200 snippets em escopo de TCC não fornece.
+**Descrição.** Sistema posta findings como summary comment no PR (e Step Summary no caminho `workflow_dispatch`) via GitHub e não bloqueia merge no MVP. Inline review comments (mapear posição no diff) são Future Work, condicionados a calibração de posição sob diff incremental — diferimento honesto análogo ao do bloqueio-de-merge. Bloqueio condicional é evolução pós-validação empírica de taxa de falso-positivo, formalizada em ADR futuro quando o critério de ativação for definido. Esta restrição é posicionamento honesto, não limitação envergonhada: sistemas de IA que bloqueiam ações precisam de calibração empírica de FPR que um benchmark sintético de ~200 snippets em escopo de TCC não fornece.
 
 **Critério.**
 - **Dado** PR contendo finding `violation_candidate` reportado pelo sistema,

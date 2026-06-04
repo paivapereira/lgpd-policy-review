@@ -798,3 +798,18 @@ a sessão de autoria correspondente:
   `strict_mcp_config=True` programático já em uso pelo coordinator)
   apontando para `.github/mcp-ci.json` dedicada, isolando config CI
   contra interferência de configs locais do runner.
+
+- **Carve-out Camada-3-MVP (entregue agora, não em Milestone D).** A GitHub
+  Action de validação (`workflow_dispatch` + matrix dos 3 fixtures
+  COMP-001/VIOL-001/SKIP-001, output summary, harness field-scoped contra
+  `.expected-report.json`, gate qualitativo) e o shared core
+  (`scripts/ci/run_review.py`, `scripts/ci/format_summary.py`,
+  `eval/harness/camada3_gate.py`) são entregues na Camada-3-MVP per
+  `planejamento-tcc2.md` §Camada-3-MVP. Permanece em Milestone D:
+  `pull_request` em produção com posting via API e checkout de head, inline
+  comments, benchmark sintético ~200 snippets (`proposta-tcc2` §4.f), gate
+  quantitativo precision/recall/F1, `.github/mcp-ci.json` +
+  `--strict-mcp-config` CLI. Contrato de implementação das peças novas de
+  infra: o plano Passo 4 v3 ratificado — não exigem spec em `docs/specs/`,
+  que é superfície de contrato do pipeline (subagentes + MCP servers), não
+  do adaptador de borda CI.

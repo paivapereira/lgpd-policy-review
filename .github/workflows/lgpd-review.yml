@@ -1,0 +1,80 @@
+name: LGPD Policy Review (Camada 3-MVP)
+
+# Validation surface (DD-P4-1): workflow_dispatch over the 3 MVP fixtures, each arm
+# building an ephemeral two-commit repo and running the live field-scoped gate.
+# The pull_request PRODUCTION surface (active posting via API, checkout of head) is
+# deferred to Milestone D — declared below but INERT (`if: false`).
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate (${{ matrix.case }})
+    # MVP validation path only; on pull_request this job is skipped (production is D).
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    # ADR-0014: 3 MCP stages cold-start ~3.5s each + LLM latency -> generous budget.
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        case: [COMP-001, VIOL-001, SKIP-001]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up uv + Python 3.12.7
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12.7"
+          enable-cache: true
+      - name: Sync dependencies
+        run: uv sync
+      - name: Install pinned Semgrep on PATH (ADR-0010)
+        run: |
+          uv tool install semgrep==1.163.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Camada-3 live gate -> Step Summary (E1 redirect)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        # camada3_gate sets POLICY_READER_ROOT=policies/eval-lgpd itself; emits the
+        # Markdown summary + gate verdict to stdout; exit 0 iff STRICT compare passes.
+        run: |
+          uv run python -m eval.harness.camada3_gate --case "${{ matrix.case }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # PRODUCTION surface — DEFERRED to Milestone D. INERT in the MVP (`if: false`):
+  # never executes, no posting. Documents the source-agnostic entrypoint contract
+  # (run_review reads base/head/pr/repo from the PR event -> stdout summary). To
+  # activate in Milestone D: flip the guard, wire posting via `gh pr comment`, and
+  # checkout head into the worktree (scan_diff scans cwd; actions/checkout default
+  # on PR is the merge commit — see plano §9 risco 4).
+  # ---------------------------------------------------------------------------
+  production-pr:
+    name: production (pull_request) — DEFERRED to Milestone D
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # base..head reachable for scan_diff (rev-parse --verify)
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12.7"
+      - run: uv sync
+      - run: |
+          uv tool install semgrep==1.163.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Review -> stdout summary (active posting via API is Milestone D)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_URL: ${{ github.event.repository.html_url }}
+        run: |
+          uv run python -m scripts.ci.run_review >> "$GITHUB_STEP_SUMMARY"

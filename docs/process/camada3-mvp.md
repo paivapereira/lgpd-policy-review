@@ -4,10 +4,10 @@
 
 - **Local (K=2): PASS.** Convergência estrita demonstrada nos três fixtures
   (COMP-001, VIOL-001, SKIP-001) sobre 2 rodadas live completas.
-- **CI (Gates #1/#2): PENDENTE-CI.** O `workflow_dispatch` ainda não foi
-  disparado; `lgpd-review.yml` é código não-exercitado no runner ubuntu.
-- **Camada-3-MVP: NAO fechada.** O status só vira "fechada" quando a §9 (Gates
-  #1/#2 — CI) for preenchida com o resultado de um dispatch real.
+- **CI (Gates #1/#2): CONFIRMADO.** `workflow_dispatch` run 26983111920
+  (2026-06-04) — 3 arms (COMP/VIOL/SKIP) PASS no runner ubuntu; detalhe na §9.
+- **Camada-3-MVP: FECHADA.** Gate local (K=2) e gate de CI (Gates #1/#2) ambos
+  PASS.
 
 **Proveniência.** Implementação em três PRs squash-merged em `main` (`b9259c3`,
 2026-06-04): #107 (entrypoint + formatador), #108 (companion edits B/C), #109
@@ -188,14 +188,14 @@ Diferença declarada entre superfície de demonstração (MVP) e de produção
 
 ---
 
-## 9. Gates #1/#2 — CI (PENDENTE-CI)
+## 9. Gates #1/#2 — CI (CONFIRMADO)
 
-**[PENDENTE-CI — preencher após o primeiro `workflow_dispatch`.]**
+**[CONFIRMADO — `workflow_dispatch` run 26983111920, 2026-06-04.]**
 
 Os runs da §2 são **locais**: exercitam o pipeline + o gate, mas **não** o setup do
-runner ubuntu. O `lgpd-review.yml` (workflow_dispatch + matrix dos 3 fixtures) é
-código sintaticamente são mas **nunca executado em CI**. Dois gates vivem só lá
-(plano §7):
+runner ubuntu. O `lgpd-review.yml` (workflow_dispatch + matrix dos 3 fixtures), antes
+código nunca executado em CI, **foi agora exercitado** (run 26983111920). Dois gates
+vivem só lá (plano §7):
 
 - **Gate #1 (auth + wheel).** `uv sync` resolve o wheel `manylinux` do
   `claude-agent-sdk==0.2.87` (CLI embutido, ADR-0001:103-110) e a sessão autentica
@@ -208,18 +208,28 @@ código sintaticamente são mas **nunca executado em CI**. Dois gates vivem só 
   `uv run --project <repo-root>` resolve os servers quando o cwd é o repo efêmero?
   (Verificado no repo: o `mcp_servers/` na raiz é dir de DADOS de regras — sem
   `__init__.py`, nunca importado como pacote; `src/mcp_servers/` é o pacote.
-  **Hipótese a confirmar pelo Gate #2:** sob `--project` com o cwd no repo efêmero,
-  esperamos que o rules-root resolva via `__file__` independente do cwd, sem
-  shadowing — o dispatch confirma.)
+  **Confirmado pelo Gate #2** (run 26983111920): sob `--project` com o cwd no repo
+  efêmero, o rules-root resolveu via `__file__` independente do cwd, sem shadowing —
+  os arms COMP/VIOL produziram o finding set esperado e o field-compare passou.)
 
 **Procedimento (pós-merge deste doc + secret configurado):** disparar **um**
 `workflow_dispatch` de `lgpd-review.yml`; confirmar os 3 arms PASS no Step Summary.
 
-**Resultado do dispatch:** `<pendente>`
-**Run URL / data:** `<pendente>`
+**Resultado do dispatch:** 3 arms PASS — `validate (COMP-001)` success,
+`validate (VIOL-001)` success, `validate (SKIP-001)` success; o job inerte
+`production (pull_request)` ficou `skipped` (`if: false`, como projetado). Gate #1
+(auth+wheel) confirmado: o runner fez `uv sync` (resolveu o wheel do
+`claude-agent-sdk==0.2.87`) e autenticou via `secrets.ANTHROPIC_API_KEY` — o
+pipeline live rodou nos 3 arms (auth por API key no runner headless, o eixo onde
+local-OAuth não dava garantia). Gate #2 (`--project`/cwd-efêmero) confirmado:
+COMP/VIOL produziram o finding set que casou o baseline no field-compare estrito
+(logo `scan_diff` registrou e o rules-root resolveu via `__file__`, sem shadowing).
 
-Enquanto esta seção estiver com placeholder, o status no topo permanece
-"Camada-3-MVP: NAO fechada".
+**Run URL / data:** https://github.com/paivapereira/lgpd-policy-review/actions/runs/26983111920
+— 2026-06-04, wall ~4m35s. As Step Summaries por-arm (linhas `RAW` + veredito do
+gate em CI) ficam acessíveis nesse run.
+
+Seção preenchida; o status no topo é **Camada-3-MVP: FECHADA**.
 
 ---
 

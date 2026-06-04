@@ -15,7 +15,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from eval.harness.camada3_compare import compare_outcome_only, compare_report
+from eval.harness.camada3_compare import (
+    compare_outcome_only,
+    compare_report,
+    raw_evidence,
+)
 
 
 def _baseline() -> dict[str, Any]:
@@ -152,3 +156,13 @@ def test_outcome_only_skip_tokens_pass() -> None:
 def test_outcome_only_substantive_fails() -> None:
     result = compare_outcome_only("SKIP-001", {"run_outcome": "success_with_findings"})
     assert not result.passed
+
+
+def test_raw_evidence_is_deterministic_and_carries_multiset() -> None:
+    payload = _baseline()
+    first = raw_evidence(payload)
+    second = raw_evidence(payload)
+    assert first == second  # deterministic — safe to compare across K rounds
+    assert "run_outcome='success_with_findings'" in first
+    assert "'br-cpf'" in first  # the (verdict, rule_id) multiset is surfaced
+    assert "total=4" in first

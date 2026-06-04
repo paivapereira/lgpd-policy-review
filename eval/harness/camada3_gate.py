@@ -34,6 +34,7 @@ from eval.harness.camada3_compare import (
     CompareResult,
     compare_outcome_only,
     compare_report,
+    raw_evidence,
 )
 from eval.harness.synthetic_pr import make_pr_repo, write_project_mcp_json
 from scripts.ci.format_summary import render_error_summary, render_report_summary
@@ -72,9 +73,9 @@ def _log(msg: str) -> None:
     print(msg, file=sys.stderr)
 
 
-async def _run_case(case: GateCase) -> tuple[CompareResult, str]:
+async def _run_case(case: GateCase) -> tuple[CompareResult, str, str]:
     """Build the synthetic PR, run the live pipeline rooted at eval-lgpd, and
-    field-compare. Returns (compare_result, markdown_summary)."""
+    field-compare. Returns (compare_result, markdown_summary, raw_evidence)."""
     workdir = Path(tempfile.mkdtemp(prefix=f"camada3-{case.case_id}-"))
     cwd = Path.cwd()
     try:
@@ -104,24 +105,30 @@ async def _run_case(case: GateCase) -> tuple[CompareResult, str]:
             failed.strict_failures.append(
                 f"CoordinatorError em {result.stage}: {type(result.cause).__name__}"
             )
-            return failed, summary
+            return failed, summary, ""
 
         payload = result.payload
         summary = render_report_summary(payload)
+        evidence = raw_evidence(payload)
         if case.baseline is None:
-            return compare_outcome_only(case.case_id, payload), summary
+            return compare_outcome_only(case.case_id, payload), summary, evidence
         baseline_text = (_PROJECT_ROOT / case.baseline).read_text(encoding="utf-8")
         baseline: dict[str, object] = json.loads(baseline_text)
-        return compare_report(case.case_id, payload, baseline), summary
+        return compare_report(case.case_id, payload, baseline), summary, evidence
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 
 
-def _emit(case_result: CompareResult, summary: str) -> None:
-    """Emit the Markdown summary + gate verdict to STDOUT (the YAML redirects it)."""
+def _emit(case_result: CompareResult, summary: str, evidence: str) -> None:
+    """Emit the Markdown summary + raw evidence + gate verdict to STDOUT (the YAML
+    redirects it). Raw evidence prints on every run so K-round convergence is
+    auditable from the captured output."""
     verdict = "PASS" if case_result.passed else "FAIL"
     print(summary)
     print("")
+    if evidence:
+        print(f"RAW {case_result.case_id}: {evidence}")
+        print("")
     print(f"### Gate {case_result.case_id}: **{verdict}**")
     for failure in case_result.strict_failures:
         print(f"- STRICT: {failure}")
@@ -144,8 +151,8 @@ def main(argv: list[str] | None = None) -> int:
     selected = list(_CASES.values()) if args.case == "all" else [_CASES[args.case]]
     all_passed = True
     for case in selected:
-        case_result, summary = asyncio.run(_run_case(case))
-        _emit(case_result, summary)
+        case_result, summary, evidence = asyncio.run(_run_case(case))
+        _emit(case_result, summary, evidence)
         all_passed = all_passed and case_result.passed
     return 0 if all_passed else 1
 

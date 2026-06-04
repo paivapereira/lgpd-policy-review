@@ -22,8 +22,8 @@ from eval.harness.camada3_gate import _CASES, _run_case
 async def test_camada3_gate_comp001_live() -> None:
     if shutil.which("semgrep") is None:
         pytest.skip("semgrep not on PATH (ADR-0010 prereq)")
-    result, summary = await _run_case(_CASES["COMP-001"])
+    result, summary, evidence = await _run_case(_CASES["COMP-001"])
     assert result.passed, (
         f"COMP-001 STRICT failures: {result.strict_failures}; "
-        f"advisory: {result.advisory_notes}\n{summary}"
+        f"advisory: {result.advisory_notes}\n{evidence}\n{summary}"
     )

@@ -120,3 +120,22 @@ def compare_outcome_only(case_id: str, actual: dict[str, Any]) -> CompareResult:
         )
     result.passed = not result.strict_failures
     return result
+
+
+def raw_evidence(payload: dict[str, Any]) -> str:
+    """Deterministic single-line raw dump for the K-round evidence pack
+    (camada3-mvp.md): run_outcome, total, counts, the (verdict, rule_id) multiset,
+    and the data_categories multiset — emitted for EVERY run (pass or fail) so
+    convergence-over-K is auditable from stdout (K=1 is one observation, not yet
+    stability)."""
+    summary = payload.get("summary", {})
+    counts = summary.get("counts", {})
+    findings = payload.get("findings", [])
+    ordered_counts = {verdict: counts.get(verdict) for verdict in _VERDICTS}
+    return (
+        f"run_outcome={payload.get('run_outcome')!r} "
+        f"total={summary.get('total')} "
+        f"counts={ordered_counts} "
+        f"multiset(verdict,rule_id)={dict(_verdict_rule_multiset(findings))} "
+        f"data_categories={dict(_data_categories_multiset(findings))}"
+    )

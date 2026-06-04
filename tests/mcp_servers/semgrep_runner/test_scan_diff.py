@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 from mcp.types import TextContent
@@ -40,7 +41,12 @@ from mcp_servers.semgrep_runner._envelope import (
     _semgrep_binary_unavailable,
     _semgrep_execution_failed,
 )
-from mcp_servers.semgrep_runner.loader import load_rules
+from mcp_servers.semgrep_runner._semgrep_output import (
+    _SemgrepLocation,
+    _SemgrepResult,
+    _SemgrepResultExtra,
+)
+from mcp_servers.semgrep_runner.loader import load_rules, resolve_runner_root
 
 from .conftest import _pid_alive_windows, make_git_repo, make_shallow_clone
 
@@ -84,7 +90,7 @@ def test_as1_findings_emitted(
     findings = sc["findings"]
     assert len(findings) == 1
     finding = findings[0]
-    assert "test-foo-call" in finding["rule_id"]
+    assert finding["rule_id"] == "test-foo-call"
     assert finding["rule_severity"] == "warning"
     assert finding["rule_message"] == "foo() call detected by test rule"
     assert finding["location"]["path"] == "snippet.py"
@@ -891,4 +897,157 @@ async def test_as14b_scan_diff_no_hang_on_windows_stdio_transport(
         f"handle inheritance defect present? Verify "
         f"stdin=subprocess.DEVNULL in _resolve_ref / "
         f"_is_shallow_repository / semgrep subprocess in tools.py."
+    )
+
+
+# ---------------------------------------------------------------------------
+# T-G3 Anchor 1 — _normalize_rule_id collapses every observed check_id form
+# ---------------------------------------------------------------------------
+
+_RULE_ID_NORMALIZATION_CASES: list[tuple[str, str]] = [
+    # Relative form: Semgrep dotifies the config path relative to the repo
+    # root it resolves from cwd when the rule set lives inside the scanned
+    # tree (pre-flight 0.D, scan from within the repo).
+    ("mcp_servers.semgrep_runner.rules.br-cpf", "br-cpf"),
+    # Absolute form: when the rule set is outside the scanned repo (the live
+    # Passo 2 scenario), Semgrep dotifies the absolute config path. Drive
+    # letter casing (C vs c) is Windows-specific; form (a) ignores it.
+    (
+        "C.Users.joaoguilherm.pereira.dev.lgpd-policy-review"
+        ".mcp_servers.semgrep_runner.rules.br-cpf",
+        "br-cpf",
+    ),
+    # Idempotence: an already-bare id is unchanged — guards the clean path
+    # against the fix mangling a non-prefixed check_id.
+    ("br-cpf", "br-cpf"),
+]
+
+
+@pytest.mark.parametrize(
+    ("check_id", "expected"),
+    _RULE_ID_NORMALIZATION_CASES,
+    ids=["relative", "absolute-live", "already-bare"],
+)
+def test_anchor_normalize_rule_id_collapses_observed_forms(
+    check_id: str, expected: str,
+) -> None:
+    """Anchor (T-G3 / DD-G3-1, DD-G3-3). `_normalize_rule_id` returns the
+    bare rule id for every `check_id` form Semgrep 1.163.0 emits, verified
+    empirically in pre-flight 0.D (relative + absolute, both observed).
+    Form (a) `rsplit(".", 1)[-1]` ignores the prefix entirely, so it is
+    robust to the prefix instability between in-repo and external-repo scans.
+
+    Referenced via module attribute (`tools._normalize_rule_id`) so the red
+    state in the anchors-only commit is an uncaught `AttributeError` localised
+    to this test — NOT a module-level `ImportError` that would break
+    collection and mask the green no-dot anchor in the same file. The error
+    propagates naturally (no `pytest.raises`): red here, green after the fix.
+    """
+    assert tools._normalize_rule_id(check_id) == expected
+
+
+# ---------------------------------------------------------------------------
+# T-G3 Anchor 2 — mapper wires _normalize_rule_id into Finding.rule_id
+# ---------------------------------------------------------------------------
+
+def test_anchor_map_finding_normalizes_rule_id(tmp_path: Path) -> None:
+    """Anchor (T-G3 / DD-G3-2). Proves the helper is actually plugged into
+    `_map_finding`, not merely existing: a hand-built `_SemgrepResult` with a
+    polluted `check_id` maps to a `Finding` whose `rule_id` is the bare id.
+    Hermetic — no subprocess, no git. `_read_snippet` tolerates the absent
+    source file (its `except (OSError, IndexError)` catches `FileNotFoundError`
+    and returns ""; tools.py), so no fixture file is required.
+    """
+    result = _SemgrepResult(
+        check_id=(
+            "C.Users.joaoguilherm.pereira.dev.lgpd-policy-review"
+            ".mcp_servers.semgrep_runner.rules.br-cpf"
+        ),
+        path="users/registration.py",
+        start=_SemgrepLocation(line=1, col=1),
+        end=_SemgrepLocation(line=1, col=5),
+        extra=_SemgrepResultExtra(severity="WARNING", message="m"),
+    )
+
+    finding = tools._map_finding(result, tmp_path)
+
+    assert finding.rule_id == "br-cpf"
+
+
+# ---------------------------------------------------------------------------
+# T-G3 Anchor 3 — empty-normalised rule_id surfaces as SEMGREP_EXECUTION_FAILED
+# ---------------------------------------------------------------------------
+
+def test_anchor_empty_normalized_rule_id_is_execution_failed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    test_rules_dir: Path,
+) -> None:
+    """Anchor (T-G3 / DD-G3-2 degenerate). A `check_id` that normalises to
+    empty (e.g. `"foo."` → `""`) makes `_normalize_rule_id` raise `ValueError`;
+    because `_map_finding` is evaluated inside the `try/except (ValidationError,
+    ValueError)` of `scan_diff` (the `sorted(...)` forces the generator there),
+    the error surfaces as the `SEMGREP_EXECUTION_FAILED` envelope. Exercises the
+    except reuse end-to-end, empirically — not by inference. Mirrors the
+    AS-8/AS-9 mocked-subprocess pattern.
+    """
+    repo, base_sha, head_sha = make_git_repo(
+        tmp_path,
+        base_files={"placeholder.txt": "base\n"},
+        head_files={"snippet.py": "def foo(): pass\nfoo()\n"},
+    )
+    monkeypatch.chdir(repo)
+    state = load_rules(test_rules_dir)
+
+    real_run = subprocess.run
+
+    def mocked_run(
+        cmd: list[str], **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        if cmd and "semgrep" in str(cmd[0]).lower():
+            return subprocess.CompletedProcess(
+                args=cmd, returncode=0,
+                stdout=(
+                    '{"version":"1.163.0","results":'
+                    '[{"check_id":"foo.","path":"snippet.py",'
+                    '"start":{"line":1,"col":1},'
+                    '"end":{"line":1,"col":5},'
+                    '"extra":{"severity":"WARNING","message":"m"}}],'
+                    '"errors":[],"paths":{"scanned":["snippet.py"]}}'
+                ),
+                stderr="",
+            )
+        return real_run(cmd, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", mocked_run)
+
+    result = tools.scan_diff(base_sha, head_sha, state)
+
+    assert result.structured_content is not None
+    sc = result.structured_content
+    assert sc.get("errorCode") == "SEMGREP_EXECUTION_FAILED"
+
+
+# ---------------------------------------------------------------------------
+# T-G3 Anchor 4 — no production rule id contains a dot (form (a) invariant)
+# ---------------------------------------------------------------------------
+
+def test_anchor_no_production_rule_id_contains_dot() -> None:
+    """Anchor (T-G3 / DD-G3-4). Form (a) `rsplit(".", 1)[-1]` is only lossless
+    while no rule `id` contains an internal dot. This guards the invariant the
+    normalization relies on: a future rule like `pii.email` would be silently
+    truncated to `email`. Pins it loudly against the real curated rule set.
+    Green from the start — a guard, not a red anchor.
+    """
+    rules_root = resolve_runner_root()
+    rule_ids = [
+        rule["id"]
+        for path in sorted(rules_root.glob("*.yaml"))
+        for rule in yaml.safe_load(path.read_text(encoding="utf-8"))["rules"]
+    ]
+
+    assert rule_ids, f"no rules found under {rules_root}"
+    offenders = [rid for rid in rule_ids if "." in rid]
+    assert offenders == [], (
+        f"rule ids with an internal dot break _normalize_rule_id: {offenders}"
     )

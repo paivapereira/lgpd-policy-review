@@ -201,10 +201,35 @@ def _normalize_severity(raw: str) -> _SeverityT:
     )
 
 
+def _normalize_rule_id(raw: str) -> str:
+    """Strip Semgrep's dotified config-path prefix, returning the bare rule id.
+
+    Semgrep namespaces `check_id` as `<dotified-config-path>.<rule-id>`. The
+    prefix is the rule set path dotified relative to the project root Semgrep
+    resolves from cwd, falling back to the absolute path when the rule set is
+    outside the scanned repo (empirical, pre-flight 0.D) — so the prefix is not
+    stable across scan contexts. Taking the last dotted segment yields the
+    rule's `id` field independent of any prefix; this holds while no rule id
+    contains an internal dot (anchored by
+    `test_anchor_no_production_rule_id_contains_dot`).
+
+    Raises `ValueError` when the normalised id is empty (e.g. a `check_id`
+    ending in a dot); `scan_diff` catches it alongside `_normalize_severity`'s
+    `ValueError` / Pydantic `ValidationError` and surfaces it as
+    `SEMGREP_EXECUTION_FAILED` (DD-T06-8). Mirrors `_normalize_severity`.
+    """
+    cleaned = raw.rsplit(".", 1)[-1]
+    if not cleaned:
+        raise ValueError(
+            f"Normalised rule_id is empty for check_id {raw!r}",
+        )
+    return cleaned
+
+
 def _map_finding(result: _SemgrepResult, repo_root: Path) -> Finding:
     """Convert internal `_SemgrepResult` to public `Finding`. Reads
     snippet from filesystem (DD-T06-23). Pydantic `ValidationError` or
-    `ValueError` from severity normalisation surfaces upstream as
+    `ValueError` from severity/rule-id normalisation surfaces upstream as
     `SEMGREP_EXECUTION_FAILED`.
     """
     location = Location(
@@ -215,7 +240,7 @@ def _map_finding(result: _SemgrepResult, repo_root: Path) -> Finding:
         end_col=result.end.col,
     )
     return Finding(
-        rule_id=result.check_id,
+        rule_id=_normalize_rule_id(result.check_id),
         rule_severity=_normalize_severity(result.extra.severity),
         rule_message=result.extra.message,
         location=location,
@@ -329,6 +354,11 @@ def scan_diff(
             output = _SemgrepRunOutput.model_validate_json(
                 completed.stdout,
             )
+            # _map_finding is materialised here, inside the try: it calls
+            # _normalize_rule_id and _normalize_severity, whose ValueError on a
+            # malformed value must be caught by the except below and surfaced as
+            # SEMGREP_EXECUTION_FAILED. Moving sorted() out of the try would let
+            # that ValueError escape uncaught (T-G3 / DD-G3-2).
             findings = sorted(
                 (_map_finding(r, repo_root) for r in output.results),
                 key=lambda f: (f.location.path, f.location.start_line),

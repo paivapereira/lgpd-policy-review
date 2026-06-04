@@ -7423,3 +7423,117 @@ ruff / mypy (src 46 + eval tipado, zero supressoes) / pytest 278 passed, 1 live 
 **Proximo passo.** Passo 3 — normalizar `rule_id` (`check_id` no mapper do `semgrep-runner`; remover o
 path absoluto da maquina, deixar so `br-cpf`). Confirmado presente nos Reports live; e edicao de src/ ->
 PR proprio, red-first.
+
+# Learning log — entrada de 2026-06-04 (T-G3 / Passo 3 concluído)
+
+> Anexar a `docs/process/learning-log.md` abaixo das entradas anteriores.
+> Formato tópicos, append-only.
+
+---
+
+## 2026-06-04 — T-G3 normalização de `rule_id` na fonte (Passo 3)
+
+### Conceitos da prova exercitados
+
+**D1 — Agentic Architecture & Orchestration (27%).**
+- D1.5 (hooks / normalização de output de tool). Decisão de normalizar o `check_id`
+  poluído do Semgrep **na fonte** (o mapper do `semgrep-runner`, dentro do server MCP)
+  em vez de via PostToolUse hook no coordinator. Trade-off fixado: hook centraliza
+  normalização de N servers mas a poluição já viajou pela rede e pelo contexto;
+  mapper-na-fonte conserta antes do dado sair do server. Como o `rule_id` é proveniência
+  que atravessa os 5 estágios (passthrough por `detector.md §3.3`), a fonte mantém a
+  cadeia limpa do início.
+- D1.5 de novo (enforcement programático vs guidance). O Anchor 3 não só prova o
+  mapeamento `ValueError -> SEMGREP_EXECUTION_FAILED`; trava *estruturalmente* a
+  dependência do `sorted()` estar dentro do try (se um refactor mover, o `ValueError`
+  escapa e o Anchor 3 erra). Comentário no código é guidance prompt-level (probabilístico);
+  o teste é enforcement determinístico — mesmo eixo dos PostToolUse hooks.
+
+**D4 — Prompt Engineering & Structured Output (20%).**
+- Multi-instance review no estado puro — o caso mais limpo do projeto até agora. A
+  instância de design (Chat) produziu uma proposta com erro factual embutido (afirmou
+  que o `check_id` é sempre o path absoluto inteiro dotificado); a instância de
+  verificação (Code, sessão limpa) refutou empiricamente rodando o Semgrep 1.163.0 real.
+  Nenhuma das duas isolada teria pego: o Chat confiava na narrativa do handoff, o Code
+  não tinha o enquadramento arquitetural. Vieses diferentes convergindo num veredito que
+  nenhuma alcança sozinha.
+
+**D5 — Context Management & Reliability (15%).**
+- Provenance/citations — `rule_id` como localizador/proveniência preservado limpo da
+  fonte ao Report.
+- D5.3 (distinguir access-failure de valid-empty-result). O Anchor 2 roda hermético sem
+  fixture porque `_read_snippet` trata arquivo ausente como resultado-vazio-válido
+  (`except (OSError, IndexError) -> ""`), não como falha-de-acesso que ergue. A
+  hermeticidade do teste dependeu dessa distinção — verificada no corpo da função, não
+  no docstring.
+
+**D3 — Claude Code Configuration & Workflows (20%).**
+- D3.4 (plan mode vs execução direta). Tensão honesta registrada: pela régua da prova um
+  helper de normalização numa função é fronteiriço com execução direta; o GATE 1 se
+  sustenta por convenção do projeto + risco-de-descoberta no pre-flight (terceira forma
+  de `check_id`, golden poluído), não por complexidade. A régua é "plan mode quando há
+  decisão arquitetural ou risco de descoberta", não "sempre plan mode".
+
+### Decisões
+
+- DD-G3-1 — normalização por **forma (a)**, último segmento dotificado
+  (`check_id.rsplit(".",1)[-1]`). Robusta às 3 formas reais porque não olha o prefixo.
+- DD-G3-2 — helper `_normalize_rule_id` espelhando `_normalize_severity`; raise em vazio
+  reutiliza o `except (ValidationError, ValueError)` existente -> `SEMGREP_EXECUTION_FAILED`,
+  sem mudar o except.
+- (b) rejeitada — prefixo instável entre contextos (não só o ponto no username).
+  (c) rejeitada — exigiria o loader expor os `id:` das YAMLs; `LoadedRules` carrega só
+  `rule_files`/`rules_root` (scope creep confirmado em `loader.py:136-146`).
+- DD-G3-3 — matriz de anchor: 3 verdes (relativa + absoluta-live + idempotente) + 1
+  degenerada que ergue.
+- DD-G3-4 — anchor de invariante no-dot sobre o rule set real (guarda contra `pii.email`
+  futuro que a forma (a) truncaria em silêncio).
+- DD-G3-5 — AS-1 apertada `in` -> `==` (determinismo `test-foo-call` confirmado).
+- check_id mechanic -> nota em ADR-0010, **PR próprio** (não folded na housekeeping),
+  por ser referente a este PR.
+- `pipeline_e2e_raw.json` -> **tracked-as-evidence, decidido**. É a espinha empírica do
+  capítulo de avaliação, não output transitório. NÃO "consertar" com `.gitignore`.
+- Fence: `reason` vazio no `violation_candidate` da POL-005 (caminho de violação do
+  Matcher) fica fora — débito vivo separado. No-mixed-concern.
+
+### Erro de método registrado
+
+- Afirmei na proposta de design que o `check_id` é sempre o path absoluto inteiro
+  dotificado. Empiricamente (smoke do Code contra 1.163.0): há 3 formas — relativa
+  (`mcp_servers.semgrep_runner.rules.br-cpf`) quando o rule set está dentro da árvore
+  escaneada, e absoluta (`C.Users...rules.br-cpf`) quando fora (cenário live do Passo 2).
+  A forma depende do project-root que o Semgrep resolve de cwd vs. localização do config,
+  não da localização do arquivo-alvo. Violação de "verificação antes de inferência" —
+  inferi a mecânica da narrativa do handoff. A disciplina multi-instance pegou. A forma
+  (a) sobrevive ao erro (não olha o prefixo); a (b) ficou duplamente morta.
+
+### Artefatos
+
+- Branch `fix/g3-rule-id` (de `main @ 39b7e81`). Commits pre-squash:
+  `07810dd` test (5 reds + 1 green guard), `7deb9f9` fix. Squash hash + PR # = `<TBD>`
+  (preencher após merge via UI).
+- `src/mcp_servers/semgrep_runner/tools.py`: `_normalize_rule_id` adicionado ao lado de
+  `_normalize_severity`; wired em `_map_finding`; comentário travando a dependência
+  sorted-dentro-do-try.
+- `tests/mcp_servers/semgrep_runner/test_scan_diff.py`: 4 anchors T-G3 + AS-1 apertada.
+- Trio verde: pytest 284 passed / 1 live deselected; ruff (2 arquivos) clean; mypy
+  --strict src/ clean (46 arquivos).
+- Prompt-artefatos em `/mnt/user-data/outputs/`: `prompt-g3-rule-id-v1.md`,
+  `prompt-g3-adr0010-note-v1.md`.
+- Nota ADR-0010 (`docs/adr-0010-checkid-mechanic`): prompt autorado; **execução/merge a
+  verificar** = `<TBD>`.
+- Débitos pré-existentes aflorados (não introduzidos, fora do gate `src/`): ruff F401 x3
+  em `scripts/smoke_tests/coordinator_live/d1_readiness_gate.py`; mypy --strict `tests/`
+  2 erros (`conftest.py:51`, `test_scan_diff.py:711`).
+
+### Próximo passo
+
+Passo 4 / Camada 3-MVP (GitHub Action funcional + harness + 2 e2e + gate qualitativo)
+em **sessão nova**. Inventário antes de design (o que já existe do MVP vs. o novo).
+DDs abertos: trigger model (P4-1), inline-vs-summary comments (P4-2), fronteira
+emit_report-vs-Action (P4-3). Tensão a fechar: comparação `.expected-report.json`
+exata vs. não-determinismo do pipeline (a frente eval usou convergência-sobre-K, não
+match; gate exato reprovaria ambiguidade legítima). Auth-em-CI: `ANTHROPIC_API_KEY`
+como secret (dev local é OAuth). Nota de estudo D3.6: a prova cobra `claude -p` /
+`--output-format json` / `--json-schema` (CLI), que o projeto NÃO exercita (usa o
+coordinator Python+SDK) — estudar separado.

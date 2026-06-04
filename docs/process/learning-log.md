@@ -7363,3 +7363,63 @@ abertas — fechar no Chat antes do prompt. Agora com o pipeline confiavel: prov
 consistente ((a)), wrapper recupera em vez de halt ((c)). Sessao Chat NOVA recomendada
 (marco de fase + esta sessao acumulou todo o arco de diagnostico). Antes: mergear o PR
 docs/ratify-adr-0016.
+
+## #[N] 2026-06-03 — Passo 2: corrida e2e live sobre eval-lgpd (coracao da avaliacao de composicao)
+
+> Numero da entrada [N] a confirmar contra o tail de learning-log.md antes de commitar.
+
+**O que rodou.** Harness `eval/experiments/pipeline_e2e_eval_lgpd.py` ao vivo sobre os 6 PRs
+sinteticos de `eval/prs/`, root `policies/eval-lgpd`, matriz congelada 5/5/5/5/5/3 = 28 runs.
+Pipeline real Triager->Detector->Classifier->Matcher->Reporter contra SDK + MCP reais.
+Primeiro lote de Reports onde os 5 estagios rodaram de fato (vs harness deterministico do motor).
+
+**Resultado.** 27 CONVERGENTE / 1 DIVERGENTE / 0 ERRO_EXECUCAO.
+COMP/VIOL/INDET/SWAP 5/5; SKIP 3/3; PROBE-UNGOV-001 4-CONVERGENTE/1-DIVERGENTE (`<<INCONSIST`).
+0 falha de transporte nesta corrida (sorte estatistica vs ~1/42 historico — declarar como tal, nao garantia).
+
+**Conceitos da prova exercitados.**
+- D5 (Reliability): K-runs reportando *distribuicao* = stratified sampling for error-rate
+  measurement. Escalacao honesta — no PROBE, `requires_human_review=True` nas DUAS trajetorias
+  (coverage_gap e violation_candidate); a nao-determinacao e de *rotulo*, nao de se o PR vai pro
+  humano. Incerteza propaga como escalacao, nunca como aprovacao silenciosa = sem regressao de seguranca.
+- D4 (Structured Output): measurement-not-pass/fail; barra (CONVERGENTE/DIVERGENTE vs GT) pre-registrada
+  antes de medir; conclusao escopada as condicoes medidas.
+- D1 (Agentic Architecture): tee de instrumentacao (DD-1) e o analogo artesanal de um PostToolUse hook —
+  interceptar a saida da tool para observar SEM alterar o que o consumidor ve; hook de producao
+  (deterministico, registrado) vs monkeypatch de teste e o contraste util. Orthogonal retry mechanisms
+  confirmados independentes no PROBE: divergencia no estagio 03 (Classifier), retry de emit no 05 (Reporter).
+- D3 (Workflows): GATE 1 plan-mode antes de execucao irreversivel (~1h35 de compute live).
+- (fora do escopo) py.typed / MYPYPATH — empacotamento e resolucao de stubs de primeira-parte
+  (explica por que `eval/` fica fora do `mypy --strict src/`); `*>` em PS 5.1 escreve UTF-16 e embrulha
+  stderr como NativeCommandError (windows-tooling.md) — captura direta da task resolve.
+
+**Decisoes.**
+- DIVERGENTE do PROBE-UNGOV-001 = **imprecisao de GT por contaminacao de sonda**, NAO bug do Matcher.
+  A sonda mede "categoria nao-governada (localizacao)" mas precisa de gatilho BR (br-cpf); cpf e categoria
+  *condicionalmente governada* (`_IDENT_PAIR`: identificacao governada por POL-005, documentos_oficiais nao).
+  Run 1 resolveu cpf->identificacao (aceitavel por R6) -> POL-005 casa -> violation_candidate; runs 2-5
+  resolveram ->documentos_oficiais -> coverage_gap. Os 4/5 sao convergentes por sorte de token; o run 1 e
+  defensavelmente o veredito mais correto. Nenhum estagio errou. Documentar, nao consertar (pos-entregavel);
+  re-enquadrar GT como condicional no capitulo. Distribuicao 4-vs-1 fica como esta — nao re-rodar.
+- DD-1 (`reporter_emit_count`) validado nos 28 runs; **hold do PR liberado**.
+- ADR-0016 fix (c) validado ao vivo, em escala: 24x single-shot, **4x wrapper-recovery, 0 halt, 0 None**.
+
+**Achados.**
+- `rule_id` poluido (path absoluto da maquina: `C.Users.joaoguilherm...rules.br-cpf`) chega ao Report
+  final ao vivo — alvo do Passo 3 confirmado em producao, nao so no trace do Detector.
+- COMP-001 sobre-inclui `dados_de_autenticacao` as vezes (runs 1/3/5); sem efeito de veredito.
+- `reason` vazio no finding `violation_candidate` da POL-005 (run 1 PROBE) enquanto os `not_applicable`
+  trazem reason — possivel buraco de proveniencia no caminho de violacao do Matcher. A VERIFICAR.
+
+**Verification-before-inference.** O pre-flight empirico do Code pegou erro no proprio prompt do Chat:
+mandava setar `POLICY_READER_ROOT` externo, mas o harness ja o define absoluto no `_main`. A disciplina
+funcionou contra o prompt. Anotado.
+
+**Artefatos.** Branch `feat/eval-emit-count` @ d297187 (DD-1, harness-only, +71/-2, PR a abrir pela UI —
+sem o `M .claude/settings.json` solto); `eval/experiments/output/pipeline_e2e_raw.json` (28 runs, 261 KB,
+trace por estagio + report_payload); `pipeline_e2e_run.log` (UTF-8 limpo). Trio verde:
+ruff / mypy (src 46 + eval tipado, zero supressoes) / pytest 278 passed, 1 live deselected.
+
+**Proximo passo.** Passo 3 — normalizar `rule_id` (`check_id` no mapper do `semgrep-runner`; remover o
+path absoluto da maquina, deixar so `br-cpf`). Confirmado presente nos Reports live; e edicao de src/ ->
+PR proprio, red-first.

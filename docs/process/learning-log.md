@@ -7537,3 +7537,107 @@ match; gate exato reprovaria ambiguidade legítima). Auth-em-CI: `ANTHROPIC_API_
 como secret (dev local é OAuth). Nota de estudo D3.6: a prova cobra `claude -p` /
 `--output-format json` / `--json-schema` (CLI), que o projeto NÃO exercita (usa o
 coordinator Python+SDK) — estudar separado.
+
+
+# Learning log — entrada de 2026-06-04 (Passo 4 / Camada-3-MVP FECHADA)
+
+> Formato topicos, append-only.
+
+## 2026-06-04 — Passo 4: Camada-3-MVP CI (FECHADA)
+
+### Conceitos da prova exercitados
+
+- **D5 — Context Management & Reliability.** Self-evaluation sob nao-determinismo:
+  gate field-scoped (estrito vs advisory vs excluido) em vez de match estrutural
+  total. Convergencia-sobre-K (K=2) como criterio de estabilidade, nao K=1.
+  Proveniencia de evidencia: os 28 runs pre-#105 desclassificados como stale
+  (regime de rule_id anterior); Gate #3 = primeira observacao do regime atual.
+- **D4 — Prompt Engineering & Structured Output.** Multi-instance review levado a
+  4 criticos adversariais com schema estruturado (map + critique do Code) — o
+  desacordo entre criticos sobre §4.e/§4.f forcou leitura da fonte e evitou um erro
+  que o Chat teria introduzido no v2. Validation-loop aplicado a artefato de design
+  (plano v1 -> review -> v2), nao so a output de modelo.
+- **D1 — Agentic Architecture & Orchestration.** Ports-and-adapters: coordinator
+  agnostico de GitHub (DD-P4-6), adaptadores finos na borda (run_review, YAML,
+  poster). Uma superficie (run_pipeline + format_summary), tres pontos de entrada
+  (harness live, entrypoint producao, teste). Veredito do gate = exit code do job,
+  nao o texto do Step Summary.
+- **D3 — Claude Code Configuration & Workflows.** workflow_dispatch nao-interativo,
+  matrix de casos, exit code como veredito, output estruturado pro Step Summary
+  (redirect E1 `>> $GITHUB_STEP_SUMMARY`). NOTA: D3.6 da prova cobra `claude -p`
+  (CLI), que o projeto NAO usa (coordinator Python+SDK) — estudar separado.
+
+### Decisoes load-bearing
+
+- **Decisao de gate (corrigida no review do v2 — catch A).** `data_categories` SAI
+  da igualdade estrita -> ADVISORY. O Chat (v2) errou ao rotula-lo deterministico;
+  o Code-revisor pegou contra `classifier.md:15,173` (extracao e LLM). Validado
+  EMPIRICAMENTE depois: R2 do COMP-001 acrescentou `dados_de_autenticacao` — drift
+  real de extracao que o gate classificou inocuo (advisory), nao reprovou. Se fosse
+  estrito, reprovaria por variancia de LLM, nao regressao.
+- **Estrito = `run_outcome` + counts/total + tripla de proveniencia +
+  report_schema_version + multiset (verdict, rule_id).** Advisory = data_categories.
+  Excluido = report_id/scope.*/prosa/file-line.
+- **Invariante de cluster (floor not_applicable:3).** Estavel ENQUANTO o Classifier
+  nao extrair categoria que intersecte cláusula governante alem de POL-005
+  (saude->POL-007, comportamental->POL-006). Drift cosmetico (mesmo cluster) != drift
+  consequente. Confirmado nos 2 runs: todas as categorias ficaram no cluster POL-005.
+- **DD-P4-6: git-coupled, platform-agnostic.** Acoplamento real e git + paradigma
+  PR/MR, NAO o host GitHub. Porte a GitLab = reescrever YAML + trocar poster; nucleo
+  intocado. Gerado pela pergunta de autonomia do Joao. Material de tese (Cap 3).
+- **Sequencia doc-PR antes de funcional.** Companion edit B (RNF-002 -> summary)
+  precede o PR funcional porque reconcilia o RNF que ele implementa.
+
+### Achados empiricos
+
+- **rule_id bare `br-cpf` confirmado e2e pos-#105** (blocker fechado). COMP-001 e
+  VIOL-001 emitiram `br-cpf` bare em todos os runs (local K=2 + CI). Os 28 runs
+  pre-#105 carregavam o caminho dotificado — corretamente desclassificados.
+- **Convergencia K=2 no eixo estrito** nos 3 fixtures (local). Unica divergencia
+  entre rodadas = `data_categories` do COMP-001 (advisory, inocua).
+- **CI confirmado** (run 26983111920, 3 arms PASS): Gate #1 (auth via API key +
+  wheel do claude-agent-sdk no runner ubuntu) e Gate #2 (`--project`/cwd-efemero,
+  rules-root via `__file__` sem shadowing). Auth-em-CI e o eixo onde OAuth-local
+  nao dava garantia — provado o caminho-key headless.
+
+### Erro de metodo registrado (honesto)
+
+- Aposta do Chat de que o VIOL-001 divergiria antes do COMP-001 no multiset NAO
+  bateu — nenhum multiset divergiu; a variancia apareceu no `data_categories` do
+  COMP-001 (advisory). Registrado no `camada3-mvp.md §7` como nota de metodo.
+
+### Artefatos
+
+- 3 PRs squash-merged em `main` (`b9259c3`, 2026-06-04): #107 (entrypoint +
+  format_summary), #108 (companion edits B/C), #109 (harness gate + workflow).
+  **Hashes de squash individuais a confirmar no git log.**
+- `scripts/ci/`: `format_summary.py` (renderizadores puros), `run_review.py`
+  (adaptador env->TriagerInput->run_pipeline->stdout, exit 0/1/2). Testes em
+  `tests/ci/` (9). `conftest.py` com path-shim (append, sem shadowing).
+- `eval/harness/`: `camada3_compare.py` (gate puro, 10 testes exaustivos),
+  `camada3_gate.py` (orquestrador live, root eval-lgpd, le baseline nunca regenera),
+  `synthetic_pr.py` (NOVA fonte canonica de make_pr_repo/write_project_mcp_json).
+  Teste live em `tests/harness/` (@pytest.mark.live).
+- `.github/workflows/lgpd-review.yml`: workflow_dispatch matrix de 3; job
+  pull_request inerte (`if: false`, Milestone D).
+- `docs/process/camada3-mvp.md`: evidencia de gate qualitativo (FECHADA).
+- Companion edits: RNF-002 (summary MVP, inline Future Work); tasks.md carve-out
+  Camada-3-MVP vs Milestone D.
+- Prompt/plano-artefatos em `/mnt/user-data/outputs/`: inventario, harness-refs,
+  GATE-1 cross-doc v1/v2, ratificacao-v3-deltas.
+
+### Debito novo registrado
+
+- **Deduplicacao de `synthetic_pr.py`**: `pipeline_e2e_eval_lgpd.py:187-230` (frozen)
+  mantem copias privadas de make_pr_repo/write_project_mcp_json. Dedup para importar
+  da nova fonte = chore/companion futuro. NAO refatorar o frozen num PR de feature
+  (DD-P4-5).
+
+### Proximo passo
+
+Sessao nova: **criar casos de teste para documentar a avaliacao usando a pipeline
+do GitHub.** Expandir alem da triade MVP (COMP/VIOL/SKIP) — candidatos: INDET-001,
+PROBE-UNGOV-001, SWAP-001 (ja existem em `eval/prs/`, diferidos no MVP). Decidir se
+geram baseline via `run_engine_cases.py` e entram na matrix do workflow, ou se
+ficam como casos de eval qualitativa. Inventario antes de design: confirmar o que
+ja existe vs novo (mesma disciplina do Passo 4).

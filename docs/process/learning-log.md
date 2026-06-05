@@ -7641,3 +7641,52 @@ PROBE-UNGOV-001, SWAP-001 (ja existem em `eval/prs/`, diferidos no MVP). Decidir
 geram baseline via `run_engine_cases.py` e entram na matrix do workflow, ou se
 ficam como casos de eval qualitativa. Inventario antes de design: confirmar o que
 ja existe vs novo (mesma disciplina do Passo 4).
+
+## 2026-06-05 — T-eval (evidencia fixtures diferidos) + diagnostico mislabel `legal_framework` + Caminho 1 (guarda fail-loud) + exploracao AEP/DULE
+
+**Foco.** Sessao longa de Chat (coordinator) com tres sessoes Code derivadas: (1) T-eval evidence-only sobre os fixtures diferidos, (2) diagnostico do bug de `legal_framework`, (3) implementacao do Caminho 1. Mais exploracao de aplicabilidade AEP/DULE e analise de custo.
+
+### Conceitos da prova exercitados
+
+**D4 — Prompt Engineering & Structured Output: constrained decoding.** O bug de mislabel do `legal_framework` e o lado escuro do structured output em estado puro: `output_format = MatcherOutput.model_json_schema()` com `Finding.legal_framework: Literal["LGPD"]` coage a geracao para o unico valor permitido — sob root GDPR o Matcher emite "LGPD" em vez de "GDPR", sem erro. A mesma garantia que elimina erro de sintaxe mascara divergencia semantica. Mecanismo (a) provado deterministicamente (smoke no-LLM: `Finding.model_validate(legal_framework="GDPR")` -> `ValidationError`; pipeline nao crasha -> coercao na geracao, nao validacao pos).
+
+**D2 — Tool Design & MCP Integration: structured tool results vs output schema.** O veredito jurisdicional fiel vive no `structured_content` do tool-result de `check_applicability` (servidor policy-reader), nao num campo do modelo de saida do agente. Tool e output schema divergem de proposito (ADR-0007). Corolario para AEP/DULE: vocabularios sao resources lidos do disco; multi-cliente e multi-server (uma instancia por cliente/jurisdicao) — por isso DULE entra como dado, nao codigo.
+
+**D5 — Context Management & Reliability: error propagation + escalation.** (i) A guarda do Caminho 1 e o sistema restaurando o proprio valor — recusa tipada (`UnsupportedLegalFramework`) em vez de mentir. (ii) Atribuicao honesta de stage: `framework_guard`, nao `reporter` (o Reporter nunca rodou). (iii) `indeterminate` e `coverage_gap` sao vereditos de escalacao (policy gap identification). (iv) Licao do K pequeno: a 3a execucao do INDET divergiu das 2 do matrix — K=2 pode convergir por acaso.
+
+**D1 — Agentic Architecture: pipeline fixo e custo.** A razao entrada>>saida (1.544.845 in / 89.187 out) e o custo baixo (US$ ~5 a conta inteira no mes) sao consequencia mensuravel do pipeline fixo (prompt-chaining, sem loop de investigacao) e da gerencia de contexto por apontar-em-vez-de-duplicar.
+
+**D4/D5 — medicao de nao-determinismo (escopo incerto).** Taxonomia de tres camadas de evidencia consolidada: replay (regressao) / motor-deterministico-sobre-input-pre-classificado (layer 2, assume classificacao estavel) / pipeline-live (layer 3, mede o comportamento real). Flip e estabilidade so sao defensaveis na layer 3.
+
+### Decisoes
+
+- **Particao dos fixtures de avaliacao (ratificada):** gate estrito permanece em 3 arms (COMP/VIOL/SKIP). SWAP-001, INDET-001 e PROBE-UNGOV-001 ficam qualitativos. SWAP nao entra no gate estrito porque um Report GDPR e estruturalmente impossivel no MVP (ADR-0007); o flip e demonstrado ao vivo na superficie da tool.
+- **INDET nao promovido ao gate estrito:** `indeterminate` em POL-006 e estavel nas 3 execucoes, mas o gatilho CPF contamina POL-005 (oscila vc<->na), desestabilizando os campos STRICT. Manter qualitativo.
+- **Causa-raiz unificada:** o gatilho CPF contamina o Report quando e categoria NAO-alvo da clausula (PROBE alvo localizacao; INDET alvo perfil). SWAP e a excecao — la o CPF e o alvo (identificacao), ancorado pelo contexto do api.py.
+- **Caminho 1 agora, Caminho 2 pos-relatorio.** Sob objetivo de producao a recomendacao inverteu vs banca: para clientes nao-LGPD o Caminho 2 e necessario (Caminho 1 recusaria emitir Report). Inegociavel comum: nao embarcar o mislabel silencioso.
+- **Placement da guarda: antes do Reporter (placement B),** nao fail-fast no init — preserva a observabilidade live-GDPR (03-classifier.json escrito mesmo com recusa), confirmada no exercicio manual.
+- **`_SUPPORTED_LEGAL_FRAMEWORKS` = constante explicita `{"LGPD"}`,** NAO introspeccao do `Literal` — desacopla a guarda do tipo que o Caminho 2 vai relaxar; a ampliacao para GDPR vira decisao deliberada com teste red-first proprio.
+- **Modelo conceitual confirmado (mecanica, nao interpretacao juridica):** framework = jurisdicao (`legal_framework`, valor unico, governa `vocabularies/<framework>/`); cliente = Policy; composicao intra-jurisdicao via `accepted_law_identifiers`; multi-framework = multi-instancia. **DULE = fonte de obrigacao (entra via `accepted_law_identifiers` + clausulas, com controles estendendo o vocabulario `control`), NAO um framework.** Cada cliente AEP = uma Policy sob a jurisdicao dele.
+
+### Artefatos
+
+- Branch `feat/coordinator-framework-guard` — 2 commits (`bec44e5` test/red, `c138f2c` feat/green), 4 arquivos (`errors.py`, `run.py`, `test_coordinator_errors.py`, `test_run_framework_guard.py`). **Nao mergeado** (PR a abrir pela UI). Trio verde: pytest 307 passed, ruff check limpo, mypy --strict limpo.
+- `docs/eval/avaliacao-secao-rascunho-numero-independente.md` — rascunho da secao de avaliacao (metodo + 3 camadas + read-surface + quadros preenchidos com a coleta live). Untracked. Aguarda integracao ao relatorio.
+- T-eval evidence (zero commit): SWAP flip confirmado live K=2 (`consent`/LGPD->compliant; `consent_gdpr`/GDPR->violation_candidate, lido em check_applicability); INDET `indeterminate` estavel em POL-006 (3 execucoes), qualitativo; PROBE 4-vs-1 com `within_gt=False` (veredito correto por classificacao inocua porem incorreta).
+- Evidencia de custo (prints): conta junho ate dia 05 = US$ 5,15 em tokens (in 1.544.845 / out 89.187; web/code/session = 0); prompt caching ATIVO e material na composicao.
+
+### Debitos registrados
+
+- **Spec drift coordinator.md §5:** taxonomia de excecoes era spec-frozen (13 + base); agora 15. Ancora de teste (`EXPECTED_EXCEPTIONS` + docstring) atualizada; tabela §5 + entrada em `docs/tasks.md §Companion` NAO atualizadas — housekeeping proprio. Drift registrado no docstring do teste.
+- **ruff format vs ruff check:** repo nao e `ruff format`-clean (drift acumulado em arquivos intocados). Gate real e `ruff check`. Decisao de processo pendente: adotar `ruff format --check` no CI?
+- **ADR do Caminho 1:** a leitura direta do header via `load_policy` no coordinator cruza o principio documentado "coordinator nao le o header direto" (run.py). E excecao de pre-flight ratificada (SDK nao expoe leitura de resource sem turno LLM), a registrar em ADR curta — housekeeping.
+
+### Defense candidates (Capitulo de Metodo / §3)
+
+- Modo de falha silencioso de uma decisao de escopo documentado empiricamente (mislabel ADR-0007) — fix do Caminho 1 e o sistema honrando o proprio valor (recuse, nao finja).
+- Taxonomia de tres camadas de evidencia; veredito correto != classificacao correta (RN-02 empirica, caso PROBE).
+- Custo baixo como evidencia quantitativa a favor do pipeline fixo.
+
+### Proximo passo
+
+Joao abre o PR do Caminho 1 e faz squash-merge via UI. Depois: revisao cross-doc completa do relatorio (reconciliar §2.5 "Report valido sob GDPR" -> read-surface; §3-parcial stale; proposta ~200 snippets vs 6 fixtures; Quadro 3 cronograma) -> entao §3 Conclusoes. Verificar completude de §2.1/§2.2/§2.3 (nao confirmada). Pauta planejada para sessao futura: avaliacao de sensibilidade ao modelo (Opus/Sonnet/Haiku) com K>=5 e protocolo desenhado antes de rodar.

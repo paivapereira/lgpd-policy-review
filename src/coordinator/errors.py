@@ -69,6 +69,24 @@ class CoordinatorStartupError(Exception):
         super().__init__(message)
 
 
+class UnsupportedLegalFramework(Exception):
+    """The loaded Policy header declares a `legal_framework` the MVP cannot emit a
+    faithful Report for (only "LGPD"; ADR-0007). Raised right before the Reporter,
+    so the upstream stages still run (the verdict stays observable on the
+    policy-reader tool surface) — the pipeline REFUSES to emit a mislabeled Report
+    instead of silently coercing the label. Dedicated `stage="framework_guard"`:
+    the refusal fires before the Reporter runs, so blaming "reporter" would
+    misstate where it happened."""
+
+    def __init__(self, legal_framework: str, *, stage: str = "framework_guard") -> None:
+        self.stage = stage
+        self.legal_framework = legal_framework
+        super().__init__(
+            f"unsupported legal_framework {legal_framework!r}: the MVP emits Reports "
+            "for LGPD only (ADR-0007)"
+        )
+
+
 class SubagentValidationFailed(Exception):
     """Subagent `structured_output` failed Pydantic validation (§3.0bis)."""
 

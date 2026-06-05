@@ -2,9 +2,11 @@
 
 The §5 table freezes 13 typed exceptions; A2 introduces the base
 `SubagentToolError` for the tool-error family (DetectorScanFailed + future
-Matcher tool errors), making 14. Every exception carries `stage` for blame.
-These are strict anchors: the exact name set and the subclass relationship
-are the contract, not an incidental fact of the module.
+Matcher tool errors), making 14. `UnsupportedLegalFramework` (framework guard,
+ADR-0007) brings it to 15; the coordinator.md §5 table update is tracked as a
+docs débito (source-of-truth-precedence). Every exception carries `stage` for
+blame. These are strict anchors: the exact name set and the subclass
+relationship are the contract, not an incidental fact of the module.
 """
 from __future__ import annotations
 
@@ -27,6 +29,7 @@ EXPECTED_EXCEPTIONS = {
     "SubagentRefusedTask",
     "SubagentExecutionError",
     "SubagentContractViolation",
+    "UnsupportedLegalFramework",
 }
 
 
@@ -81,6 +84,7 @@ def test_detector_scan_failed_minimal_stage_only() -> None:
         (lambda: errors.ReporterPermissionDenied(denials=[{"tool": "x"}]), "reporter"),
         (lambda: errors.MultipleReportEmissions(), "reporter"),
         (lambda: errors.MalformedToolUseBlock(), "reporter"),
+        (lambda: errors.UnsupportedLegalFramework("GDPR"), "framework_guard"),
     ],
 )
 def test_every_exception_carries_stage(factory, expected_stage) -> None:

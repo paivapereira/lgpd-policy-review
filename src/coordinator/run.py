@@ -30,6 +30,7 @@ from claude_agent_sdk import (
 from coordinator.config import McpServersConfig, load_mcp_config
 from coordinator.driver import RETRY_BUDGET, _run_mcp_stage, run_branch_b_stage
 from coordinator.errors import (
+    CoordinatorStartupError,
     CoordinatorStreamFailure,
     DetectorScanFailed,
     MalformedToolUseBlock,
@@ -37,6 +38,7 @@ from coordinator.errors import (
     ReporterPermissionDenied,
     ReporterTurnsExhausted,
     ReportNotEmitted,
+    UnsupportedLegalFramework,
 )
 from coordinator.models import CoordinatorError, CoordinatorReport, CoordinatorResult
 from coordinator.prompts import (
@@ -46,6 +48,7 @@ from coordinator.prompts import (
     build_reporter_prompt,
     build_triager_prompt,
 )
+from mcp_servers.policy_reader.loader import load_policy, resolve_policy_root
 from subagents.classifier.models import ClassifierOutput
 from subagents.classifier.passthrough import verify_classifier_passthrough
 from subagents.classifier.system_prompts import CLASSIFIER_SYSTEM_PROMPT
@@ -68,6 +71,12 @@ _LOCKDOWN: dict[str, Any] = {
     "setting_sources": [],
     "strict_mcp_config": True,
 }
+
+# MVP emits Reports for LGPD only (ADR-0007). Explicit constant, NOT derived from the
+# Finding/ReportPayload Literal: relaxing that type for multiframework (Caminho 2) must
+# be a deliberate change to THIS set, with its own red-first test — not a silent side
+# effect of a type refactor (a relaxed Literal would auto-widen the guard with no signal).
+_SUPPORTED_LEGAL_FRAMEWORKS: frozenset[str] = frozenset({"LGPD"})
 
 
 def configure_logging() -> None:
@@ -303,6 +312,11 @@ async def _run_reporter_stage(
 def _coverage_gap(exc: BaseException) -> str:
     if isinstance(exc, DetectorScanFailed):
         return "cobertura zero - scan nao rodou"
+    if isinstance(exc, UnsupportedLegalFramework):
+        return (
+            f"Report nao emitido - framework {exc.legal_framework} fora do escopo "
+            "do MVP (ADR-0007); veredito disponivel na superficie da policy-reader"
+        )
     stage = getattr(exc, "stage", "coordinator")
     return f"pipeline interrompido em {stage} - analise incompleta"
 
@@ -325,6 +339,16 @@ async def run_pipeline(
     configure_logging()
     try:
         cfg = load_mcp_config(mcp_config_path)
+        # Pre-flight (ADR-0007 guard): deterministically read the loaded Policy
+        # header's legal_framework. The SDK has no non-LLM resource read, and
+        # resolve_policy_root mirrors the policy-reader server's own resolution, so
+        # this sees the SAME Policy the server loads. A read failure is a startup halt.
+        try:
+            true_framework = load_policy(resolve_policy_root()).header.legal_framework
+        except Exception as read_exc:  # noqa: BLE001
+            raise CoordinatorStartupError(
+                f"falha ao ler header da Politica (pre-flight): {read_exc}"
+            ) from read_exc
         run_id = str(uuid.uuid4())
         run_path = scratchpad_root / f"run-{run_id}"
         run_path.mkdir(parents=True, exist_ok=True)
@@ -416,6 +440,11 @@ async def run_pipeline(
             findings=findings,
             scan_provenance=scan_provenance,
         )
+        if true_framework not in _SUPPORTED_LEGAL_FRAMEWORKS:
+            # Refuse to emit a Report the MVP cannot label faithfully (ADR-0007).
+            # Deferred to here (not init) so the upstream stages still ran and the
+            # verdict stays observable on the policy-reader tool surface.
+            raise UnsupportedLegalFramework(true_framework)
         report_payload = await _run_reporter_stage(consolidated, reporter_server, run_path)
         log.info("run.done", extra={"run_id": run_id, "run_outcome": run_outcome})
         return CoordinatorReport(payload=report_payload)

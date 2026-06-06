@@ -368,7 +368,7 @@ Fonte: Autoria própria (2026).
 
 O cronograma original, registrado na proposta de orientação (`proposta` §9), previa seis semanas encerrando em 15 de junho de 2026. A fase de especificação estendeu-se além do previsto — em razão do rigor adotado na redação das especificações e nas revisões cruzadas —, resultando em um deslocamento de aproximadamente uma semana e meia em relação ao plano inicial. O cronograma foi, por isso, consolidado conforme o Quadro 5, mantida a data de entrega. As fases referenciam o ciclo do *Spec-Driven Development* descrito na seção 2.1.
 
-O caminho crítico técnico do produto mínimo viável foi concluído dentro do período consolidado, à frente da reserva planejada para a semana de validação: os dois servidores MCP (Milestones A e B, ambos com portão aprovado), as especificações dedicadas dos cinco subagentes — inclusive a do Matcher, o componente de maior incerteza arquitetural, deixado por último na ordem de especificação — e do coordenador, a implementação integrada da camada multiagente, o mecanismo de integração contínua e a validação empírica do sistema integrado (portão de marco da Camada-3-MVP aprovado em execução local e em integração contínua). Resta, ao fechamento desta versão, a consolidação final do relatório técnico.
+O caminho crítico técnico do produto mínimo viável foi concluído dentro do período consolidado, à frente da reserva planejada para a semana de validação: os dois servidores MCP (Milestones A e B, ambos com portão aprovado), as especificações dedicadas dos cinco subagentes — inclusive a do Matcher, o componente de maior incerteza arquitetural, deixado por último na ordem de especificação — e do coordenador, a implementação integrada da camada multiagente, o mecanismo de integração contínua e a validação empírica do sistema integrado (portão de marco da Camada-3-MVP aprovado em execução local e em integração contínua). A consolidação final do relatório técnico encerra esse conjunto de entregas.
 
 **Quadro 5 – Cronograma consolidado**
 
@@ -385,7 +385,7 @@ O caminho crítico técnico do produto mínimo viável foi concluído dentro do 
 
 Fonte: Autoria própria (2026).
 
-A redação do relatório ocorreu em paralelo às demais frentes ao longo do período, e não como etapa final concentrada, reduzindo o risco de acúmulo na última semana. A postura de contingência por redução de escopo, prevista no plano para o caso de a validação integrada não se concluir no prazo, **não precisou ser acionada**: o portão de marco da Camada-3-MVP foi aprovado em 4 de junho, à frente da reserva planejada, de modo que o período remanescente se destina à consolidação do relatório técnico, e não à recuperação de atraso.
+A redação do relatório ocorreu em paralelo às demais frentes ao longo do período, e não como etapa final concentrada, reduzindo o risco de acúmulo na última semana. A postura de contingência por redução de escopo, prevista no plano para o caso de a validação integrada não se concluir no prazo, **não precisou ser acionada**: o portão de marco da Camada-3-MVP foi aprovado em 4 de junho, à frente da reserva planejada, de modo que o período remanescente se destinou à consolidação do relatório técnico, e não à recuperação de atraso.
 
 ---
 

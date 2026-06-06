@@ -10,7 +10,7 @@ The system is the bachelor thesis of João Guilherme de Mello Paiva Pereira (UTF
 
 ## Repository state
 
-The repository is in early development. Most directories described in the long-term architecture (`policy/`, `mcp_servers/`, `agents/`, `benchmark/`, `.github/workflows/`) do not exist yet. Do not assume their contents. When asked to create new structure, confirm the design choice with the user before scaffolding directories or files that do not yet exist.
+The repository implements a complete minimum viable product (MVP). The three layers are built and exercised end-to-end: the versioned Policy under `policy/`, the two MCP servers under `src/mcp_servers/`, the coordinator and five subagents under `src/`, and the GitHub Actions integration under `.github/workflows/`. Consult these directories rather than assuming their contents. Directories outside MVP scope (for example, a full `benchmark/`) may still be absent; when asked to create new structure, confirm the design choice with the user before scaffolding directories or files that do not yet exist.
 
 ## Stack (canonical)
 
@@ -63,35 +63,11 @@ These rules express the core thesis of the project. Violating them in code, prom
 
 ## Status flags for the agent
 
-- **Repository age:** mid development — Milestone A closed in session #25
-  (gate milestone-level via MCP Inspector CLI mode, evidence in
-  `docs/process/milestoneA.md`); Milestone B closed in session #35 (gate
-  milestone-level PASS empirically against stdio transport real, evidence
-  in `docs/process/milestoneB.md`); Milestone C authoring deferred to dedicated
-  Chat session post-housekeeping pre-C.
-- **Tests:** 134 passing local Windows, 133 Linux/macOS (AS-14b
-  skipped). Composição: 53 policy_reader + 11 semgrep_runner anchor
-  (AS-1..AS-8) + 21 test_scan_diff + 49 test_recognizers_br + AS-14
-  cross-platform + AS-14b Windows-only. Ruff clean, mypy strict clean.
-- **CI:** not configured yet (Milestone D).
-- **MCP servers:** policy-reader fully operational — 3 of 3 resources
-  (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`)
-  + 3 of 3 tools (`get_clause`, `find_clauses_by_law_article`,
-  `check_applicability`). semgrep-runner fully operational — `scan_diff`
-  implementation complete with 6 errorCodes per canonical §5, BR rule
-  pack (6 recognizers: CPF, CNPJ, CNH, NIS/PIS, título de eleitor,
-  CNS-saúde), exercised end-to-end via FastMCP stdio transport in gate
-  Milestone B PASS. Windows-stdio handle inheritance hardened
-  (`stdin=subprocess.DEVNULL` per PR #59).
-- **Subagents:** designed (Triager, Detector, Classifier, Matcher,
-  Reporter, plus coordinator), not implemented (Milestone C).
-- **Policy:** schema v0.1.0 stable; POL-000 (definitional, universal
-  vocabulary) authored in real `policy/`; pack POL-001..POL-004 in
-  `tests/mcp_servers/policy_reader/fixtures/clauses_pack_check_applicability/`
-  exercises T02b and T03 four-verdict matrix; no substantive clauses in
-  real policy yet (substantive content authored per-client, MVP ships
-  bundled with POL-000 only).
+- **Repository age:** MVP complete. Milestone A closed in session #25 (gate via MCP Inspector CLI mode, evidence in `docs/process/milestoneA.md`); Milestone B closed in session #35 (gate PASS against real stdio transport, evidence in `docs/process/milestoneB.md`); Milestone C — the multi-agent pipeline — implemented, with the Camada-3-MVP gate passing both locally and in CI (June 2026). Milestone D — the production job that runs on every pull request and the conditional merge block — remains the deferred scope.
+- **Tests:** full suite passing; Ruff clean, mypy strict clean. Consult the latest gate/QA evidence in `docs/process/` for the current count rather than a number embedded here.
+- **CI:** configured (GitHub Actions). The milestone gate runs in CI via `workflow_dispatch`; the `production` job triggered by pull requests is a deferred stub (`if: false`, Milestone D).
+- **MCP servers:** policy-reader fully operational — 3 of 3 resources (`policy://catalog`, `policy://schema-version`, `policy://vocabularies`) + 3 of 3 tools (`get_clause`, `find_clauses_by_law_article`, `check_applicability`). semgrep-runner fully operational — `scan_diff` complete with 6 errorCodes per canonical §5, BR rule pack (6 recognizers: CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde), exercised end-to-end via FastMCP stdio transport. Windows-stdio handle inheritance hardened (`stdin=subprocess.DEVNULL` per PR #59).
+- **Subagents:** implemented — Triager, Detector, Classifier, Matcher, Reporter, plus the Python coordinator. Exercised end-to-end over synthetic pull requests; Camada-3-MVP gate PASS locally and in CI.
+- **Policy:** schema v0.1.0 stable; POL-000 (definitional, universal vocabulary) authored in real `policy/`; MVP ships bundled with POL-000 only, substantive clauses authored per-client.
 
-When the agent is asked to perform an action that depends on
-infrastructure described as "not yet", "pending", or "skeleton stub"
-above, it must say so plainly rather than fabricate.
+When the agent is asked to perform an action that depends on infrastructure described above as deferred or pending (e.g., the Milestone D production job), it must say so plainly rather than fabricate.

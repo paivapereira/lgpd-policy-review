@@ -225,3 +225,4 @@ __marimo__/
 #   versioned — only the *.local.* layer is ignored.
 .claude/settings.local.json
 .claude/*.local.*
+.claude/settings.json

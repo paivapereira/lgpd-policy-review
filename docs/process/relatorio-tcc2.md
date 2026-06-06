@@ -126,9 +126,9 @@ c) projetar e implementar um sistema multiagente com cinco subagentes especializ
 
 d) construir reconhecedores para identificadores brasileiros (CPF, CNPJ, CNH, NIS/PIS, título de eleitor e CNS-saúde), endereçando lacuna real das ferramentas internacionais existentes;
 
-e) integrar o sistema ao GitHub Actions, registrando os achados como comentários *inline* em *pull requests*, sem bloquear o *merge* no MVP, em posicionamento operacional informativo coerente com a fronteira de conformidade declarativa;
+e) integrar o sistema ao GitHub Actions, registrando os achados em relatório do GitHub Actions, sem bloquear o *merge* no MVP, em posicionamento operacional informativo coerente com a fronteira de conformidade declarativa;
 
-f) validar empiricamente o sistema contra um *benchmark* sintético de trechos de código rotulados por veredito esperado.
+f) validar empiricamente o comportamento do sistema sobre um conjunto sintético de trechos de código rotulados por veredito esperado, em escopo qualitativo representativo dos cenários estruturantes de conformidade.
 
 ## 1.3 DAS REGRAS DE NEGÓCIO
 
@@ -164,7 +164,7 @@ A regra de negócio deste trabalho não é um conjunto de operações de domíni
 
 **RN-02.** A verificação é de conformidade *declarativa*, e não *efetiva*: o sistema avalia o que o código declara fazer com dados pessoais, não o comportamento em tempo de execução.
 
-**RN-12.** O posicionamento operacional é informativo: os achados são registrados como comentários *inline* no *pull request* e não bloqueiam o *merge* no MVP.
+**RN-12.** O posicionamento operacional é informativo: os achados são registrados em relatório do GitHub Actions e não bloqueiam o *merge* no MVP.
 
 ## 1.4 JUSTIFICATIVA
 
@@ -211,7 +211,7 @@ flowchart TB
         M[Coordenador + 5 subagentes<br/>2 servidores MCP + recognizers BR]
     end
     subgraph L3[Camada 3 — Integração CI/CD]
-        C[GitHub Action<br/>Comentários inline no PR]
+        C[relatório em GitHub Actions]
     end
     M -->|consulta via MCP| P
     C -->|invoca no PR| M
@@ -224,31 +224,31 @@ A **Camada 1** é a Política versionada: um artefato declarativo em formato YAM
 
 A **Camada 2** é o sistema multiagente. Um coordenador — implementado como *script* em Python, e não como agente — orquestra cinco subagentes especializados (Triager, Detector, Classifier, Matcher e Reporter) por meio de chamadas sequenciais ao Claude Agent SDK, no padrão de encadeamento de *prompts* (ANTHROPIC, 2024a). Cada subagente é o agente principal de sua própria chamada, com *prompt*, ferramentas e permissões próprios; o termo "subagente" designa, neste trabalho, o papel funcional na *pipeline*, e não o mecanismo de despacho de subagentes do SDK. Cada um tem responsabilidade única e ferramentas restritas à sua função (`coordinator.md` §2; `architecture-overview` §5). Dois servidores que implementam o *Model Context Protocol* (MCP) (ANTHROPIC, 2024b) sustentam a camada — o `policy-reader`, para acesso estruturado à Política, e o `semgrep-runner`, para detecção sintática —, complementados pelos reconhecedores de identificadores brasileiros que compõem o módulo de detecção.
 
-A **Camada 3** é a integração de entrega contínua: uma *GitHub Action* que dispara o sistema multiagente a cada *pull request*, recebe o Report JSON consolidado e registra os achados como comentários *inline* no PR. No produto mínimo viável, essa camada é informativa — não bloqueia o *merge* —, e seu papel é deliberadamente fino: a lógica de conformidade reside no sistema multiagente, não no *script* da Action, de modo que a portabilidade para outra plataforma de integração contínua seja trabalho de adaptador, e não de reescrita.
+A **Camada 3** é a integração de entrega contínua: uma *GitHub Action*, executada via *workflow*, que recebe o Report JSON consolidado do sistema multiagente e registra os achados em relatório do GitHub Actions. No produto mínimo viável, essa camada é informativa — não bloqueia o *merge* —, e seu papel é deliberadamente fino: a lógica de conformidade reside no sistema multiagente, não no *script* da Action, de modo que a portabilidade para outra plataforma de integração contínua seja trabalho de adaptador, e não de reescrita.
 
 A separação em camadas materializa três compromissos. O primeiro é a Política como artefato auditável independente do agente que a interpreta: o arquivo pode ser revisado por profissional do Direito sem conhecimento de agentes, e o agente pode ser substituído sem reescrita da Política. O segundo é a decomposição multiagente por responsabilidade única, e não por otimização prematura — a fronteira de responsabilidade é a regra, e a quantidade de cinco subagentes é consequência dela. O terceiro é a integração contínua como interface fina e substituível. Em conjunto, esses compromissos constituem o teste prático da arquitetura: ela sobrevive à substituição de qualquer uma das camadas sem reescrita das outras.
 
-O fluxo de execução, apresentado na Figura 2, é orquestrado pelo coordenador em Python, que executa os subagentes como uma sequência determinística de chamadas ao SDK — caracterizando o padrão de encadeamento de *prompts* (ANTHROPIC, 2024a). As etapas de 1 a 4 formam uma *pipeline* na qual cada etapa consome o resultado estruturado da anterior. O único ponto condicional é a etapa 0, em que o Triager decide se a análise prossegue; ainda que decida pelo descarte, o Reporter é igualmente invocado, emitindo um Report com desfecho de execução de descarte por triagem e conjunto de achados vazio, de modo que toda execução produza um Report rastreável. A escolha por uma *pipeline* fixa, e não adaptativa, é deliberada: o problema é a cobertura sistemática de pontos de tratamento em um *diff* — uma revisão multiaspecto previsível —, e não uma investigação aberta. Entradas e saídas pré-definidas por etapa permitem testar cada subagente isoladamente, observar o custo por etapa e substituir um subagente sem reescrever os demais.
+O fluxo de execução, apresentado na Figura 2, é orquestrado pelo coordenador em Python, que executa os subagentes como uma sequência determinística de chamadas ao SDK — caracterizando o padrão de encadeamento de *prompts* (ANTHROPIC, 2024a). As etapas 2 a 5 formam uma *pipeline* na qual cada etapa consome o resultado estruturado da anterior. O único ponto condicional é a primeira etapa, em que o Triager decide se a análise prossegue; ainda que decida pelo descarte, o Reporter é igualmente invocado, emitindo um Report com desfecho de execução de descarte por triagem e conjunto de achados vazio, de modo que toda execução produza um Report rastreável. A escolha por uma *pipeline* fixa, e não adaptativa, é deliberada: o problema é a cobertura sistemática de pontos de tratamento em um *diff* — uma revisão multiaspecto previsível —, e não uma investigação aberta. Entradas e saídas pré-definidas por etapa permitem testar cada subagente isoladamente, observar o custo por etapa e substituir um subagente sem reescrever os demais.
 
 **Figura 2 – Fluxo de execução do sistema multiagente**
 
 ```mermaid
 flowchart TB
     PR[Pull request aberto/atualizado] --> GA[GitHub Action]
-    GA --> T{Etapa 0 — Triager}
-    T -->|proceed| D[Etapa 1 — Detector<br/>candidatos no diff]
-    T -->|skip| R[Etapa 4 — Reporter<br/>Report vazio: run_outcome skipped_by_triager]
-    D --> C[Etapa 2 — Classifier<br/>structured_context por candidato]
-    C --> M[Etapa 3 — Matcher<br/>cláusulas + check_applicability]
+    GA --> T{Etapa 1 — Triager}
+    T -->|proceed| D[Etapa 2 — Detector<br/>candidatos no diff]
+    T -->|skip| R[Etapa 5 — Reporter<br/>Report vazio: run_outcome skipped_by_triager]
+    D --> C[Etapa 3 — Classifier<br/>structured_context por candidato]
+    C --> M[Etapa 4 — Matcher<br/>cláusulas + check_applicability]
     M --> R
-    R --> GA2[GitHub Action<br/>posta comentários inline no PR]
+    R --> GA2[relatório em GitHub Actions]
 ```
 
 Fonte: Autoria própria (2026).
 
 ## 2.3 FUNCIONALIDADES
 
-> *Nota.* Os cinco subagentes — Triager, Detector, Classifier, Matcher e Reporter — e o coordenador possuem especificação dedicada (`docs/specs/subagents/`) e implementação correspondente (`src/`), exercitadas por uma suíte de 309 testes automatizados e pelo portão de marco da Camada-3-MVP. As descrições a seguir refletem o sistema implementado.
+> *Nota.* Os cinco subagentes — Triager, Detector, Classifier, Matcher e Reporter — e o coordenador possuem especificação dedicada (`docs/specs/subagents/`) e implementação correspondente (`src/`), exercitadas por uma suíte de 309 testes automatizados (307 executados, 2 *live*) e pelo portão de marco da Camada-3-MVP. As descrições a seguir refletem o sistema implementado.
 
 A funcionalidade do sistema materializa-se como uma *pipeline* de cinco etapas, cada uma atribuída a um subagente especializado. Em coerência com o princípio de responsabilidade única (ANTHROPIC, 2024a), cada subagente recebe uma responsabilidade nominal sem conjunção e um conjunto de ferramentas restrito ao estritamente necessário à sua função — restrição que, além de delimitar responsabilidades, impede que um subagente contorne o protocolo previsto para a etapa. As ferramentas internas referidas a seguir (Read, Glob, Grep) são ferramentas nativas do Claude Code (ANTHROPIC, 2026), e a disponibilidade de cada uma por subagente é sintetizada no Quadro 1.
 
@@ -297,7 +297,7 @@ A **detecção sintática** emprega o Semgrep, na versão 1.163.0, instalado de 
 
 A **camada de agentes** é construída sobre o Claude Agent SDK (a partir da versão 0.2.87), que fornece o laço agêntico, a configuração de execução por chamada, o mecanismo de saída estruturada e os servidores de ferramentas em processo (`triager.md` §1.5; `reporter.md` §1.5). Os subagentes executam sobre o modelo Claude Opus 4.7, adotado para todas as etapas durante o desenvolvimento, sem otimização de custo prematura — a substituição de etapas específicas por modelos menores é avaliação reservada à fase posterior à validação funcional.
 
-A **integração contínua** é provida pelo GitHub Actions, que dispara o sistema sobre *pull requests*. A **validação empírica** do MVP foi realizada por um arnês determinístico próprio do projeto e por um portão *live* de comparação *field-scoped* (`eval/harness/`), descritos na seção seguinte; o *framework* Inspect AI, previsto em RNF-001, fica reservado à construção do *benchmark* quantitativo de maior escala registrada como trabalho futuro.
+A **integração contínua** é provida pelo GitHub Actions, que executa o sistema via *workflow*. A **validação empírica** do MVP foi realizada por um arnês determinístico próprio do projeto e por um portão *live* de comparação *field-scoped* (`eval/harness/`), descritos na seção seguinte; o *framework* Inspect AI, previsto em RNF-001, fica reservado à construção do *benchmark* quantitativo de maior escala registrada como trabalho futuro.
 
 **Quadro 2 – Pilha tecnológica e governança**
 
@@ -399,7 +399,7 @@ Entre as facilidades, destaca-se a eficácia do método de revisão entre instâ
 
 ## 3.1 TRABALHOS FUTUROS
 
-Concluído o produto mínimo viável, o trabalho delimita explicitamente um conjunto de evoluções fora do escopo atual, registradas como decisões de projeto (`architecture-overview` §7.3). Três decorrem diretamente das fronteiras observadas na avaliação. A primeira é a emissão de Report **multi-jurisdição**: relaxar o tipo do campo `legal_framework`, hoje fixado em LGPD, para um conjunto validado, de modo que a independência jurisdicional já demonstrada na superfície de decisão alcance também o artefato de saída consolidado. A segunda é o **gate de sensibilidade** no motor de conformidade, que faz a decisão consultar a marca de dado sensível da categoria e corrige a inversão diagnosticada na cláusula do Art. 11 — a correção está projetada, com causa-raiz conhecida, restando a revalidação do conjunto de vereditos que dela depende. A terceira é a **avaliação de sensibilidade ao modelo** (comparando modelos de capacidade e custo distintos por etapa da *pipeline*), valiosa tanto para o relatório quanto para a operação. Somam-se a estas as evoluções já previstas: a classificação de severidade dos achados; um subagente proponente de correção; o comentário *inline* em *pull request* de produção, hoje diferido; o bloqueio condicional de *merge*, condicionado à validação empírica de uma taxa de falsos positivos defensável em base de código real; um mapa de dados longitudinal cruzando informações entre *pull requests*; a cobertura de dimensões adicionais da LGPD além de consentimento e anonimização — transferência internacional, retenção, direitos do titular, dados de menores e tratamento compartilhado; conjuntos de regras de detecção por cliente; e a construção do *benchmark* sintético completo, com portão de marco quantitativo e métricas de precisão e revocação. A delimitação dessas fronteiras protege a defesa do trabalho de questionamentos que ele não se propôs a responder, e protege a evolução posterior de promessas que o produto mínimo viável não assumiu.
+Concluído o produto mínimo viável, o trabalho delimita explicitamente um conjunto de evoluções fora do escopo atual, registradas como decisões de projeto (`architecture-overview` §7.3). Três decorrem diretamente das fronteiras observadas na avaliação. A primeira é a emissão de Report **multi-jurisdição**: relaxar o tipo do campo `legal_framework`, hoje fixado em LGPD, para um conjunto validado, de modo que a independência jurisdicional já demonstrada na superfície de decisão alcance também o artefato de saída consolidado. A segunda é o **gate de sensibilidade** no motor de conformidade, que faz a decisão consultar a marca de dado sensível da categoria e corrige a inversão diagnosticada na cláusula do Art. 11 — a correção está projetada, com causa-raiz conhecida, restando a revalidação do conjunto de vereditos que dela depende. A terceira é a **avaliação de sensibilidade ao modelo** (comparando modelos de capacidade e custo distintos por etapa da *pipeline*), valiosa tanto para o relatório quanto para a operação. Somam-se a estas as evoluções já previstas: a classificação de severidade dos achados; um subagente proponente de correção; o bloqueio condicional de *merge*, condicionado à validação empírica de uma taxa de falsos positivos defensável em base de código real; um mapa de dados longitudinal cruzando informações entre *pull requests*; a cobertura de dimensões adicionais da LGPD além de consentimento e anonimização — transferência internacional, retenção, direitos do titular, dados de menores e tratamento compartilhado; conjuntos de regras de detecção por cliente; e a construção do *benchmark* sintético completo, com portão de marco quantitativo e métricas de precisão e revocação. A delimitação dessas fronteiras protege a defesa do trabalho de questionamentos que ele não se propôs a responder, e protege a evolução posterior de promessas que o produto mínimo viável não assumiu.
 
 ---
 

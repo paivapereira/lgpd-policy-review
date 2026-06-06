@@ -7689,4 +7689,4 @@ ja existe vs novo (mesma disciplina do Passo 4).
 
 ### Proximo passo
 
-Joao abre o PR do Caminho 1 e faz squash-merge via UI. Depois: revisao cross-doc completa do relatorio (reconciliar §2.5 "Report valido sob GDPR" -> read-surface; §3-parcial stale; proposta ~200 snippets vs 6 fixtures; Quadro 3 cronograma) -> entao §3 Conclusoes. Verificar completude de §2.1/§2.2/§2.3 (nao confirmada). Pauta planejada para sessao futura: avaliacao de sensibilidade ao modelo (Opus/Sonnet/Haiku) com K>=5 e protocolo desenhado antes de rodar.
+ver handoff

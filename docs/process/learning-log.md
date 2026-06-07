@@ -7686,7 +7686,28 @@ ja existe vs novo (mesma disciplina do Passo 4).
 - Modo de falha silencioso de uma decisao de escopo documentado empiricamente (mislabel ADR-0007) — fix do Caminho 1 e o sistema honrando o proprio valor (recuse, nao finja).
 - Taxonomia de tres camadas de evidencia; veredito correto != classificacao correta (RN-02 empirica, caso PROBE).
 - Custo baixo como evidencia quantitativa a favor do pipeline fixo.
+## 2026-06-06 — Fechamento do texto do relatorio + documento de execucao (as-built)
 
-### Proximo passo
+**Conceitos da prova exercitados**
+- D1 (Agentic Architecture & Orchestration): padrao multiagente coordenador-subagente aplicado a AUTORIA de documento — Workflow com fan-out (1 agente por subsistema, em paralelo) -> sintese -> verificacao adversarial (8 criticos). Orquestracao plan->gate->execute (Fase 1 para no gate; Fase 2 so apos ratificacao explicita).
+- D2 (Tool Design & MCP Integration): documentar o sistema exercitou a compreensao de MCP resources vs tools (policy-reader 3+3), do flag isError (Option B: isError sempre false; discriminacao por presenca de errorCode em structuredContent) e do contraste stdio-MCP vs servidor SDK in-process (create_sdk_mcp_server por captura de closure).
+- D3 (Claude Code Config & Workflows): plan mode como gate obrigatorio antes de qualquer escrita; CLAUDE.md como project memory — a correcao das flags stale (XDOC-03/04) exercitou o risco de memoria desatualizada envenenar o inicio de cada sessao.
+- D4 (Prompt Engineering & Structured Output): schema JSON por agente do Workflow (saida estruturada { secao, claims:[{afirmacao, ancora}], lacunas }); multi-instance review (os 8 verificadores adversariais conferindo ancora a ancora, em sessao independente).
+- D5 (Context Management & Reliability): proveniencia/citacao como disciplina central (ancora arquivo:linha em toda afirmacao; carimbo as-built point-in-time, "o codigo vence"); propagacao de erro (fail-loud framework guard, ADR-0007); o modo de falha as-built-vs-as-designed (descrever o projetado em vez do construido) como a classe de bug das flags stale.
 
-ver handoff
+**Decisoes**
+- Novidade do relatorio REPOSICIONADA: de "nao ha equivalente consolidado" para "contribuicao = combinacao especifica", apos pesquisa de estado da arte que achou vizinhos diretos (PrivGuard USENIX 2022; PrivFramework; Fides/Ethyca; GDPR-Bench-Android 2025; RegCheck FSE 2025; Catala; Rules-as-Code OCDE 2020). O claim original era refutavel em defesa. §1.4 reescrito reconhecendo Sen et al. 2014 e Wang et al. 2022.
+- Eixos: "versionamento em tres eixos" -> "versionamento em dois eixos semver + framework como eixo de identidade" (SCHEMA.md §3.2, ADR-0005). Corrigido em objetivo (a), §1.4, introducao; resumo/§2.2/§3 ja usavam "identidade".
+- Documento de execucao: novo `docs/execution-model.md` (NAO funcionamento.md, NAO "runbook" — e descricao de execucao, par de runtime do architecture-overview). DD-1 (novo arquivo) / DD-2 (PT, ADR-0006) / DD-3 (runbook narrativo + tabela-contrato + 2 diagramas) / DD-4 (sequenceDiagram + flowchart) ratificadas. Carimbo de proveniencia as-built no §0.
+- Verify-before-inference confirmado: o verificador adversarial pegou 2 erros factuais no proprio draft (run_review como "unico caller" de run_pipeline; run_branch_b_stage rodando o Reporter no skip) e recontou os errorCodes do policy-reader (7, nao 8). Erro nao corrigido em silencio — sinalizado.
+
+**Artefatos**
+- Relatorio (mergeado, PRs #118-#119): §1.4 + refs Sen/Wang; consistencia resumo/abstract/introducao alinhada ao §1.4; eixos; tempo verbal de relatorio final.
+- `docs/execution-model.md` (mergeado #120, `f95d54b`): runbook as-built ancorado arquivo:linha, 2 diagramas, tabela-contrato por etapa, carimbo de proveniencia.
+- Pesquisa de estado da arte (insumo de uma futura secao de trabalho relacionado).
+- Debito cross-doc (6 divergencias as-built) em `docs/tasks.md` §Companion; ledger de cobertura/staleness de testes em memoria de projeto do Code.
+
+**Proximo passo**
+- ENTREGA: conferir refs Sen/Wang contra a fonte (IEEE Xplore / usenix.org); diagramacao (paginas, data/banca, TOC).
+- Follow-ups separados (sem data): housekeeping cross-doc (PR dedicado); task de testes (gate proprio).
+- Pauta de sessao: sensibilidade ao modelo (K>=5, protocolo antes de rodar).

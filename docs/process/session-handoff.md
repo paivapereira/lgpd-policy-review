@@ -1,73 +1,109 @@
-# Session handoff — pos-QA + Caminho 1 mergeado (relatorio v2 em revisao final)
+# Session handoff — relatorio fechado no texto; execution-model mergeado; 2 follow-ups spun-out
 
-> Template-overwrite, nao patch cumulativo. Tratar como hipotese a verificar contra o repo (git log, leitura de arquivo), nao como estado autoritativo. Primeira acao de qualquer sessao Code: confirmar git state, nao assumir. O `relatorio-qa.md` (data efetiva 2026-06-05) e o inventario de debitos verificado mais recente; em divergencia com este handoff, o QA prevalece e os numeros sao re-lidos.
+> Template-overwrite, nao patch cumulativo. Tratar como hipotese a verificar contra o repo (git
+> log, leitura de arquivo). Primeira acao de sessao Code: confirmar git state. `relatorio-qa.md`
+> segue como inventario de debitos do relatorio; em divergencia, re-ler o arquivo.
+
+## Estado do repo (informado no fim da sessao)
+
+Em `main`, arvore limpa, em sincronia com `origin/main`. Merges recentes: relatorio (#118-#119) e
+`docs/execution-model.md` (#120, `f95d54b`). Branches de trabalho deletadas/podadas.
 
 ## Onde estamos
 
-MVP completo e atestado com ressalvas declaradas (ver `relatorio-qa.md` §0). As tres camadas estao implementadas, exercitadas de ponta a ponta e cobertas por suite verde. O Caminho 1 (guarda fail-loud de `legal_framework`) **foi mergeado** — PR #112, commit `05d8a18` (confirmado pelo QA; corrige o XDOC-12, que apontava este handoff como stale). O caminho critico tecnico do entregavel 15/06 esta concluido; o que resta e redacao e reconciliacao do relatorio, mais housekeeping de baixo risco.
+Duas frentes fecharam nesta sessao:
 
-Estado estatico verificado (QA, re-executado na data efetiva): pytest 307 passed / 309 collected (2 live deselected); mypy --strict limpo (46 arquivos); ruff check src tests limpo; ruff check . com 3 F401 em probes; ruff format --check com 114 arquivos reformataveis (debito aberto); 4/4 portoes de marco PASS (inclui CI run 26983111920); motor de avaliacao 13/13 casos engine-runnable com match.
-
-### Relatorio TCC2
-
-- v2 em voo: branch `docs/relatorio-tcc2-v2-e-qa`, PR #113. As edicoes de revisao estao especificadas no prompt `prompt-trelatorio-rev-v1.md` (E1-E7: objetivo (f), citacoes OPA + Ferrara&Spoto, frase de novidade, Camada 3 "dispara mas pula", nota da Figura 2, 309/307, numeracao do Triager). Prompt com pre-flight de verificacao de string (HALT se nao bater, dado o v2).
-- Rascunho de avaliacao em `docs/eval/avaliacao-secao-rascunho-numero-independente.md` — insumo, ja alinhado a reescrita do §2.5 (XDOC-01). Falta INTEGRAR ao corpo.
-- §3 Conclusoes: a escrever, depois da revisao cross-doc.
-- Custo: US$ 5,15 conta inteira (junho ate 05), caching ativo. RESSALVA: agregado (pipeline + Chat + Code), NAO isolavel ao pipeline sem filtrar por chave de API/workspace. O relatorio hoje NAO cita custo — manter assim, ou so citar com o filtro.
+1. **Texto do relatorio — FECHADO.** Todos os eixos de consistencia resolvidos e verificados:
+   novidade reposicionada (combinacao, nao primazia; reconhece PrivGuard/Sen/Wang), contribuicao
+   alinhada do resumo ao §3, destino dos achados (relatorio do GitHub Actions, sem inline),
+   numeracao de etapas 1-5, contagem de testes 309/307, eixos (versionamento dois semver + framework
+   como identidade), tempo verbal de relatorio final. Nao ha mais contradicao interna nem claim
+   refutavel no texto.
+2. **Documento de execucao — CRIADO e MERGEADO.** `docs/execution-model.md` (#120): runbook
+   as-built ancorado arquivo:linha, par de runtime do `architecture-overview.md`, 2 diagramas,
+   tabela-contrato por etapa, carimbo de proveniencia point-in-time. Produzido via Workflow
+   plan->gate->ultracode com verificacao adversarial (pegou 2 erros factuais no draft + recontou
+   errorCodes). CLAUDE.md tambem corrigido (flags stale XDOC-03/04; Regra 3 imutavel intocada).
 
 ## TODO
 
-### Antes da entrega (15/06) — alto valor, baixo risco
-- [ ] XDOC-01: reconciliar §2.5 (contradicao "Report valido sob GDPR"). [prompt E2/E4] — INEGOCIAVEL
-- [ ] XDOC-02: tempo verbal "parcial/restando" -> concluido (RESUMO, §2.3, §3, AP. E)
-- [ ] XDOC-03/04: flags falsas no CLAUDE.md ("134 passing", "CI not configured", "subagents not implemented", "early development")
-- [ ] XDOC-11: "~200 snippets" residual -> reenquadrar [objetivo (f) no prompt]
-- [ ] XDOC-16: AP. D "ADR-0001 a 0010" -> corpo vai ate 0016 (sem 0013)
-- [ ] XDOC-14/15: linha de cronograma da janela corrente; ADR-0011 "Proposto" -> embarcado
-- [ ] ADR do Caminho 1 (§6.3 #3): registrar leitura pre-flight do header como excecao de fronteira
-- [ ] 3x F401 (§5): `uv run ruff check . --fix`
+### ENTREGA (15/06) — o que ainda separa o relatorio da submissao (NAO e redacao)
+- [ ] **Conferir as referencias Sen/Wang contra a fonte** (autoria, paginacao, DOI) — TOPO. Sen et
+      al., IEEE S&P 2014 (Bootstrapping privacy compliance...); Wang et al., USENIX Security 2022
+      (PrivGuard, p. 3753-3770). Conferir em IEEE Xplore e usenix.org. Unico ponto com info
+      reconstruida de busca.
+- [ ] Diagramacao final (Word): contagem de paginas no RESUMO ("___ f."), data/banca placeholders, TOC.
+- [ ] Confirmar com a orientadora o titulo do §3 (finais/conclusoes, nao "parciais").
 
-### Se houver janela — medio, baixo risco
-- [ ] XDOC-05..10: spec drifts (coordinator/classifier/reporter vs codigo) — sessao housekeeping propria
-- [ ] [verificar] CLAUDE.md vs ADR-0001 D4: sweep das regras imutaveis (D-5 deferido; distinto de XDOC-03/04)
-- [ ] [verificar] isError/is_error consistencia entre servidores FastMCP (vs XDOC-10?)
-- [ ] [verificar] §10.5 matcher.md (governanca tool/resource, sessao #48) foi commitado? Se nao, e drift (talvez ja XDOC-05/06)
-- [ ] [verificar] higiene do registro de debitos: remover bullets resolvidos de tasks.md §Companion e dos §10.5
+### FOLLOW-UPS spun-out desta sessao (trabalho separado, sem data — abrir sessao propria)
+- [ ] **Housekeeping cross-doc** — 6 divergencias as-built registradas em `docs/tasks.md` §Companion
+      edits cross-doc: architecture-overview "tres eixos"; coordenador-como-agente com tool de
+      despacho; numeracao Etapa 0-4 vs 1-5; "Reporter agrega" (e o coordenador); nota DD-M22 (guard
+      de framework como futuro, ja implementado); specs com lag (reporter.md §1.5, classifier.md
+      §4.3). PR de housekeeping DEDICADO, nao inline. NB: agora que `execution-model.md` e mais fiel
+      ao as-built que `architecture-overview.md`, a decisao e se o overview e corrigido para apontar
+      ao execution-model em vez de divergirem.
+- [ ] **Task de testes** — ledger de cobertura/staleness salvo em memoria de projeto do Code
+      (`project_funcionamento_coverage_gaps.md`). Gaps de "funcionamento sem teste": wrap de excecao
+      untyped -> CoordinatorError; `run_review.py` sem caller vivo; build de Report GDPR;
+      `success_all_not_applicable` sem e2e; check-all do Matcher so via prompt-content; recognizers
+      BR alem de CPF nao exercitados na layer-2; fallback zero-finding de `_effective_provenance`.
+      Task SEPARADA com gate proprio. Testes foram explicitamente fora de escopo na criacao do doc.
+
+### POS-ENTREGA — repositorio (menores)
+- [ ] ADR do Caminho 1: registrar a leitura pre-flight do header como excecao de fronteira.
+- [ ] 3x F401 em probes: `uv run ruff check . --fix`.
+- [ ] CLAUDE.md: inconsistencia de caminho "Repository state" `src/mcp_servers/` vs "Stack"/"What
+      does NOT belong" `mcp_servers/`. Debito conhecido, parqueado.
 
 ### NAO tocar antes da entrega
-- [ ] ruff format (114 arquivos): so DECIDIR politica de CI; reformat e pos-entrega (diff gigante, polui blame)
-- [ ] Reporter single-failed-emit (§6.3 #4): contido por ReportNotEmitted, nao observado em 10 corridas
-- [ ] POL-007 inversao Art. 11: decisao de escopo tomada — apresentar como rigor na defesa, nao corrigir
-- [ ] Loader cross-valida control / TimeoutExpired->GIT_REF_NOT_FOUND: estruturais, mitigados por construcao
+- ruff format (114 arquivos): so decidir politica de CI; reformat pos-entrega.
+- Reporter single-failed-emit: contido por ReportNotEmitted.
+- POL-007 inversao Art. 11: decisao de escopo tomada — apresentar como rigor na defesa.
 
-### Backlog pos-entrega (frentes proprias)
-- [ ] Caminho 2 (multiframework Report): relaxar `Literal["LGPD"]` (matcher/models.py:60, reporter/models.py:61) -> conjunto validado; restaurar cross-check #2; validator finding.legal_framework==header. Dependencia: atualizar `_SUPPORTED_LEGAL_FRAMEWORKS` da guarda (deliberado, red-first afirmando que GDPR emite)
-- [ ] Evolucao {type, value} do control (SCHEMA §6.3) + do_not_collect e lawful_basis_required (ADR-0015)
-- [ ] find_clauses_by_applicability (otimizacao de custo; hoje check-all/sweep)
-- [ ] Report JSON como artifact + inline-em-PR de producao (Milestone D)
-- [ ] Frente AEP/DULE (definir Camada-AEP-MVP) + superficie de deteccao do Detector (config/schema AEP, nao so codigo)
-- [ ] Avaliacao de sensibilidade ao modelo (K>=5, protocolo antes de rodar)
+### BACKLOG (pos-entrega, frentes proprias)
+- [ ] Caminho 2 (multiframework Report): relaxar `Literal["LGPD"]`; restaurar cross-check #2;
+      atualizar `_SUPPORTED_LEGAL_FRAMEWORKS` (red-first afirmando que GDPR emite).
+- [ ] Evolucao {type, value} do control + do_not_collect + lawful_basis_required (ADR-0015) — motor-primeiro.
+- [ ] find_clauses_by_applicability (otimizacao de custo).
+- [ ] Persistencia do Report JSON como artifact + destilacao em "linha de planilha" (Milestone D).
+      INLINE-EM-PR ESTA FORA (decisao firme) — nao reintroduzir.
+- [ ] Frente AEP/DULE (Camada-AEP-MVP) + superficie de deteccao do Detector.
+- [ ] Avaliacao de sensibilidade ao modelo (K>=5, protocolo antes de rodar).
+- [ ] Benchmark quantitativo (15-20 fixtures, K=5, taxa de concordancia).
 
-## Design registrado — control {type, value} / do_not_collect / DULE (para a frente AEP)
+## Design registrado — control {type, value} / do_not_collect / DULE (frente AEP)
 
-Decidido em Chat, a materializar como emenda de ADR (provavel ADR-0015) na sessao de planejamento AEP, com pre-flight de grep em SCHEMA §6.3, ADR-0015 e matcher.md §8.3:
-
-- Qualquer control novo e trabalho de motor primeiro, dado depois. `_verdict_for_control` (tools.py) so trata `consent_required`/`anonymization_required`; ramo final `raise AssertionError`. Regra do repo: control nao-implementado NAO entra em vocabulario carregado (foot-gun de crash do sweep) — por isso POL-008 vive em `eval/proposed/`. Logo `do_not_collect` exige ramo novo no motor; nao e data-only (corrige inferencia anterior).
-- Forma `{type, value}`: `type` = conjunto FECHADO de semanticas que o motor sabe avaliar (um ramo cada); `value` = dado. Tipos propostos: `requires_legal_basis`, `lawful_basis_required` (ADR-0015, sensivel a `special_category`), `requires_transformation` (pode dar `indeterminate` se a transformacao nao for visivel no diff — precedente do `anonymization_required`, que retorna sempre indeterminate), `do_not_collect` (proibicao: casa -> violation_candidate, sem avaliar base). Linha de ouro: type novo = motor+schema+teste+ADR; instancia nova de type existente = dado puro.
-- do_not_collect vs lawful_basis_required sao dois modelos de Art. 11 e coexistem: proibicao para o sensivel vedado (a maioria, exceto genero — observacao do Joao), base-exigida-sensivel para hipoteses com caminho permitido. do_not_collect e o candidato natural a primeiro morador da forma {type,value}.
-- DULE = fonte de obrigacao, nao framework. Entra via `accepted_law_identifiers` + clausulas; C-labels mapeiam nos mesmos types. Honestidade obrigatoria: controles DULE invisiveis no diff (cripto em repouso, retencao) -> `indeterminate`. A superficie de DETECCAO (Detector reconhecer transferencia a terceiro no codigo AEM/AEP) e item separado e maior; a forma {type,value} resolve o vocabulario, nao a deteccao.
+A materializar como emenda de ADR na sessao AEP, com pre-flight de grep em SCHEMA §6.3, ADR-0015,
+matcher.md §8.3:
+- Control novo e MOTOR-PRIMEIRO, dado depois. `_verdict_for_control` (tools.py) so trata
+  consent_required / anonymization_required; ramo final `raise AssertionError`. Control nao
+  implementado NAO entra em vocabulario carregado (foot-gun de crash do sweep).
+- Forma {type, value}: type = conjunto FECHADO de semanticas (um ramo cada); value = dado. Tipos:
+  requires_legal_basis, lawful_basis_required (sensivel a special_category), requires_transformation
+  (indeterminate se invisivel no diff), do_not_collect (proibicao).
+- do_not_collect e lawful_basis_required sao dois modelos de Art. 11 e coexistem. DULE = fonte de
+  obrigacao, nao framework. Controles invisiveis no diff -> indeterminate. Deteccao no Detector e
+  item separado e maior.
 
 ## Referencias de artefato
 
-- `relatorio-qa.md` — inventario de debitos verificado + matriz de cobertura RF/RNF + 16 achados cross-doc (XDOC-01..16). Fonte autoritativa do estado atual.
-- `prompt-trelatorio-rev-v1.md` — prompt Code das edicoes E1-E7 do relatorio.
-- `docs/eval/avaliacao-secao-rascunho-numero-independente.md` — insumo da secao de avaliacao.
-- Referencias novas (justificativa/novidade): OPEN POLICY AGENT (2024); FERRARA; SPOTO, Static Analysis for GDPR Compliance, ITASEC 2018.
+- `docs/execution-model.md` — runbook as-built (visao de execucao; par do architecture-overview).
+- `relatorio-qa.md` — inventario de debitos do relatorio + XDOC-01..16.
+- Pesquisa de estado da arte (PrivGuard, PrivFramework, Fides, GDPR-Bench-Android, RegCheck, Catala,
+  Rules-as-Code) — insumo de futura secao de trabalho relacionado; fonte das refs Sen/Wang.
+- `docs/tasks.md` §Companion edits cross-doc — debito as-built (6 divergencias).
+- Memoria de projeto do Code: `project_funcionamento_coverage_gaps.md` — ledger da task de testes.
 
-## Pauta da proxima sessao
+## Pauta candidata da proxima sessao
 
-Avaliacao de sensibilidade ao modelo (Opus/Sonnet/Haiku). NAO rodar com K baixo. Decidir ANTES de executar: K por celula (>=5, licao PROBE/INDET); pipeline-inteiro-por-modelo vs por-estagio (a segunda e mais util — barato no Triager/Detector, capaz no Matcher — mas exige parametrizar modelo por estagio; confirmar se ja e possivel); metricas (fidelidade ao veredito esperado, estabilidade intra-modelo por convergencia K, custo, latencia). Pre-flight: confirmar como o pipeline seleciona modelo hoje. Ganho de combinar com o Caminho 2. Candidata a §3 trabalho futuro ou secao de avaliacao extra.
+Tres opcoes, todas frentes proprias com sessao FRESCA (threads longas acumulam inferencia stale):
+(a) sensibilidade ao modelo — decidir ANTES de rodar: K>=5 por celula; inteiro-por-modelo vs
+por-estagio (confirmar se da para parametrizar modelo por estagio); metricas (fidelidade, estabilidade,
+custo, latencia); pre-flight de como o pipeline seleciona modelo hoje. (b) housekeeping cross-doc.
+(c) task de testes. Nenhuma e bloqueante da entrega.
 
 ## Proximo passo imediato
 
-Joao: aplicar as edicoes do relatorio (prompt E1-E7) e fechar a revisao cross-doc comecando por XDOC-01 (§2.5) -> escrever §3 Conclusoes. Os XDOC-03/04 (CLAUDE.md), F401 e a ADR do Caminho 1 sao ganhos baratos no caminho. Verificar completude de §2.1/§2.2/§2.3 no arquivo.
+Joao: conferir as refs Sen/Wang contra a fonte e fechar a diagramacao (paginas, data/banca, TOC).
+Com isso o relatorio esta pronto para submissao. Tudo o mais e pos-entrega.

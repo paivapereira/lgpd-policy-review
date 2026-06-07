@@ -1,10 +1,10 @@
-# Funcionamento do sistema — runbook operacional (as-built)
+# Modelo de execução do sistema (as-built)
 
 ## 0. Cabeçalho
 
 ### Propósito
 
-Este documento descreve **como o sistema efetivamente funciona** quando executado: o caminho que uma execução percorre, do *pull request* ao Report consolidado, e os contratos operacionais de cada componente *as-built*. É um runbook narrativo — destinado a quem precisa entender, operar ou auditar a execução, não a quem implementa um componente a partir do zero.
+Este documento descreve **como o sistema se comporta quando executado**: o caminho que uma execução percorre, do *pull request* ao Report consolidado, e os contratos operacionais de cada componente *as-built*. É a **visão de execução** (dinâmica) do sistema — o par de *runtime* do [architecture-overview.md](docs/architecture-overview.md) (visão estrutural): descreve o que acontece quando o sistema roda, não como cada componente é implementado a partir do zero. Destina-se a quem precisa entender ou auditar a execução.
 
 ### O que é e o que não é
 
@@ -13,13 +13,17 @@ Este documento descreve **como o sistema efetivamente funciona** quando executad
 
 ### Precedência de fontes
 
-Ao ler este documento, a ordem de autoridade sobre fatos é: **código real** (as âncoras citadas em cada afirmação) > [docs/process/relatorio-tcc2.md](docs/process/relatorio-tcc2.md) §2.2–2.3 > [docs/architecture-overview.md](docs/architecture-overview.md) > especificações em [docs/specs/](docs/specs/). Onde a visão conceitual divergir do comportamento construído, este runbook adota o **as-built** e o cita.
+Ao ler este documento, a ordem de autoridade sobre fatos é: **código real** (as âncoras citadas em cada afirmação) > [docs/process/relatorio-tcc2.md](docs/process/relatorio-tcc2.md) §2.2–2.3 > [docs/architecture-overview.md](docs/architecture-overview.md) > especificações em [docs/specs/](docs/specs/). Onde a visão conceitual divergir do comportamento construído, este documento adota o **as-built** e o cita.
 
 ### Como ler
 
 Cada afirmação que repousa em código carrega uma âncora inline no formato `[arquivo:linha](arquivo#Llinha)`. As tabelas-contrato trazem uma coluna final **Âncora**. A numeração de etapas vai de **1 (Triager)** a **5 (Reporter)**, coerente com a Figura 2 do relatório. Itens genuinamente incertos são marcados como **a confirmar**, nunca preenchidos por inferência.
 
-> **Nota de numeração.** Este runbook e o relatório numeram as etapas de 1 a 5. A *string* de saída ao usuário em [format_summary.py:51](scripts/ci/format_summary.py#L51) rotula o Triager como `(etapa 0)`, e o [architecture-overview.md](docs/architecture-overview.md) §3 usa 0–4. A divergência de numeração entre os três artefatos está registrada como débito cross-doc em [docs/tasks.md](docs/tasks.md) §Companion edits cross-doc.
+### Proveniência
+
+> **As-built, point-in-time.** Escrito contra o estado do repositório em 6 de junho de 2026 e verificado contra o *working tree* nessa data. As âncoras `arquivo:linha` são *point-in-time*: apontam o componente correto, mas o número da linha pode divergir após qualquer refatoração. Em caso de divergência, **o código vence** — a âncora indica onde olhar, não garante a linha. Trate este documento como um retrato datado, não como espelho contínuo do código.
+
+> **Nota de numeração.** Este documento e o relatório numeram as etapas de 1 a 5. A *string* de saída ao usuário em [format_summary.py:51](scripts/ci/format_summary.py#L51) rotula o Triager como `(etapa 0)`, e o [architecture-overview.md](docs/architecture-overview.md) §3 usa 0–4. A divergência de numeração entre os três artefatos está registrada como débito cross-doc em [docs/tasks.md](docs/tasks.md) §Companion edits cross-doc.
 
 ---
 

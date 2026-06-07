@@ -283,7 +283,7 @@ O `indeterminate` é veredito de **primeira classe** e carrega `verification_sco
 
 ---
 
-## 9. Como o funcionamento é verificado
+## 9. Como a execução é verificada
 
 A verificação opera em duas camadas, ambas descritivas (não reproduzo contagens aqui — para números atualizados, ver [docs/process/](docs/process/)).
 

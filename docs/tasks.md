@@ -568,6 +568,16 @@ decomposição, análoga à #27 que decompôs Milestone B em T05-T07.
 
 PRs separados ou commits internos de PRs principais, fora do escopo de implementação Code de uma task específica. Não bloqueantes para a task à qual estão anexados, anotados aqui para não perder o débito.
 
+**Divergências as-built descobertas ao redigir `docs/execution-model.md` (consolidar em housekeeping arch-overview/specs futuro; não corrigidas inline por disciplina de escopo):**
+
+- **arch-overview "três eixos"** — `docs/architecture-overview.md:46` ("Versionada em três eixos independentes") conflama versionamento com identidade. Versionamento é em **dois** eixos semver (`policy_schema_version`, `policy_version`); `legal_framework` é eixo de **identidade** não-semver (`policy/SCHEMA.md:71-76`; ADR-0005). O relatório já foi corrigido para "identidade em três eixos" (#118); a arch-overview ainda diz "Versionada".
+- **arch-overview coordenador-como-agente** — §5.1/§5.7 (`docs/architecture-overview.md:234`) descrevem o coordenador como agente com a tool "Despacho de subagentes". As-built é um *script* Python sem ferramenta de despacho, ausente da matriz (`src/coordinator/run.py:358-448`; relatório §2.2/§2.3 já corrigido).
+- **arch-overview numeração de etapas** — §3 usa Etapa 0-4; o relatório e `docs/execution-model.md` usam Etapa 1-5; a string user-facing em `scripts/ci/format_summary.py:51` rotula o Triager "(etapa 0)". Três numerações divergentes — reconciliar.
+- **arch-overview "Reporter agrega"** — §4.3/§5.6 atribuem a agregação ao Reporter; as-built a agregação é do coordenador (`derive_run_outcome`/`aggregate_summary`/`_build_consolidated_state`, `src/coordinator/run.py:95-148`); o Reporter serializa verbatim.
+- **arch-overview §5.5 nota DD-M22** — trata o handshake jurisdicional como futuro ("quando ADR-0005 materializar"); as-built já implementado como `UnsupportedLegalFramework` (`src/coordinator/run.py:443-447`; `src/coordinator/errors.py:72-87`; ADR-0007).
+- **specs com lag** — `docs/specs/subagents/reporter.md` §1.5 marca os módulos do Reporter como "a criar"/inexistentes, mas existem e estão implementados (`src/subagents/reporter/`); `docs/specs/subagents/classifier.md` §4.3 descreve passthrough de 4 campos, mas o real é 5 (`src/subagents/classifier/passthrough.py:19`).
+- **Quadro 1 / matriz × Matcher Read** — o Quadro 1 do relatório e a matriz de `architecture-overview` §5.7 mostram o Matcher sem `Read`, mas `_matcher_options` concede `Read` no SDK (`src/coordinator/run.py:224`); o uso de FS é vedado apenas por *system prompt*. Reconciliar com nota/footnote (já anotado em `docs/execution-model.md` §3).
+
 **Consolidados em Provisão A de Milestone B** (PR `chore/canonical-sync-C-semgrep-runner`, ver §Milestone B § Pré-implementação):
 
 - canonical sync do `semgrep-runner` (Option B amendment §3 ADR-0002 + §6 vs §8.6 alignment).

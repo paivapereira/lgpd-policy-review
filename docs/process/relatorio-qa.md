@@ -22,6 +22,7 @@ Convenções:
 **Projeto:** `lgpd-policy-review` — *code review* automatizado de conformidade com Política de Proteção de Dados versionada (TCC, Engenharia de Software — UTFPR)
 **Tipo de documento:** Relatório de QA (compilação de evidência de verificação + revisão cross-doc)
 **Data efetiva:** 5 de junho de 2026
+**Revisão:** 28 de junho de 2026 — inventariada a investigação de robustez a modelo (ablação por estágio) como experimento exploratório (Quadro 9 e §Fontes primárias de evidência). O corpo do relatório com data efetiva de 5 de junho não foi re-verificado nesta revisão.
 **Estado do sistema avaliado:** MVP com as três camadas implementadas; guarda *fail-loud* de `legal_framework` mergeada (PR #112, *commit* `05d8a18`).
 
 ---
@@ -267,6 +268,7 @@ Roda **sem modelo** e **sem wire MCP**, in-process, em duas camadas; *exit 0* ss
 | `category_exposure_discriminant.py` | Expor a lista `data_categories` basta para o Classifier classificar certo, ou precisa de demonstração (`canonical_examples`)? | A lista **sozinha bastou** nas categorias medidas, incluindo inferências não-literais (comportamental, localização: 5/5); `policy://examples` **diferido** por suficiência medida, não refutado. 42 chamadas; uma falha de transporte registrada honestamente (não re-rodada) |
 | `pipeline_e2e_eval_lgpd.py` | Caracterização do pipeline completo sobre os PRs sintéticos, K por PR, marcando CONVERGENTE/DIVERGENTE vs GT | **28 corridas.** COMP/VIOL/INDET/SWAP-LGPD/SKIP todas CONVERGENTE; **PROBE-UNGOV 4-vs-1** — a divergente teve CPF→`dados_de_identificacao`→POL-005→`violation_candidate`. É a contaminação do gatilho de detecção |
 | `numero-independente` (`docs/eval/avaliacao-secao-rascunho-...md`) | Por que os seis casos se dividem em núcleo reprodutível vs fronteira de escalação? | Duas causas (não três): (1) contaminação do gatilho CPF, oscilando entre categoria governada/não-governada (INDET, PROBE-UNGOV); (2) trava ADR-0007 do artefato de saída (SWAP). **Lição:** veredito correto **não** certifica classificação exata, e K=2 pode convergir por acaso |
+| `convergence_harness.py` — ablação por estágio (*scratch* da fase de QA, jun/2026; `docs/eval/model-robustness-ablation.md`) | O veredito *gated* depende do modelo? Em qual estágio da pipeline de cinco agentes a capacidade do modelo afeta a estabilidade da decisão? | **Indício direcional, não conclusivo.** Falso-negativo em VIOL-001/POL-005 só com **Classifier-Haiku** (A 1/3, B 2/10); cai a **0/10** quando o Classifier sobe a Sonnet, **com ou sem** Matcher-Sonnet (Config E isola: Classifier-Sonnet + Matcher-Haiku já dá 0/10). Advisory de categoria colapsa 5/10→10/10 ao subir o Classifier. Ótimo observado: **E** (Classifier+Reporter Sonnet, resto Haiku) ao menor custo ($0,230/run). **Régua:** `0/10` ≠ zero — teto IC95% ~30% (regra 3/K); *single-clause*/*single-fixture*; atribuição estágio→modelo 100% nas configs reportadas |
 
 #### 3.3.3 PRs sintéticos (`eval/prs/`) e cláusula proposta (`eval/proposed/`)
 
@@ -464,4 +466,4 @@ uv run python scripts/gate_milestone_b_exercise.py
 # (requer secret ANTHROPIC_API_KEY no repositório)
 ```
 
-**Fontes primárias de evidência (versionadas):** `eval/harness/gate_run.json`; `docs/process/milestoneA.md`, `milestoneB.md`, `camada3-mvp.md`; `docs/eval/pol-007-inversao-sensibilidade.md`, `cpf-exposicao-categorias-suficiencia.md`, `avaliacao-secao-rascunho-numero-independente.md`; `eval/harness/reports/*.report.json`; [CI run 26983111920](https://github.com/paivapereira/lgpd-policy-review/actions/runs/26983111920).
+**Fontes primárias de evidência (versionadas):** `eval/harness/gate_run.json`; `docs/process/milestoneA.md`, `milestoneB.md`, `camada3-mvp.md`; `docs/eval/pol-007-inversao-sensibilidade.md`, `cpf-exposicao-categorias-suficiencia.md`, `avaliacao-secao-rascunho-numero-independente.md`, `model-robustness-ablation.md` (esta com harness e dados crus em *scratch*, não versionados — ver §7 do próprio artefato); `eval/harness/reports/*.report.json`; [CI run 26983111920](https://github.com/paivapereira/lgpd-policy-review/actions/runs/26983111920).

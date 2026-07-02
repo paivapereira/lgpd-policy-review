@@ -1,9 +1,9 @@
 # ADR-0011 — Caracterização Windows-stdio handle inheritance + design da separação de classes de erro nos wrappers git
 
-**Status:** Proposto (aguarda implementação em PR posterior).
+**Status:** Aceita — emendada em 2026-07-02: D1 (hardening `stdin=subprocess.DEVNULL`) implementado no PR #59 e validado no portão da Milestone B; D2 (separação de classes de erro) ratificado como design, com implementação diferida (ver §Emenda — 2026-07-02).
 **Data:** 2026-05-24.
 **Sessão de origem:** Chat #35 (pos-hoc, após merge PR #59 + PR #60).
-**Refs:** PR #59 (squash `<TBD>`); PR #60 (squash `b4ec3fe`); learning-log §"Session #34" e §"Session #35".
+**Refs:** PR #59 (squash `25d8c52`); PR #60 (squash `b4ec3fe`); learning-log §"Session #34" e §"Session #35".
 
 ## Contexto
 
@@ -114,3 +114,10 @@ except GitBinaryUnavailable as exc:
 ## Aprovação
 
 Aceita ao registrar em `docs/adr/ADR-0011.md` via PR `docs/adr-0011`. Implementação em PR técnica subsequente referenciando este ADR como justificativa.
+
+## Emenda — 2026-07-02 (ratificação e atualização de status)
+
+Ratificada pelo autor em 2026-07-02, com status atualizado por eixo (fecha o achado XDOC-15 do relatório de QA, `docs/process/relatorio-qa.md` Quadro 14):
+
+- **D1 — implementado e validado.** O hardening `stdin=subprocess.DEVNULL` está aplicado nos 3 sites de `subprocess.run` em `src/mcp_servers/semgrep_runner/tools.py` (PR #59, squash `25d8c52`) e foi exercitado pelo portão da Milestone B sobre transporte stdio real (`docs/process/milestoneB.md`), com regressão coberta por AS-14/AS-14b.
+- **D2 — decisão ratificada; implementação diferida.** A Opção (b) permanece a abordagem decidida. Verificado em 2026-07-02: as exception classes (`GitOperationTimeout`, `GitBinaryUnavailable`) e os errorCodes (`GIT_OPERATION_TIMEOUT`, `GIT_BINARY_UNAVAILABLE`) ainda não existem em `src/`; a misclassificação `TimeoutExpired → GIT_REF_NOT_FOUND` segue como débito conhecido (relatório de QA §6.2) até a PR técnica dedicada prevista em §Provenance/audit.

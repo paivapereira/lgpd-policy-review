@@ -1,6 +1,6 @@
 # ADR-0013 — Coordinator error taxonomy and termination contract
 
-**Status.** Proposed — draft assembled in Chat 2026-06-07. **Not ratified.** This ADR is mechanical assembly of decisions already materialized in `src/coordinator/errors.py`, `src/coordinator/models.py`, and the coordinator driver, cross-referenced against the specs that authored them; the normative framing requires the author's ratification before acceptance (per the project's ADR-authoring convention — Code assembles and cross-references, the author decides; same posture as ADR-0012 and ADR-0016).
+**Status.** Accepted — ratified by the author on 2026-07-02. Drafted 2026-06-07 in Chat as mechanical assembly of decisions already materialized in `src/coordinator/errors.py`, `src/coordinator/models.py`, and the coordinator driver, cross-referenced against the specs that authored them (per the project's ADR-authoring convention — Code assembles and cross-references, the author decides; same posture as ADR-0012 and ADR-0016). Ratified as drafted: Decision 5 stands as a general principle. Companion edits 1–2 were **not** applied at ratification and remain open follow-ups (see the dated notes below).
 **Date.** 2026-06-07
 **Supersedes.** Nothing.
 **Superseded by.** Nothing.
@@ -89,11 +89,15 @@ Every failure path produces an explicit, typed halt; no path returns a success-s
 
 These materialize loop-closures the decisions above surface. **Both require the author's confirmation of intent before Code applies them.**
 
+> **Ratification note (2026-07-02).** Neither companion edit was applied in the ratification PR — it was kept ADR-status-only per the project's PR-sequencing pattern (`.claude/rules/git-conventions.md`). Edit 1 awaits a dedicated ADR-0012 amendment PR; edit 2's (a)/(b) choice remains with the author.
+
 1. **Close ADR-0012 Deferral B.** Deferral B (the consumer-side `legal_framework` jurisdictional gate) declared its revisit condition as "implementation of `src/coordinator/` (Milestone C)" and named the coordinator code as the future owner (DD-M22, correction H1). The gate now exists as `UnsupportedLegalFramework` / `stage="framework_guard"` in `src/coordinator/errors.py`, raised before the Reporter. Add an `## Amendment scope` block to ADR-0012 recording that Deferral B is resolved by the coordinator-owned guard, with this ADR as the cross-reference — so the deferral does not silently become "abandoned" against ADR-0002's deferral-ledger discipline.
 
 2. **Correct the `framework_guard` citation.** The `UnsupportedLegalFramework` docstring cites ADR-0007 ("the MVP emits Reports for LGPD only (ADR-0007)"). ADR-0007 decides `operation_type=collection` scope and does not decide `legal_framework=LGPD-only`. The governing decision is ADR-0012 Deferral B (the jurisdictional gate) together with ADR-0005 (LGPD as the MVP instance). **Author to confirm:** either (a) the citation is imprecise and should read ADR-0012 Deferral B + ADR-0005, or (b) the LGPD-only-framework decision was never formally taken and should be ratified here as a new sub-decision rather than borrowed from ADR-0007. The choice changes whether this is a one-line docstring fix or an added decision in this ADR.
 
 ## Open points for ratification
+
+> **Resolved at ratification (2026-07-02).** Decision 5 is ratified as drafted — a general principle. Companion edit 2 remains the one open item (see the ratification note in Companion edits). Line-number anchors: moot for the ratification PR (no companion edits materialized).
 
 - **Decision 5 scope.** Whether to state the fail-loud posture as a *general principle* (as drafted) or to keep it as an enumeration of the four materialized instances. The general form is stronger for the defense but commits future error paths to it.
 - **Companion edit 2** (above) — the framework citation question is the one substantive open decision; the rest is assembly of already-materialized facts.

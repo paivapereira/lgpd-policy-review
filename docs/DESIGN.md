@@ -33,7 +33,7 @@ O sistema opera em três planos epistêmicos disjuntos: o Detector raciocina no 
 
 - Responsabilidades e tools permitidas: `docs/architecture-overview.md` §5.2-§5.6.
 - Matriz tools × subagentes: `docs/architecture-overview.md` §5.7.
-- `AgentDefinitions` (`mcp_servers`, `allowed-tools`): a redigir em Fase 2 — ainda não existem.
+- `AgentDefinitions` (`mcp_servers`, `allowed-tools`): implementadas em `src/coordinator/run.py`; specs normativas em `docs/specs/subagents/`.
 
 ## Decisões arquiteturais críticas
 
@@ -43,13 +43,13 @@ O sistema opera em três planos epistêmicos disjuntos: o Detector raciocina no 
 - **ADR-0004** — FastMCP 3.x.
 - **ADR-0005** — Multi-cliente: vocabulários jurisdicionais como dados em `policy/vocabularies/<framework>/`, expostos via resource `policy://vocabularies`. D1+D2 amended 2026-05-22 (`article_source` → `statutory_reference`).
 - **ADR-0006** — Language conventions: tokens canônicos do vocabulário `operation` em inglês; POL-000 segue convenção português; código/comments/identifiers em inglês.
-- **ADR-0007** — Escopo MVP v0.1.0: matching de cláusulas restrito a `operation: collection`; demais operações retornam `not_applicable` com razão explícita.
+- **ADR-0007** — Escopo MVP: matching de cláusulas restrito a `operation: collection`; demais operações retornam `not_applicable` com razão explícita.
 - **ADR-0008** — Task decomposition: 8-12 tasks de 1-3h agrupadas em milestones; verificação two-scope (task-level: function tests + revisão Chat; milestone-level: manual exercise contra RFs). Amended 2026-05-16.
 - **ADR-0009** — Domain boundaries: share functions not types — `_format_law_reference` aceita 5 positional args, não `StatutoryReferenceEntry`.
 - **ADR-0010** — Semgrep install discipline: `uv tool install semgrep==1.163.0`; per-call binary check em `scan_diff` (não startup).
 
 ## Validação global
 
-Sistema integrado completo: rodar `policy-review` (GitHub Action ou CLI local) sobre PR sintética contendo violação plantada (e.g., persistência de CPF sem anonimização), obter Report JSON com finding correto incluindo `clause_id`, `verdict`, `evidence`, e trinque de provenance `(policy_schema_version, policy_version, legal_framework)`.
+Sistema integrado completo: rodar `policy-review` (GitHub Action ou CLI local) sobre PR sintética contendo violação plantada (e.g., coleta de CPF sem base legal declarada), obter Report JSON com finding correto incluindo `clause_id`, `verdict`, `evidence`, e trinque de provenance `(policy_schema_version, policy_version, legal_framework)`.
 
-Teste de generalização: substituir `policy/policy.yaml` e `policy/vocabularies/LGPD/` por versão GDPR equivalente, rerodar a mesma PR, obter Report válido sob framework distinto sem alteração de código do sistema.
+Teste de generalização: substituir `policy/policy.yaml` e `policy/vocabularies/LGPD/` por versão GDPR equivalente e observar a decisão jurisdicional na superfície da tool `check_applicability` (flip de veredito por cláusula), sem alteração de código do sistema. No MVP, o coordenador recusa fail-loud (`UnsupportedLegalFramework`; ADR-0007) emitir Report consolidado sob framework ≠ LGPD, em vez de coagir o rótulo silenciosamente; Report multi-jurisdição é trabalho futuro.

@@ -53,7 +53,7 @@
 
 ### RF-004 — Avaliação de conformidade contra a Política (escopo MVP restrito a coleta)
 
-**Descrição.** Sistema avalia candidatos com `operation_type: collection` (token canônico do vocabulário `policy/vocabularies/<framework>/operation.yaml`, exposto via `policy://vocabularies`) contra cláusulas aplicáveis da Política e emite veredito no conjunto `{compliant, violation_candidate, indeterminate, not_applicable}`. Candidatos com qualquer das outras 21 operações do vocabulário (`use`, `storage`, `disclosure_by_transmission`, `erasure`, `international_transfer`, etc.) retornam `verdict: not_applicable` com razão explícita de escopo MVP — comportamento que preserva a arquitetura para expansão futura sem refatoração. Cláusulas que governam operações fora de `collection` permanecem na Política como audit trail e provenance histórica, mas não disparam matching no MVP v0.1.0.
+**Descrição.** Sistema avalia candidatos com `operation_type: collection` (token canônico do vocabulário `policy/vocabularies/<framework>/operation.yaml`, exposto via `policy://vocabularies`) contra cláusulas aplicáveis da Política e emite veredito no conjunto `{compliant, violation_candidate, indeterminate, not_applicable}`. Candidatos com qualquer das outras 21 operações do vocabulário (`use`, `storage`, `disclosure_by_transmission`, `erasure`, `international_transfer`, etc.) retornam `verdict: not_applicable` com razão explícita de escopo MVP — comportamento que preserva a arquitetura para expansão futura sem refatoração. Cláusulas que governam operações fora de `collection` permanecem na Política como audit trail e provenance histórica, mas não disparam matching no escopo MVP.
 
 **Critério.**
 - **Dado** candidato com `operation_type: collection` e Política contendo cláusula aplicável,
@@ -62,9 +62,9 @@
 
 - **Dado** candidato com `operation_type` em qualquer valor do vocabulário diferente de `collection` (e.g., `use`, `storage`, `disclosure_by_transmission`, `erasure`),
 - **quando** o Matcher avalia,
-- **então** `verdict: not_applicable` com `reason: "operation outside MVP scope (v0.1.0): only 'collection' is evaluated"`, sem invocar matching de cláusulas.
+- **então** `verdict: not_applicable` com `reason: "operation outside MVP scope: only 'collection' is evaluated"`, sem invocar matching de cláusulas.
 
-**Refs.** `architecture-overview.md` §5.5; `docs/specs/policy-reader/canonical.md` §4; ADR-0007 (escopo de operações MVP v0.1.0); ADR-0006 (convenção de tokens em inglês para o vocabulário `operation`).
+**Refs.** `architecture-overview.md` §5.5; `docs/specs/policy-reader/canonical.md` §4; ADR-0007 (escopo de operações MVP); ADR-0006 (convenção de tokens em inglês para o vocabulário `operation`).
 
 ---
 
@@ -90,7 +90,7 @@
 - **quando** o Reporter emite via `emit_report`,
 - **então** a saída é objeto JSON validável contra schema declarado, contendo lista `findings` (possivelmente vazia se Triager decidiu skip ou se nenhum candidato foi detectado), e cada elemento da lista carrega os campos mínimos acima.
 
-**Refs.** `architecture-overview.md` §4.3 (tool `emit_report`), §5.6 (Reporter); `docs/specs/reporter/` (a redigir em Fase 2).
+**Refs.** `architecture-overview.md` §4.3 (tool `emit_report`), §5.6 (Reporter); `docs/specs/subagents/reporter.md`.
 
 ---
 
@@ -137,11 +137,11 @@
 
 ### RNF-001 — Stack tecnológica e reprodutibilidade
 
-**Descrição.** Sistema é implementado em Python 3.12.7 sob gerenciamento `uv`, com FastMCP 3.2.4 para servidores MCP, Pydantic 2.13.4 para validação de esquemas, Semgrep 1.163.0 como motor de detecção sintática, GitHub Actions como runtime CI/CD, e Inspect AI como framework de validação empírica do benchmark sintético. Reprodutibilidade depende de lockfile commitado e ausência de instalações ad hoc.
+**Descrição.** Sistema é implementado em Python 3.12.7 sob gerenciamento `uv`, com FastMCP 3.2.4 para servidores MCP, Pydantic 2.13.4 para validação de esquemas, Semgrep 1.163.0 como motor de detecção sintática, GitHub Actions como runtime CI/CD. Reprodutibilidade depende de lockfile commitado e ausência de instalações ad hoc.
 
 **Critério.** Dependências declaradas em `pyproject.toml` e travadas em `uv.lock` versionado no repositório. Bump de versão major de qualquer dependência crítica exige ADR específico aprovado antes da atualização. ADRs governantes: ADR-0001 (configuração inicial, com amendment 2026-05-21 alinhando Decision 2 à pilha real Semgrep+FastMCP 3.2.4+Pydantic 2.13.4+MCP 1.27.1), ADR-0004 (FastMCP 3.x e ajustes de stack — accepted) e ADR-0010 (Semgrep install discipline).
 
-**Refs.** ADR-0001, ADR-0004 (a redigir); `proposta-tcc2.md` §7.
+**Refs.** ADR-0001, ADR-0004; `proposta-tcc2.md` §7.
 
 ---
 
@@ -155,3 +155,9 @@
 - **então** o GitHub não impede a operação de merge com base no Report; o status check do workflow registra `success` sempre que a execução do sistema completa sem erro terminal, independente do conteúdo dos findings emitidos.
 
 **Refs.** `architecture-overview.md` §6, §7.3; `proposta-tcc2.md` §4.e.
+
+---
+
+## Nota — escopo diferido
+
+Milestone D (trabalho futuro): avaliação de operações além de `collection`; benchmark sintético ampliado sob framework de avaliação dedicado; posting ativo no PR via API, inline comments e bloqueio condicional de merge.

@@ -389,7 +389,7 @@ Revisão de consistência entre a documentação e a realidade atual do reposit�
 | XDOC-13 | BAIXA | `classifier.md`/`reporter.md` | Ordem de campos; kwarg `reason=` inexistente; `tools=[]` já aplicado (marcado pendente) |
 | XDOC-14 | BAIXA | `relatorio` §2.6 Quadro 3 | Linha 03-09/jun marcada "Planejado" mas a data efetiva está dentro da janela e o trabalho está feito (linhas futuras devem permanecer "Planejado") |
 | XDOC-15 | BAIXA | ADR-0011 Status | "Proposto" mas o hardening (PR #59) já embarcou e rodou no gate B |
-| XDOC-16 | BAIXA | `relatorio` AP. D | "ADR-0001 a 0010" — o corpo vai até 0016 (sem 0013) |
+| XDOC-16 | BAIXA | `relatorio` AP. D | "ADR-0001 a 0010" — o corpo vai até 0016 (sem 0013 à data efetiva; ADR-0013 foi redigido depois) |
 
 ### 8.1 Detalhamento dos achados ALTA
 

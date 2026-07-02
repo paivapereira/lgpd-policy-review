@@ -12,7 +12,7 @@ O glossário a seguir define os termos centrais que aparecem ao longo do documen
 
 **Política versionada.** Termo técnico deste trabalho. Refere-se ao artefato declarativo em YAML+Markdown sob `policy/` que codifica obrigações do framework jurisdicional declarado no header (e.g., LGPD) em cláusulas verificáveis, com versionamento explícito do schema, do conteúdo e do framework. Personalizada por cliente. Não confundir com "política de privacidade" no sentido jurídico-empresarial usual — aqui, *Política* (com inicial maiúscula) é sempre esse arquivo estruturado.
 
-**Subagente.** Agente especializado, com responsabilidade delimitada e tools restritas, invocado por um *coordinator* (agente de orquestração). A decomposição multi-agente deste sistema usa cinco subagentes (Triager, Detector, Classifier, Matcher, Reporter) sob um coordinator.
+**Subagente.** Agente especializado, com responsabilidade delimitada e tools restritas, invocado por um *coordinator* (orquestrador — no MVP, um script Python determinístico, não um agente). A decomposição multi-agente deste sistema usa cinco subagentes (Triager, Detector, Classifier, Matcher, Reporter) sob um coordinator.
 
 **Tools (Read, Glob, Grep, Write, Edit, Bash).** Operações nomeadas que um agente pode executar via runtime. *Read* lê arquivo; *Glob* lista arquivos por pattern; *Grep* busca por regex; *Write/Edit* modificam arquivo; *Bash* executa comando shell. Ao longo deste documento, "tool" sempre se refere a essa unidade de capacidade. Tools customizadas (como `emit_report` neste sistema) são definidas pelo próprio projeto.
 
@@ -35,7 +35,7 @@ flowchart TB
     end
 
     subgraph L3[Camada 3 — Integração CI/CD]
-        C[GitHub Action<br/>Inline comments em PR]
+        C[GitHub Action<br/>Report JSON + Step Summary]
     end
 
     M -->|consulta via MCP| P
@@ -47,7 +47,7 @@ flowchart TB
 
 **Camada 2 — Sistema multi-agente.** Um coordinator orquestra cinco subagentes especializados (Triager, Detector, Classifier, Matcher, Reporter) e dois MCP servers (`policy-reader` para acesso à Política, `semgrep-runner` para detecção sintática). Recognizers brasileiros — CPF, CNPJ, CNH, NIS/PIS, título de eleitor, CNS-saúde — compõem o módulo de detecção. A camada inteira é detalhada na seção 5.
 
-**Camada 3 — Integração CI/CD.** GitHub Action que dispara o sistema multi-agente em pull requests, recebe o Report JSON e posta findings como inline comments no PR. Informativa no MVP — não bloqueia merge. Bloqueio condicional fica como evolução pós-validação empírica de taxa de falso-positivo.
+**Camada 3 — Integração CI/CD.** GitHub Action que dispara o sistema multi-agente em pull requests, recebe o Report JSON e posta findings como inline comments no PR — posting ativo via API e inline comments são trabalho futuro (Milestone D); no MVP, a validação roda via `workflow_dispatch` e o job de produção é stub inerte (`if: false`). Informativa no MVP — não bloqueia merge. Bloqueio condicional fica como evolução pós-validação empírica de taxa de falso-positivo.
 
 A separação em camadas não é estética. Ela carrega três compromissos arquiteturais já fechados em decisões anteriores:
 
@@ -68,7 +68,7 @@ flowchart TB
     D --> C[Etapa 2 — Classifier<br/>structured_context por candidato]
     C --> M[Etapa 3 — Matcher<br/>cláusulas + check_applicability]
     M --> R[Etapa 4 — Reporter<br/>agrega Report JSON]
-    R --> GA2[GitHub Action<br/>posta inline comments no PR]
+    R --> GA2[GitHub Action<br/>registra o Report no Step Summary]
 ```
 
 O fluxo é orquestrado por um coordinator que invoca cada subagente em sequência. As etapas 1 a 4 formam uma pipeline determinística: cada etapa consome o output estruturado da anterior. O único gate condicional é a etapa 0.
@@ -81,7 +81,7 @@ O fluxo é orquestrado por um coordinator que invoca cada subagente em sequênci
 
 **Etapa 3 — Matcher.** Para cada candidato classificado, descobre cláusulas candidatas lendo o resource `policy://catalog` (cláusulas `active`) e invoca `check_applicability` por cláusula (mecanismo interino A — check-all; o mecanismo definitivo será a tool `find_clauses_by_applicability`, DD-M3). Cada invocação retorna um dos quatro vereditos: `compliant`, `violation_candidate`, `indeterminate` (com `verification_scope` indicando a dimensão a verificar manualmente), `not_applicable`. Output: lista de findings por candidato.
 
-**Etapa 4 — Reporter.** Agrega os findings em um Report JSON consolidado por execução, com `report_id`, `policy_schema_version`, `policy_version`, `scope`, `summary` por veredito, e `findings` detalhados. Emite via tool customizada `emit_report`. Output: Report JSON entregue ao GitHub Action, que o transforma em inline comments.
+**Etapa 4 — Reporter.** Agrega os findings em um Report JSON consolidado por execução, com `report_id`, `policy_schema_version`, `policy_version`, `scope`, `summary` por veredito, e `findings` detalhados. Emite via tool customizada `emit_report`. Output: Report JSON entregue ao GitHub Action, que o transformará em inline comments (Milestone D).
 
 A pipeline é fixa, não adaptativa. A escolha é deliberada: o problema é cobertura sistemática de pontos de tratamento em um diff (revisão multi-aspecto previsível), não investigação aberta. Cada etapa tem entrada e saída pré-definidas, o que permite testar cada subagente isoladamente, observar custo por etapa, e substituir um subagente sem reescrever os outros.
 
@@ -116,7 +116,7 @@ Detalhes contratuais no spec do `policy-reader` (`docs/specs/policy-reader/canon
 
 ### 4.3 Sistema multi-agente
 
-**Coordinator.** Agente de orquestração. Invoca os cinco subagentes em sequência conforme o fluxo da seção 3, gerencia state entre etapas, decide skip vs proceed após Triager, agrega o Report final via Reporter. Não detecta, classifica nem julga conformidade — só orquestra.
+**Coordinator.** Main loop Python de orquestração — script determinístico, não AgentDefinition (ver `docs/specs/subagents/coordinator.md`). Invoca os cinco subagentes em sequência conforme o fluxo da seção 3, gerencia state entre etapas, decide skip vs proceed após Triager, agrega o Report final via Reporter. Não detecta, classifica nem julga conformidade — só orquestra.
 
 **Cinco subagentes especialistas.** Triager, Detector, Classifier, Matcher, Reporter. Cada um com responsabilidade nominal sem "e" e tools restritas. Detalhamento individual na seção 5.
 
@@ -130,11 +130,11 @@ Detalhes contratuais no spec do `policy-reader` (`docs/specs/policy-reader/canon
 
 ### 4.5 Validação empírica
 
-**Benchmark sintético.** Conjunto de aproximadamente 200 snippets de código construídos para validar o sistema em escala de TCC. Cada snippet vem rotulado com veredito esperado (`compliant`, `violation_candidate`, `indeterminate`, `not_applicable`) por cláusula da Política aplicável. Estrutura, distribuição e protocolo de avaliação ainda não decididos — fica para ADR específico antes da fase de implementação dos subagentes.
+**Benchmark sintético.** Conjunto de aproximadamente 200 snippets de código a construir para validar o sistema em escala de TCC. Cada snippet vem rotulado com veredito esperado (`compliant`, `violation_candidate`, `indeterminate`, `not_applicable`) por cláusula da Política aplicável. Estrutura, distribuição e protocolo de avaliação ficam como trabalho futuro (Milestone D), sob framework de avaliação dedicado; a validação empírica do MVP roda pelo harness em `eval/harness/` (gate Camada-3-MVP).
 
 ### 4.6 Integração CI/CD
 
-**GitHub Action.** Workflow YAML sob `.github/workflows/`. Disparado em eventos de pull request (`opened`, `synchronize`). Invoca o coordinator multi-agente passando o diff do PR e metadados (número do PR, branch, autor). Recebe o Report JSON, transforma findings em inline review comments via API do GitHub. No MVP, não bloqueia merge — postar comments é o único side effect.
+**GitHub Action.** Workflow YAML sob `.github/workflows/`. No MVP, o gate de validação roda via `workflow_dispatch`; o job de produção, disparado em eventos de pull request (`opened`, `synchronize`, `reopened`), está declarado mas inerte (`if: false`) — deferido para Milestone D. Invoca o coordinator multi-agente passando o diff do PR e metadados (número do PR, branch, autor). Recebe o Report JSON; a transformação de findings em inline review comments via API do GitHub é trabalho futuro (Milestone D). No MVP, não bloqueia merge — postar comments é o único side effect previsto.
 
 ## 5. Subagentes detalhados
 
@@ -144,7 +144,7 @@ Cada subagente é definido por três contratos: responsabilidade nominal sem "e"
 
 **Responsabilidade.** Orquestra a sequência de subagentes conforme o fluxo da seção 3.
 
-**Tools permitidas.** Despacho de subagentes (mecanismo de orquestração do runtime), gestão de state entre etapas. Sem acesso direto a Read/Write/Edit/Bash/Grep/Glob no filesystem do PR. Sem acesso direto aos MCP servers `policy-reader` e `semgrep-runner`.
+**Tools permitidas.** Despacho de subagentes por chamadas `query()` sequenciais do `claude-agent-sdk` (pattern A'' — sem Agent tool dispatch), gestão de state entre etapas. Sem acesso direto a Read/Write/Edit/Bash/Grep/Glob no filesystem do PR. Sem acesso direto aos MCP servers `policy-reader` e `semgrep-runner`.
 
 **Input.** Diff do PR, metadados (número do PR, branch, autor), referência da Política a usar (`policy_version`).
 
@@ -241,9 +241,9 @@ Esta seção define o que o sistema *faz* operacionalmente quando encontra uma p
 
 ### 6.1 Posicionamento no MVP: Report informativo
 
-No MVP, o sistema posta findings como inline review comments no PR via GitHub Action. **Não bloqueia merge.** Um PR com cinco `violation_candidate` recebe cinco comments e segue mergeable; cabe ao revisor humano ler, julgar e decidir.
+No MVP, o posicionamento é que o sistema poste findings como inline review comments no PR via GitHub Action (a postagem ativa via API e os inline comments são trabalho futuro — Milestone D). **Não bloqueia merge.** Um PR com cinco `violation_candidate` recebe cinco comments e segue mergeable; cabe ao revisor humano ler, julgar e decidir.
 
-Concretamente, o que aparece no PR:
+Concretamente, o que aparecerá no PR quando a postagem ativa materializar (Milestone D) — no MVP, o Report aparece no Step Summary do workflow:
 
 - **Por candidato com finding não-`compliant`**: inline comment na linha do snippet, citando `policy_clause_ref`, veredito, e — quando aplicável — `verification_scope` ou `requires_human_review`.
 - **No body do PR (review summary)**: contagem agregada por veredito, `report_id` para rastreabilidade, link para o Report JSON completo (artefato da Action).
@@ -255,7 +255,7 @@ A escolha tem três fundamentos, ordenados do mais forte ao mais fraco:
 
 **Honestidade epistêmica sobre o que análise estática consegue concluir.** O sistema verifica conformidade *declarativa*, não efetiva (ver seção 7.1). Análise estática de PR não vê estado runtime, não vê comportamento upstream, não vê configuração de produção. Bloquear merge baseado em verificação que sabidamente é parcial cria autoridade ilegítima — o sistema afirmaria certeza que não tem.
 
-**Escopo de TCC com benchmark sintético.** A validação empírica do MVP é contra ~200 snippets construídos. Taxa de falso-positivo medida nesse conjunto não generaliza automaticamente para codebases reais. Bloquear merge antes de validação em codebase real força a defesa de FPR a virar o tema central — desviando do que o TCC propõe demonstrar (viabilidade do approach Política-versionada-mais-multi-agente). Demonstrar valor primeiro, calibrar segundo.
+**Escopo de TCC com benchmark sintético.** A validação empírica do MVP é contra casos sintéticos construídos (gate Camada-3-MVP); o benchmark ampliado de ~200 snippets fica como trabalho futuro (Milestone D). Taxa de falso-positivo medida nesse conjunto não generaliza automaticamente para codebases reais. Bloquear merge antes de validação em codebase real força a defesa de FPR a virar o tema central — desviando do que o TCC propõe demonstrar (viabilidade do approach Política-versionada-mais-multi-agente). Demonstrar valor primeiro, calibrar segundo.
 
 **Adoção e dinâmica de equipe.** Ferramenta nova que bloqueia merge na primeira semana é desinstalada na segunda. Ferramenta que comenta com transparência e deixa decisão ao humano constrói confiança e produz dado real sobre acurácia antes de assumir gatekeeping.
 

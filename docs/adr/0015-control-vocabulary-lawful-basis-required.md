@@ -1,6 +1,6 @@
 # ADR-0015 — Control vocabulary: `lawful_basis_required` and the sensitivity gate
 
-**Status.** Proposed (draft authored on branch `eval/test-cases-exploratory`, 2026-06-01). **Not ratified.** This ADR is mechanical assembly of empirically-verified engine facts plus a decision space; the normative decision and its juridical rationale require the author's ratification before acceptance (per the project's ADR-authoring convention — Code assembles and cross-references, the author decides).
+**Status.** Accepted — ratified by the author on 2026-07-02 (draft authored on branch `eval/test-cases-exploratory`, 2026-06-01; mechanical assembly of empirically-verified engine facts plus a decision space, per the project's ADR-authoring convention — Code assembles and cross-references, the author decides). Ratified as drafted: Decisions 1–3 stand, including Decision 3's constraint that the token stays out of every loaded vocabulary until the engine change ships. Verified at ratification (2026-07-02): `_verdict_for_control` still has no `lawful_basis_required` branch, so the engine change and the POL-008 migration remain future work (see Migration). The open verdict-wording question in Consequences is resolved by Decision 1 as written (sensitive governed category with a common basis → `violation_candidate`).
 **Date.** 2026-06-01
 **Supersedes.** Nothing.
 **Superseded by.** Nothing.
@@ -22,7 +22,7 @@ Two limitations surface the moment a realistic client Policy is authored (the ev
 
 A third constraint is structural: `control` is a **jurisdictional vocabulary** (ADR-0005), read as data from `control.yaml`; the **verdict semantics** of each token live in engine **code** (`_verdict_for_control`). Adding a token to the YAML is therefore necessary but **not sufficient** — and worse than inert: because the loader does not validate `clause.control` against the vocabulary (`loader.py` cross-validates `lei`, schema version, and clause shape, but not `control`), a clause using an unimplemented control loads fine and then crashes the engine at evaluation time.
 
-## Decision (proposed — to be ratified)
+## Decision (ratified by the author on 2026-07-02)
 
 ### 1. Introduce `lawful_basis_required` as a third `control` token
 

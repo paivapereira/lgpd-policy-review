@@ -214,7 +214,7 @@ Anti-pattern explícito: Reporter **NÃO** recomputa `run_outcome` a partir dos 
 
 **§3.1 — Top-level shape**
 
-*Citado em:* §2.2 do relatório — "Cada achado inclui, no mínimo, localização, regra acionada, categorias de dados, operação identificada, veredito, referência à cláusula avaliada — inclusive nos casos classificados como não aplicáveis — e a correspondente trinca de proveniência (reporter.md §3.1)". *[Nota deste apêndice: o §3.1 especifica o shape top-level do Report; os campos por achado que a frase enumera estão especificados em §3.2 e §3.3, reproduzidos na sequência como complemento necessário à verificação da afirmação.]*
+*Citado em:* §2.2 do relatório — "Cada achado inclui, no mínimo, localização, regra acionada, categorias de dados, operação identificada, veredito, referência à cláusula avaliada — inclusive nos casos classificados como não aplicáveis — e a correspondente trinca de proveniência (reporter.md §3.1–§3.3)". *[A citação abrange o intervalo §3.1–§3.3, reproduzido na sequência: o shape top-level do Report (§3.1), os campos por achado (§3.2) e a trinca de proveniência per-finding (§3.3).]*
 
 *Trecho:*
 
@@ -249,7 +249,7 @@ Payload retornado pelo Reporter via `emit_report` (string JSON serializável; sc
 
 [...]
 
-**§3.2 — Schema do finding individual** *[incluído como complemento à citação de §3.1 — ver nota acima]*
+**§3.2 — Schema do finding individual** *[parte do intervalo citado §3.1–§3.3 — ver backref em §3.1]*
 
 *Trecho:*
 
@@ -293,7 +293,7 @@ Cada finding é discriminated union por `verdict`. Estrutura comum seguida de ca
 }
 ```
 
-**§3.3 — Provenance trinca top-level + per-finding** *[incluído como complemento à citação de §3.1 — ver nota acima]*
+**§3.3 — Provenance trinca top-level + per-finding** *[parte do intervalo citado §3.1–§3.3 — ver backref em §3.1]*
 
 *Trecho:*
 
